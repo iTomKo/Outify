@@ -553,8 +553,8 @@ fun SharedTransitionScope.QueueBottomSheet(
                     onValueChange = { ratio ->
                         viewModel.setRecRatio(ratio)
                     },
-                    minEmoji = "🧊",
-                    maxEmoji = "🔥",
+                    minEmoji = "",
+                    maxEmoji = "",
                     range = 0.05f..1.0f
                 )
             }
