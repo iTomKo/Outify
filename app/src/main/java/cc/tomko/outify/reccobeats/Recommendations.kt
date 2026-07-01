@@ -30,6 +30,7 @@ private data class RecommendationTrack(
         href.substringAfterLast("/")
 }
 
+@Serializable
 data class RecommendationConfig(
     val acousticness: Float? = null,
     val danceability: Float? = null,

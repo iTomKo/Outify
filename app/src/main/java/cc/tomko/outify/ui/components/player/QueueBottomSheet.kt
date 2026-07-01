@@ -2,7 +2,9 @@ package cc.tomko.outify.ui.components.player
 
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
@@ -62,16 +65,20 @@ import androidx.compose.ui.unit.dp
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.reccobeats.RecommendationConfig
+import cc.tomko.outify.ui.components.bottomsheet.EmojiSlider
+import cc.tomko.outify.ui.components.bottomsheet.RecommendationConfigBottomSheet
 import cc.tomko.outify.ui.components.rows.SwipeGesture
 import cc.tomko.outify.ui.components.rows.SwipeableRowWithGestures
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.player.MultiQueueViewModel
+import cc.tomko.outify.ui.viewmodel.player.QueueEntry
 import cc.tomko.outify.ui.viewmodel.player.QueueViewModel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun SharedTransitionScope.QueueBottomSheet(
     sheetState: SheetState,
@@ -81,6 +88,29 @@ fun SharedTransitionScope.QueueBottomSheet(
     onArtistClick: (Artist) -> Unit,
     onArtworkClick: (Track) -> Unit,
 ) {
+    fun interleaveQueueTracks(
+        realTracks: List<QueueEntry>,
+        recsEnabled: Boolean,
+        recTracks: List<Track>,
+        ratio: Float,
+    ): List<QueueEntry> {
+        if (!recsEnabled || recTracks.isEmpty()) return realTracks
+        val step = (1f / ratio).toInt().coerceAtLeast(1)
+        var recId = -1L
+        val iter = recTracks.iterator()
+        val result = mutableListOf<QueueEntry>()
+        var count = 0
+        for (qt in realTracks) {
+            result.add(qt)
+            count++
+            if (count >= step && iter.hasNext()) {
+                result.add(QueueEntry(recId--, iter.next(), isRecommendation = true))
+                count = 0
+            }
+        }
+        return result
+    }
+
     val hapticFeedback = LocalHapticFeedback.current
     val queueState by viewModel.queueState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -101,28 +131,47 @@ fun SharedTransitionScope.QueueBottomSheet(
     var showSwitcher by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
 
+    val showRecommendations by viewModel.queueRecommendationsEnabled.collectAsState()
+    val recommendationRatio by viewModel.queueRecommendationRatio.collectAsState()
+    val recommendationConfig by viewModel.queueRecommendationConfig.collectAsState()
+
+    val recommendationTracks by viewModel.recommendationTracks.collectAsState()
+
+    var showConfigSheet by remember { mutableStateOf(false) }
+
     LaunchedEffect(viewModel, activeQueueId) {
         viewModel.loadQueue(currentTrack)
     }
 
-    var localTracks by remember { mutableStateOf(queueState.tracks) }
     var isDragging by remember { mutableStateOf(false) }
 
+    var displayTracks by remember {
+        val initialReal = queueState.tracks.filter { !it.isRecommendation }
+        mutableStateOf(
+            interleaveQueueTracks(initialReal, showRecommendations, recommendationTracks, recommendationRatio)
+        )
+    }
+
     LaunchedEffect(queueState.tracks) {
-        if (!isDragging) localTracks = queueState.tracks
+        if (!isDragging) {
+            val realFromState = queueState.tracks.filter { !it.isRecommendation }
+            displayTracks = interleaveQueueTracks(realFromState, showRecommendations, recommendationTracks, recommendationRatio)
+        }
+    }
+
+    LaunchedEffect(showRecommendations, recommendationTracks, recommendationRatio) {
+        if (!isDragging) {
+            val real = displayTracks.filter { !it.isRecommendation }
+            displayTracks = interleaveQueueTracks(real, showRecommendations, recommendationTracks, recommendationRatio)
+        }
     }
 
     val listState = rememberLazyListState()
     val reorderState = rememberReorderableLazyListState(
         onMove = { from, to ->
-            val fromIndex = from.index - 1
-            val toIndex = to.index - 1
-            if (fromIndex >= 0 && toIndex >= 0 &&
-                fromIndex in localTracks.indices &&
-                toIndex in localTracks.indices
-            ) {
-                localTracks = localTracks.toMutableList().apply {
-                    add(toIndex, removeAt(fromIndex))
+            if (from.index in displayTracks.indices && to.index in displayTracks.indices) {
+                displayTracks = displayTracks.toMutableList().apply {
+                    add(to.index, removeAt(from.index))
                 }
                 isDragging = true
             }
@@ -143,9 +192,11 @@ fun SharedTransitionScope.QueueBottomSheet(
             .distinctUntilChanged()
             .collect { indices ->
                 indices?.let { (first, last) ->
+                    val queueFirst = displayTracks.take(first).count { !it.isRecommendation }
+                    val queueLast = displayTracks.take(last).count { !it.isRecommendation } - 1
                     viewModel.onScrollPositionChanged(
-                        maxOf(0, first - 1),
-                        maxOf(0, last - 1),
+                        maxOf(0, queueFirst),
+                        maxOf(0, queueLast),
                         currentTrack
                     )
                 }
@@ -154,7 +205,9 @@ fun SharedTransitionScope.QueueBottomSheet(
 
     LaunchedEffect(queueState.tracks, queueState.currentIndex) {
         if (queueState.tracks.isNotEmpty() && !queueState.isLoading) {
-            listState.scrollToItem(queueState.currentIndex.coerceIn(queueState.tracks.indices) + 1)
+            val scrollIndex = displayTracks.indexOfFirst { it.track.uri == currentTrack?.uri }
+                .coerceAtLeast(0)
+            listState.scrollToItem(scrollIndex)
         }
     }
 
@@ -209,6 +262,28 @@ fun SharedTransitionScope.QueueBottomSheet(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(MaterialTheme.shapes.small)
+                ) {
+                    IconButton(onClick = {
+                        if (showRecommendations) {
+                            viewModel.setRecsEnabled(false)
+                        } else {
+                            showConfigSheet = true
+                        }
+                    }) {
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "Enable recommendations",
+                            tint = if (showRecommendations)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -295,120 +370,112 @@ fun SharedTransitionScope.QueueBottomSheet(
                             .weight(1f),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        // Spacer item to preserve index offset for reorder
-                        item { Spacer(modifier = Modifier.height(0.dp)) }
+                        val currentTrackUri = currentTrack?.uri
+                        for (entry in displayTracks) {
+                            val isRec = entry.isRecommendation
+                            val isCurrent = entry.track.uri == currentTrackUri
 
-                        items(
-                            items = localTracks,
-                            key = { it.id },
-                            contentType = { "track" },
-                        ) { item ->
-                            val isCurrentTrack = remember(currentTrack, item.track.uri) {
-                                currentTrack?.uri == item.track.uri
-                            }
-
-                            ReorderableItem(reorderState, key = item.id) { isDraggingItem ->
-                                val elevation by animateDpAsState(
-                                    targetValue = if (isDraggingItem) 4.dp else 0.dp,
-                                    label = "elevation"
-                                )
-
-                                Surface(
-                                    shadowElevation = elevation,
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = when {
-                                        isDraggingItem -> MaterialTheme.colorScheme.surfaceVariant
-                                        isCurrentTrack -> MaterialTheme.colorScheme.primaryContainer.copy(
-                                            alpha = 0.5f
-                                        )
-
-                                        else -> Color.Transparent
-                                    },
-                                    modifier = Modifier.animateItem(),
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
+                            item(key = entry.id) {
+                                ReorderableItem(reorderState, key = entry.id) { isDraggingItem ->
+                                    val elevation by animateDpAsState(
+                                        targetValue = if (isDraggingItem) 4.dp else 0.dp,
+                                        label = "elevation"
+                                    )
+                                    Surface(
+                                        shadowElevation = elevation,
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = when {
+                                            isDraggingItem -> MaterialTheme.colorScheme.surfaceVariant
+                                            isCurrent -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                                            isRec -> MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
+                                            else -> Color.Transparent
+                                        },
+                                        modifier = Modifier.animateItem(),
                                     ) {
-                                        IconButton(
-                                            modifier = Modifier.draggableHandle(
-                                                onDragStarted = {
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    isDragging = true
-                                                },
-                                                onDragStopped = {
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    isDragging = false
-
-                                                    viewModel.setQueueEntries(localTracks)
-                                                    viewModel.debouncedSaveToRepository(localTracks)
-                                                }
-                                            ),
-                                            onClick = {}
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(
-                                                Icons.Default.DragIndicator,
-                                                contentDescription = "Reorder",
-                                                tint = if (isCurrentTrack)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                            IconButton(
+                                                modifier = Modifier.draggableHandle(
+                                                    onDragStarted = {
+                                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        isDragging = true
+                                                    },
+                                                        onDragStopped = {
+                                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                            isDragging = false
+                                                            val real = displayTracks.filter { !it.isRecommendation }
+                                                            viewModel.setQueueEntries(real)
+                                                            viewModel.debouncedSaveToRepository(real)
+                                                        }
+                                                ),
+                                                onClick = {}
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.DragIndicator,
+                                                    contentDescription = "Reorder",
+                                                    tint = if (isCurrent) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+
+                                            val playNextGesture = listOf(
+                                                SwipeGesture(
+                                                    thresholdFraction = 0.25f,
+                                                    icon = { Icon(Icons.Default.MoveUp, contentDescription = null) },
+                                                    onTrigger = {
+                                                        val currentUri = currentTrack?.uri
+                                                        val mutable = displayTracks.toMutableList()
+                                                        mutable.removeAll { it.track.uri == entry.track.uri && it.isRecommendation == entry.isRecommendation }
+                                                        val currentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                        val insertAt = (currentIdx + 1).coerceIn(0, mutable.size)
+                                                        mutable.add(insertAt, QueueEntry(entry.id, entry.track, entry.isRecommendation))
+                                                        val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                            .coerceAtLeast(0)
+                                                        viewModel.setQueueEntries(mutable, newCurrentIdx)
+                                                        viewModel.debouncedSaveToRepository(mutable)
+                                                    }
+                                                ),
+                                            )
+                                            val removeFromQueueGesture = listOf(
+                                                SwipeGesture(
+                                                    thresholdFraction = 0.25f,
+                                                    icon = { Icon(Icons.Default.RemoveCircle, contentDescription = null) },
+                                                    onTrigger = {
+                                                        val currentUri = currentTrack?.uri
+                                                        val mutable = displayTracks.toMutableList()
+                                                        mutable.removeAll { it.track.uri == entry.track.uri && it.isRecommendation == entry.isRecommendation }
+                                                        val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                            .coerceAtLeast(0)
+                                                        viewModel.setQueueEntries(mutable, newCurrentIdx)
+                                                        viewModel.debouncedSaveToRepository(mutable)
+                                                    }
+                                                )
+                                            )
+
+                                            SwipeableTrackRowConfigured(
+                                                startGestures = if(flipQueueGestures) removeFromQueueGesture else playNextGesture,
+                                                endGestures = if(flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                track = entry.track,
+                                                currentTrack = currentTrack,
+                                                isPlaybackPlaying = isPlaybackPlaying,
+                                                onRowClick = { },
+                                                isLiked = entry.track.id in likedTracksId,
+                                                onArtistClick = { onArtistClick(it) },
+                                                onArtworkClick = { onArtworkClick(entry.track) },
+                                                trailingContent = if (isRec) {
+                                                    {
+                                                        Icon(
+                                                            Icons.Default.AutoAwesome,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.padding(end = 8.dp),
+                                                            tint = MaterialTheme.colorScheme.tertiary,
+                                                        )
+                                                    }
+                                                } else null
                                             )
                                         }
-
-                                        val playNextGesture = listOf(
-                                            SwipeGesture(
-                                                thresholdFraction = 0.25f,
-                                                icon = { Icon(Icons.Default.MoveUp, contentDescription = null) },
-                                                onTrigger = {
-                                                    val currentUri = currentTrack?.uri
-                                                    val mutable = localTracks.toMutableList()
-                                                    mutable.remove(item)
-                                                    val currentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
-                                                    val insertAt = (currentIdx + 1).coerceIn(0, mutable.size)
-                                                    mutable.add(insertAt, item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
-                                                        .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(mutable, newCurrentIdx)
-                                                    viewModel.debouncedSaveToRepository(mutable)
-                                                }
-                                            ),
-                                        )
-                                        val removeFromQueueGesture = listOf(
-                                            SwipeGesture(
-                                                thresholdFraction = 0.25f,
-                                                icon = { Icon(Icons.Default.RemoveCircle, contentDescription = null) },
-                                                onTrigger = {
-                                                    val currentUri = currentTrack?.uri
-                                                    val mutable = localTracks.toMutableList()
-                                                    mutable.remove(item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
-                                                        .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(mutable, newCurrentIdx)
-                                                    viewModel.debouncedSaveToRepository(mutable)
-                                                }
-                                            )
-                                        )
-
-                                        SwipeableTrackRowConfigured(
-                                            startGestures = if(flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                            endGestures = if(flipQueueGestures) playNextGesture else removeFromQueueGesture,
-                                            track = item.track,
-                                            currentTrack = currentTrack,
-                                            isPlaybackPlaying = isPlaybackPlaying,
-                                            onRowClick = remember(item.track.uri) {
-                                                {
-//                                                    spirc.load(album.uri, item.track.uri)
-                                                }
-                                            },
-                                            isLiked = item.track.id in likedTracksId,
-                                            onArtistClick = { onArtistClick(it) },
-                                            onArtworkClick = { onArtworkClick(item.track) }
-                                        )
                                     }
                                 }
                             }
@@ -450,6 +517,47 @@ fun SharedTransitionScope.QueueBottomSheet(
                 showSaveDialog = false
             },
             onDismiss = { showSaveDialog = false },
+        )
+    }
+
+    if (showConfigSheet) {
+        val seeds = remember(queueState.tracks, queueState.currentIndex, currentTrack) {
+            val range = 0..5
+
+            range.mapNotNull { offset ->
+                when (offset) {
+                    0 -> currentTrack
+                    else -> queueState.tracks.getOrNull(queueState.currentIndex + offset)?.track
+                }
+            }
+        }
+
+        RecommendationConfigBottomSheet(
+            onDismiss = { showConfigSheet = false },
+            onSubmit = { config ->
+                viewModel.setRecConfig(config)
+                viewModel.setRecsEnabled(true)
+                val seedUris = seeds.mapNotNull { track ->
+                    track.uri.substringAfter("spotify:track:").ifEmpty { null }
+                }
+                if (seedUris.isNotEmpty()) {
+                    viewModel.fetchQueueRecommendations(seedUris, config)
+                }
+                showConfigSheet = false
+            },
+            seeds = seeds,
+            extraContent = {
+                EmojiSlider(
+                    text = "Recommendation Ratio",
+                    value = recommendationRatio,
+                    onValueChange = { ratio ->
+                        viewModel.setRecRatio(ratio)
+                    },
+                    minEmoji = "🧊",
+                    maxEmoji = "🔥",
+                    range = 0.05f..1.0f
+                )
+            }
         )
     }
 }

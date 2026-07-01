@@ -10,6 +10,8 @@ import cc.tomko.outify.data.queue.SavedQueue
 import cc.tomko.outify.data.repository.SavedQueueRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
+import cc.tomko.outify.reccobeats.RecommendationConfig
+import cc.tomko.outify.reccobeats.Recommendations
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -30,7 +33,11 @@ import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
 
-data class QueueEntry(val id: Long, val track: Track)
+data class QueueEntry(
+    val id: Long,
+    val track: Track,
+    val isRecommendation: Boolean = false,
+)
 
 @HiltViewModel
 class QueueViewModel @Inject constructor(
@@ -41,7 +48,30 @@ class QueueViewModel @Inject constructor(
     private val likedDao: LikedDao,
     private val savedQueueRepository: SavedQueueRepository,
     private val settingsRepository: SettingsRepository,
+    private val recommendations: Recommendations,
 ) : ViewModel() {
+
+    private val _recommendationTracks = MutableStateFlow<List<Track>>(emptyList())
+    val recommendationTracks: StateFlow<List<Track>> = _recommendationTracks.asStateFlow()
+
+    val queueRecommendationsEnabled: StateFlow<Boolean> = settingsRepository.queueRecommendationsEnabled
+        .stateIn(viewModelScope, SharingStarted.Lazily, false)
+    val queueRecommendationRatio: StateFlow<Float> = settingsRepository.queueRecommendationRatio
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0.3f)
+    val queueRecommendationConfig: StateFlow<RecommendationConfig?> = settingsRepository.queueRecommendationConfig
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    fun setRecsEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setQueueRecommendationsEnabled(enabled) }
+    }
+
+    fun setRecRatio(ratio: Float) {
+        viewModelScope.launch { settingsRepository.setQueueRecommendationRatio(ratio) }
+    }
+
+    fun setRecConfig(config: RecommendationConfig?) {
+        viewModelScope.launch { settingsRepository.setQueueRecommendationConfig(config) }
+    }
 
     val currentTrack: StateFlow<Track?> = playbackStateHolder.state
         .map { it.currentTrack }
@@ -282,9 +312,13 @@ class QueueViewModel @Inject constructor(
 
     private suspend fun syncQueueToSpirc() = withContext(Dispatchers.IO) {
         val state = _queueState.value
+        val realTracks = state.tracks.filter { !it.isRecommendation }
 
-        val loadedPreviousUris = state.tracks.take(state.currentIndex).map { it.track.uri }
-        val loadedNextUris = state.tracks.drop(state.currentIndex + 1).map { it.track.uri }
+        val currentRealIndex = realTracks.indexOfFirst { it.id == state.tracks.getOrNull(state.currentIndex)?.id }
+            .coerceAtLeast(0)
+
+        val loadedPreviousUris = realTracks.take(currentRealIndex).map { it.track.uri }
+        val loadedNextUris = realTracks.drop(currentRealIndex + 1).map { it.track.uri }
 
         val newPreviousUris = unloadedPreviousHead + loadedPreviousUris
         val newNextUris = loadedNextUris + unloadedNextTail
@@ -308,22 +342,26 @@ class QueueViewModel @Inject constructor(
             _queueState.value = QueueState()
             return
         }
-        val safeIndex = startIndex.coerceIn(0, entries.size - 1)
+        val realEntries = entries.filter { !it.isRecommendation }
+        val safeIndex = startIndex.coerceIn(0, realEntries.size - 1)
+        val realCurrentIndex = realEntries.indexOfFirst { it.track.uri == currentTrackEntry?.track?.uri }
+            .coerceAtLeast(0)
         _queueState.value = QueueState(
-            tracks = entries,
-            currentIndex = safeIndex,
-            totalSize = unloadedPreviousHead.size + entries.size + unloadedNextTail.size,
-            loadedRange = unloadedPreviousHead.size until (unloadedPreviousHead.size + entries.size)
+            tracks = realEntries,
+            currentIndex = realCurrentIndex,
+            totalSize = unloadedPreviousHead.size + realEntries.size + unloadedNextTail.size,
+            loadedRange = unloadedPreviousHead.size until (unloadedPreviousHead.size + realEntries.size)
         )
         viewModelScope.launch { syncQueueToSpirc() }
     }
 
     fun debouncedSaveToRepository(entries: List<QueueEntry>) {
         viewModelScope.launch {
+            val realUris = entries.filter { !it.isRecommendation }.map { it.track.uri }
             val queue = SavedQueue(
                 id = "current",
                 name = "Current Queue",
-                trackUris = entries.map { it.track.uri },
+                trackUris = realUris,
                 currentIndex = _queueState.value.currentIndex
             )
             savedQueueRepository.debouncedSaveQueue(queue)
@@ -343,6 +381,39 @@ class QueueViewModel @Inject constructor(
             json.decodeFromString<List<String>>(spirc.nextTracks())
         } catch (e: Exception) {
             emptyList()
+        }
+    }
+
+    fun fetchQueueRecommendations(seedUris: List<String>, config: RecommendationConfig) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val allIds = mutableListOf<String>()
+            val idCounts = mutableMapOf<String, Int>()
+
+            for (uri in seedUris.take(5)) {
+                val seedId = uri.substringAfter("spotify:track:").ifEmpty { uri }
+                val ids = recommendations.fetchRecommendations(50, arrayOf(seedId), config)
+                for (id in ids) {
+                    idCounts[id] = (idCounts[id] ?: 0) + 1
+                }
+                allIds.addAll(ids)
+            }
+
+            val sortedIds = allIds.distinct()
+                .sortedByDescending { idCounts[it] ?: 0 }
+                .take(50)
+
+            if (sortedIds.isEmpty()) {
+                _recommendationTracks.value = emptyList()
+                return@launch
+            }
+
+            val uris = sortedIds.map { "spotify:track:$it" }
+            val tracks = try {
+                metadata.getTrackMetadata(uris)
+            } catch (t: Throwable) {
+                emptyList()
+            }
+            _recommendationTracks.value = tracks
         }
     }
 

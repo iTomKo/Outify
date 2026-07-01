@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.data.setting.GestureAction
+import cc.tomko.outify.reccobeats.RecommendationConfig
 import cc.tomko.outify.data.setting.GestureSetting
 import cc.tomko.outify.data.setting.GestureTrigger
 import cc.tomko.outify.data.setting.Side
@@ -89,6 +90,9 @@ class SettingsRepository @Inject constructor(
         object Queue {
             val QUEUES = stringPreferencesKey("saved_queues_v1")
             val ACTIVE_ID = stringPreferencesKey("active_queue_id")
+            val RECOMMENDATIONS_ENABLED = booleanPreferencesKey("queue_recommendations_enabled")
+            val RECOMMENDATION_RATIO = floatPreferencesKey("queue_recommendation_ratio")
+            val RECOMMENDATION_CONFIG = stringPreferencesKey("queue_recommendation_config")
         }
 
         object Playback {
@@ -498,6 +502,42 @@ class SettingsRepository @Inject constructor(
 
     val clientId: Flow<String?> = dataStore.data.map { it[Keys.CLIENT_ID] }
     val clientSecret: Flow<String?> = dataStore.data.map { it[Keys.CLIENT_SECRET] }
+
+    val queueRecommendationsEnabled: Flow<Boolean> = dataStore.data.map {
+        it[Keys.Queue.RECOMMENDATIONS_ENABLED] ?: false
+    }
+
+    val queueRecommendationRatio: Flow<Float> = dataStore.data.map {
+        it[Keys.Queue.RECOMMENDATION_RATIO] ?: 0.3f
+    }
+
+    val queueRecommendationConfig: Flow<RecommendationConfig?> = dataStore.data.map { prefs ->
+        decodeRecommendationConfig(prefs[Keys.Queue.RECOMMENDATION_CONFIG])
+    }
+
+    suspend fun setQueueRecommendationsEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.Queue.RECOMMENDATIONS_ENABLED] = enabled }
+    }
+
+    suspend fun setQueueRecommendationRatio(ratio: Float) {
+        dataStore.edit { it[Keys.Queue.RECOMMENDATION_RATIO] = ratio }
+    }
+
+    suspend fun setQueueRecommendationConfig(config: RecommendationConfig?) {
+        dataStore.edit { prefs ->
+            if (config == null) prefs.remove(Keys.Queue.RECOMMENDATION_CONFIG)
+            else prefs[Keys.Queue.RECOMMENDATION_CONFIG] = json.encodeToString(config)
+        }
+    }
+
+    private fun decodeRecommendationConfig(serialized: String?): RecommendationConfig? {
+        if (serialized.isNullOrBlank()) return null
+        return try {
+            json.decodeFromString(serialized)
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     suspend fun setClientId(id: String?) {
         dataStore.edit { prefs ->
