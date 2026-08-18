@@ -389,6 +389,9 @@ class MainActivity : ComponentActivity() {
                                                     expansionFractionProvider = { progress },
                                                     listState = playerListState,
                                                     paddingValues = innerPadding,
+                                                    onShowQueue = {
+                                                        sheetState.show()
+                                                    },
                                                     modifier = Modifier
                                                         .fillMaxSize()
                                                 )

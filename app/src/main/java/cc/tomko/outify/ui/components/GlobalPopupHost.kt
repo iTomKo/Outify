@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,7 +37,11 @@ import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.CreatePlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
+import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import cc.tomko.outify.ui.components.bottomsheet.LyricLine
+import cc.tomko.outify.ui.components.bottomsheet.LyricsBottomSheet
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,6 +127,34 @@ fun GlobalPopupHost(
                             GlobalPopupController.show(PopupSpec.AddToWidgetInfo(popup.track))
                         }
                     }
+                )
+            }
+
+            is PopupSpec.Lyrics -> {
+                val lyricsViewModel: LyricsViewModel = hiltViewModel()
+                val lyrics by lyricsViewModel.lyrics.collectAsState()
+                val positionMs by lyricsViewModel.positionMs.collectAsState()
+                val isCurrentTrack by lyricsViewModel.isCurrentTrack.collectAsState()
+                val isPlaying by lyricsViewModel.isPlaying.collectAsState()
+                val durationMs by lyricsViewModel.durationMs.collectAsState()
+
+                LaunchedEffect(popup.id) {
+                    lyricsViewModel.loadLyrics(popup.track)
+                }
+
+                LyricsBottomSheet(
+                    onDismissRequest = { GlobalPopupController.dismiss(popup.id) },
+                    track = popup.track,
+                    lyrics = lyrics.map { LyricLine(it.timeMs, it.text) },
+                    currentPositionMs = positionMs,
+                    isCurrentTrack = isCurrentTrack,
+                    isPlaying = isPlaying,
+                    durationMs = durationMs,
+                    onPlayPause = { lyricsViewModel.playPause() },
+                    onSeek = { lyricsViewModel.seekTo(it) },
+                    onSeekToTimestamp = { timestamp ->
+                        lyricsViewModel.seekTo(timestamp)
+                    },
                 )
             }
 

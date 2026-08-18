@@ -40,6 +40,11 @@ sealed class PopupSpec(
         override val id: String = UUID.randomUUID().toString(),
     ) : PopupSpec(id)
 
+    data class Lyrics(
+        val track: Track,
+        override val id: String = UUID.randomUUID().toString(),
+    ) : PopupSpec(id)
+
     data class TrackRecommendation(
         val seed: List<Track> = emptyList(),
 

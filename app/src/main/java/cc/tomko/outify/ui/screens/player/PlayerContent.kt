@@ -87,6 +87,8 @@ import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
+import cc.tomko.outify.ui.GlobalPopupController
+import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.AutoScrollingTextOnDemand
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.components.ToggleSegmentButton
@@ -100,6 +102,7 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 fun PlayerContent(
    viewModel: PlayerViewModel,
    expansionFractionProvider: () -> Float,
+   onShowQueue: () -> Unit,
    listState: LazyListState,
    paddingValues: PaddingValues,
    modifier: Modifier = Modifier,
@@ -150,9 +153,9 @@ fun PlayerContent(
 
     val moreActions: @Composable () -> Unit = {
         MoreActionsSection(
-            onQueueClick = {},
-            onLyricsClick = {},
-            onMoreClick = {}
+            onQueueClick = { onShowQueue() },
+            onLyricsClick = { GlobalPopupController.show(PopupSpec.Lyrics(track!!)) },
+            onMoreClick = { GlobalPopupController.show(PopupSpec.TrackInfo(track!!, isLiked = isFavorite)) }
         )
     }
 
@@ -431,7 +434,7 @@ private fun PlayerControlsContent(
                     inactiveColor = inactiveColor,
                     inactiveContentColor = inactiveContentColor,
                     onClick = onFavoriteToggle,
-                    imageVector = if (isFavorite) MyIcons.BrokenHeart else Icons.Default.Favorite,
+                    imageVector = Icons.Default.Favorite,
                     contentDesc = "Favorite"
                 )
             }
@@ -854,7 +857,8 @@ private fun FullPlayerPortraitContent(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 24.dp, vertical = 36.dp),
+            .padding(horizontal = 24.dp, vertical = 36.dp)
+            .padding(top = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
