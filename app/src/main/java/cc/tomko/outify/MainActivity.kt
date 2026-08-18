@@ -86,6 +86,7 @@ import cc.tomko.outify.ui.components.player.rememberPlayerSheetState
 import cc.tomko.outify.ui.components.player.rememberQueueBottomSheetState
 import cc.tomko.outify.ui.notifications.InAppNotificationHost
 import cc.tomko.outify.ui.screens.PlayerScreen
+import cc.tomko.outify.ui.screens.player.PlayerContent
 import cc.tomko.outify.ui.viewmodel.MainViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
@@ -383,30 +384,38 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             },
                                             fullContent = { progress ->
-                                                PlayerScreen(
+                                                PlayerContent(
                                                     viewModel = playerViewModel,
+                                                    expansionFractionProvider = { progress },
                                                     listState = playerListState,
-                                                    onArtistClick = {
-                                                        scope.launch {
-                                                            playerSheetState.collapse()
-                                                        }
-                                                        backStack.add(Route.ArtistScreen(it.uri))
-                                                    },
-                                                    onMoreOptions = {
-                                                        val isLiked = playerViewModel.isLiked.value
-                                                        GlobalPopupController.show(
-                                                            PopupSpec.TrackInfo(
-                                                                currentTrack!!,
-                                                                action = {
-                                                                    scope.launch {
-                                                                        playerSheetState.collapse()
-                                                                    }
-                                                                },
-                                                                isLiked = isLiked
-                                                            )
-                                                        )
-                                                    }
+                                                    paddingValues = innerPadding,
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
                                                 )
+//                                                PlayerScreen(
+//                                                    viewModel = playerViewModel,
+//                                                    listState = playerListState,
+//                                                    onArtistClick = {
+//                                                        scope.launch {
+//                                                            playerSheetState.collapse()
+//                                                        }
+//                                                        backStack.add(Route.ArtistScreen(it.uri))
+//                                                    },
+//                                                    onMoreOptions = {
+//                                                        val isLiked = playerViewModel.isLiked.value
+//                                                        GlobalPopupController.show(
+//                                                            PopupSpec.TrackInfo(
+//                                                                currentTrack!!,
+//                                                                action = {
+//                                                                    scope.launch {
+//                                                                        playerSheetState.collapse()
+//                                                                    }
+//                                                                },
+//                                                                isLiked = isLiked
+//                                                            )
+//                                                        )
+//                                                    }
+//                                                )
                                             }
                                         )
                                     }
