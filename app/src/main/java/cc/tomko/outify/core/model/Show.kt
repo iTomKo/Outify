@@ -47,3 +47,6 @@ fun Show.toSpotifyUri(): SpotifyUri =
 
 fun Show.toOutifyUri(): OutifyUri =
     OutifyUri.fromUriString(uri)
+
+fun Show.getCover(size: CoverSize): Cover? =
+    covers.firstOrNull { it.size == size.asInt() }

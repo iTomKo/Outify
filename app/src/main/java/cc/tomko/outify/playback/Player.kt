@@ -15,6 +15,7 @@ import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toPlayableAudio
@@ -66,16 +67,30 @@ class Player @Inject constructor(
 
             override fun onTrackChange(spotify_uri: String, json_str: String) {
                 scope.launch {
-                    // TODO: Add support for Episodes -> PlayableAudio
-                    val track: Track = try {
-                        json.decodeFromString(json_str)
-                    } catch (e: Exception) {
-                        Log.w("Player", "Failed to decode track JSON", e)
-                        return@launch
+                    val audio = if (spotify_uri.startsWith("spotify:episode:")) {
+                        val episode: Episode = try {
+                            json.decodeFromString(json_str)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode episode JSON", e)
+                            return@launch
+                        }
+                        episode.toPlayableAudio()
+                    } else {
+                        val track: Track = try {
+                            json.decodeFromString(json_str)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode track JSON", e)
+                            return@launch
+                        }
+                        track.toPlayableAudio()
                     }
-                    stateHolder.setAudio(track.toPlayableAudio())
+                    stateHolder.setAudio(audio)
 
-                    val cover = track.album?.getCover(CoverSize.LARGE)
+                    val cover = if (audio.isEpisode()) {
+                        audio.covers.firstOrNull()
+                    } else {
+                        audio.sourceTrack?.album?.getCover(CoverSize.LARGE)
+                    }
                     val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
                     currentArtworkUri = artworkUrl
 
@@ -133,7 +148,7 @@ class Player @Inject constructor(
                         val (loadedBitmap, loadedBytes) = loadResult
 
                         val currentTrackId = stateHolder.state.value.currentAudio?.id
-                        if (currentTrackId != track.id) {
+                        if (currentTrackId != audio.id) {
                             return@launch
                         }
 
@@ -150,9 +165,30 @@ class Player @Inject constructor(
             override fun onPositionUpdate(
                 spotify_uri: String,
                 position_ms: Long,
+                json_raw: String
             ) {
                 scope.launch {
                     stateHolder.seekTo(position_ms.toDuration(DurationUnit.MILLISECONDS))
+
+                    val currentAudio = stateHolder.state.value.currentAudio
+                    if (spotify_uri.startsWith("spotify:episode:") && currentAudio?.isEpisode() != true) {
+                        val episode: Episode? = try {
+                            json.decodeFromString(json_raw)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode episode JSON in position update", e)
+                            null
+                        }
+                        episode?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+                    } else if (spotify_uri.startsWith("spotify:track:") && currentAudio?.isTrack() != true) {
+                        val track: Track? = try {
+                            json.decodeFromString(json_raw)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode track JSON in position update", e)
+                            null
+                        }
+                        track?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+                    }
+
                     invalidateState()
                 }
             }
@@ -222,7 +258,7 @@ class Player @Inject constructor(
             .setTitle(audio.name)
             .setDisplayTitle(audio.name)
             .setArtist(subtitle)
-            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+            .setMediaType(if (audio.isEpisode()) MediaMetadata.MEDIA_TYPE_PODCAST else MediaMetadata.MEDIA_TYPE_MUSIC)
             .apply {
                 currentArtworkUri?.let { setArtworkUri(it.toUri()) }
                 currentArtworkBytes?.let { bytes ->

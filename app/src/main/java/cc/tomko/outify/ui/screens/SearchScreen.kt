@@ -95,6 +95,7 @@ import cc.tomko.outify.ui.components.navigation.Route.TrackScreen
 import cc.tomko.outify.ui.components.rows.AlbumRow
 import cc.tomko.outify.ui.components.rows.ArtistRow
 import cc.tomko.outify.ui.components.rows.PlaylistRow
+import cc.tomko.outify.ui.components.rows.ShowRow
 import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.SearchUiModel
@@ -441,12 +442,15 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.ShowItem -> {
                             val show = item.show
-                            SwipeableEpisodeRowConfigured(
-                                episode = null,
-                                isLoaded = false,
+                            ShowRow(
+                                show = show,
                                 onRowClick = {
                                     spirc.load(show.toSpotifyUri())
                                 },
+                                onRowLongClick = {},
+                                onArtworkClick = {},
+                                onTitleClick = {},
+                                onPublisherClick = {},
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -659,7 +663,7 @@ fun SharedTransitionScope.SearchScreen(
                             val episode = item.episode
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
-                                isLoaded = true,
+                                isLoaded = currentTrack?.uri == item.uri,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
                                     viewModel.addToHistory(item)
@@ -672,13 +676,14 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.ShowItem -> {
                             val show = item.show
-                            SwipeableEpisodeRowConfigured(
-                                episode = null,
-                                isLoaded = false,
+                            ShowRow(
+                                show = show,
                                 onRowClick = {
-                                    viewModel.addToHistory(item)
+                                    // TODO: Open show page
                                     spirc.load(show.toSpotifyUri())
+                                    viewModel.addToHistory(item)
                                 },
+                                onPublisherClick = {},
                                 modifier = Modifier.animateItem()
                             )
                         }

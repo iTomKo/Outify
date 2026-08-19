@@ -38,27 +38,45 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
             }
         };
         async move {
-            let maybe_metadata = match librespot_metadata::Track::get(&session, &track_id).await {
-                Ok(m) => Some(m),
-                Err(e) => {
-                    error!("track metadata fetch failed for on_player_track_update: {e}");
-                    None
-                }
-            };
-
-            let json = match maybe_metadata {
-                Some(metadata) => {
-                    let track = crate::metadata::track::TrackJson::from(&metadata);
-                    match serde_json::to_string(&track) {
-                        Ok(s) => s,
+            let json = match &track_id {
+                SpotifyUri::Track { .. } => {
+                    match librespot_metadata::Track::get(&session, &track_id).await {
+                        Ok(metadata) => {
+                            let track = crate::metadata::track::TrackJson::from(&metadata);
+                            match serde_json::to_string(&track) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    error!("serde for track json failed on on_player_track_update: {e}");
+                                    return;
+                                }
+                            }
+                        }
                         Err(e) => {
-                            error!("serde for track json failed on on_player_track_update: {e}");
+                            error!("track metadata fetch failed for on_player_track_update: {e}");
                             return;
                         }
                     }
                 }
-                None => {
-                    // TODO: call java with no JSON?
+                SpotifyUri::Episode { .. } => {
+                    match librespot_metadata::Episode::get(&session, &track_id).await {
+                        Ok(metadata) => {
+                            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
+                            match serde_json::to_string(&episode) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    error!("serde for episode json failed on on_player_track_update: {e}");
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("episode metadata fetch failed for on_player_track_update: {e}");
+                            return;
+                        }
+                    }
+                }
+                _ => {
+                    warn!("on_player_track_update: unsupported uri type for {track_id}");
                     return;
                 }
             };
@@ -133,6 +151,49 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
         };
 
         async move {
+            let json = match &audio_id {
+                SpotifyUri::Track { .. } => {
+                    match librespot_metadata::Track::get(&session, &audio_id).await {
+                        Ok(metadata) => {
+                            let track = crate::metadata::track::TrackJson::from(&metadata);
+                            match serde_json::to_string(&track) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    error!("serde for track json failed on on_player_position_update: {e}");
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("track metadata fetch failed for on_player_position_update: {e}");
+                            return;
+                        }
+                    }
+                }
+                SpotifyUri::Episode { .. } => {
+                    match librespot_metadata::Episode::get(&session, &audio_id).await {
+                        Ok(metadata) => {
+                            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
+                            match serde_json::to_string(&episode) {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    error!("serde for episode json failed on on_player_position_update: {e}");
+                                    return;
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("episode metadata fetch failed for on_player_position_update: {e}");
+                            return;
+                        }
+                    }
+                }
+                _ => {
+                    warn!("on_player_position_update: unsupported uri type for {audio_id}");
+                    return;
+                }
+            };
+
             let mut env = match jvm.attach_current_thread() {
                 Ok(e) => e,
                 Err(e) => {
@@ -148,14 +209,22 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
                     return;
                 }
             };
+            let j_json = match env.new_string(&json) {
+                Ok(s) => s,
+                Err(e) => {
+                    error!("jni new_string for json failed on on_player_position_update: {e}");
+                    return;
+                }
+            };
 
             if let Err(e) = env.call_method(
                 listener_ref.as_obj(),
                 "onPositionUpdate",
-                "(Ljava/lang/String;J)V",
+                "(Ljava/lang/String;JLjava/lang/String;)V",
                 &[
                     JValue::Object(&j_uri),
                     JValue::Long(position_ms as i64),
+                    JValue::Object(&j_json),
                 ],
             ) {
                 error!("on_position_update callback failed: {e:?}");
