@@ -177,7 +177,8 @@ fun SharedTransitionScope.ShowDetailScreen(
                         )
                     }
 
-                    items(episodes, key = { episode -> "show_episode_${episode.uri}" }) { episode ->
+                    items(episodes.size, key = { index -> "show_episode_$index" }) { index ->
+                        val episode = episodes[index]
                         SwipeableEpisodeRowConfigured(
                             episode = episode,
                             isLoaded = currentAudio?.uri == episode.uri,
