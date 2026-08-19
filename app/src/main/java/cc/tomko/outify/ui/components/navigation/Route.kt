@@ -38,6 +38,12 @@ sealed interface Route : NavKey {
     @Serializable
     data class ProfileScreen(val profileUri: String) : Route, NavKey
 
+    /**
+     * Screen for Podcast shows
+     */
+    @Serializable
+    data class ShowScreen(val showUri: String) : Route, NavKey
+
     // Settings
     @Serializable
     data object SettingsScreen : Route, NavKey

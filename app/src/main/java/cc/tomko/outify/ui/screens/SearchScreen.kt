@@ -445,7 +445,7 @@ fun SharedTransitionScope.SearchScreen(
                             ShowRow(
                                 show = show,
                                 onRowClick = {
-                                    spirc.load(show.toSpotifyUri())
+                                    backStack.add(Route.ShowScreen(show.uri))
                                 },
                                 onRowLongClick = {},
                                 onArtworkClick = {},
@@ -663,7 +663,7 @@ fun SharedTransitionScope.SearchScreen(
                             val episode = item.episode
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
-                                isLoaded = currentTrack?.uri == item.uri,
+                                isLoaded = currentTrack?.uri == episode.uri,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
                                     viewModel.addToHistory(item)
@@ -679,8 +679,7 @@ fun SharedTransitionScope.SearchScreen(
                             ShowRow(
                                 show = show,
                                 onRowClick = {
-                                    // TODO: Open show page
-                                    spirc.load(show.toSpotifyUri())
+                                    backStack.add(Route.ShowScreen(show.uri))
                                     viewModel.addToHistory(item)
                                 },
                                 onPublisherClick = {},

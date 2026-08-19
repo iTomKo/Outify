@@ -1,6 +1,7 @@
 package cc.tomko.outify.core.model
 
 import androidx.compose.runtime.Immutable
+import cc.tomko.outify.utils.SharedElementKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -50,3 +51,6 @@ fun Show.toOutifyUri(): OutifyUri =
 
 fun Show.getCover(size: CoverSize): Cover? =
     covers.firstOrNull { it.size == size.asInt() }
+
+fun Show.sharedTransitionKey(): String =
+    "${SharedElementKey.ALBUM_ARTWORK}_$id"

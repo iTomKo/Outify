@@ -33,6 +33,7 @@ import cc.tomko.outify.ui.screens.library.PlaylistScreen
 import cc.tomko.outify.ui.screens.library.ProfileDetailScreen
 import cc.tomko.outify.ui.screens.library.album.AlbumDetailScreen
 import cc.tomko.outify.ui.screens.library.artist.ArtistDetailScreen
+import cc.tomko.outify.ui.screens.library.show.ShowDetailScreen
 import cc.tomko.outify.ui.screens.library.track.TrackDetailScreen
 import cc.tomko.outify.ui.screens.settings.AboutScreen
 import cc.tomko.outify.ui.screens.settings.AccountsScreen
@@ -53,6 +54,7 @@ import cc.tomko.outify.ui.viewmodel.detail.rememberDetailViewModel
 import cc.tomko.outify.ui.viewmodel.library.LibraryViewModel
 import cc.tomko.outify.ui.viewmodel.library.LikedViewModel
 import cc.tomko.outify.ui.viewmodel.library.ProfileDetailViewModel
+import cc.tomko.outify.ui.viewmodel.library.ShowDetailViewModel
 import cc.tomko.outify.ui.viewmodel.settings.AccountsViewModel
 import cc.tomko.outify.ui.viewmodel.settings.AppearanceViewModel
 import cc.tomko.outify.ui.viewmodel.settings.DebugViewModel
@@ -265,6 +267,21 @@ fun SharedTransitionScope.NavigationRoot(
                     onFollowingClick = {
                         // TODO: Implement following list
                     }
+                )
+            }
+
+            entry<Route.ShowScreen> {
+                val viewModel: ShowDetailViewModel = hiltViewModel()
+                LaunchedEffect(it.showUri) {
+                    viewModel.loadShow(it.showUri)
+                }
+
+                ShowDetailScreen(
+                    viewModel = viewModel,
+                    onBack = {
+                        backStack.removeAt(backStack.lastIndex)
+                    },
+                    artworkClick = {},
                 )
             }
 
