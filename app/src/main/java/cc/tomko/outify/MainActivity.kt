@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -227,6 +228,11 @@ class MainActivity : ComponentActivity() {
             Route.SearchScreen -> "search"
             is Route.LikedScreen -> "liked"
             Route.LibraryScreen -> "library"
+            is Route.ArtistScreen -> "detail_artist"
+            is Route.AlbumScreen, is Route.TrackScreen -> "detail_album"
+            is Route.PlaylistScreen -> "detail_playlist"
+            is Route.ProfileScreen -> "detail_profile"
+            is Route.ShowScreen -> "detail_show"
             else -> null
         }
 
@@ -265,7 +271,8 @@ class MainActivity : ComponentActivity() {
                 is Route.AlbumScreen,
                 is Route.PlaylistScreen,
                 is Route.TrackScreen,
-                is Route.ProfileScreen -> lastDetailRoute = currentRoute
+                is Route.ProfileScreen,
+                is Route.ShowScreen -> lastDetailRoute = currentRoute
                 else -> {}
             }
         }
@@ -278,6 +285,7 @@ class MainActivity : ComponentActivity() {
                     is Route.TrackScreen -> Triple("detail_album", "Album", Icons.Default.Album)
                     is Route.PlaylistScreen -> Triple("detail_playlist", "Playlist", Icons.AutoMirrored.Filled.QueueMusic)
                     is Route.ProfileScreen -> Triple("detail_profile", "Profile", Icons.Default.AccountCircle)
+                    is Route.ShowScreen -> Triple("detail_show", "Show", Icons.Default.Podcasts)
                     else -> return@let null
                 }
                 NavDestination(id, label, route) { Icon(icon, contentDescription = null) }
@@ -401,7 +409,7 @@ class MainActivity : ComponentActivity() {
                                                     FloatingOutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                         showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                         modifier = Modifier.align(Alignment.BottomCenter)
                                                     )
@@ -409,7 +417,7 @@ class MainActivity : ComponentActivity() {
                                                     OutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                         modifier = Modifier.align(Alignment.BottomCenter)
                                                     )
                                                 }
@@ -479,7 +487,7 @@ class MainActivity : ComponentActivity() {
                                                 FloatingOutifyBottomNav(
                                                     items = allRoutes,
                                                     selectedId = selectedId,
-                                                    onItemSelected = { item -> backStack.add(item.route) },
+                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                     showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                 )
                                             }
@@ -488,7 +496,7 @@ class MainActivity : ComponentActivity() {
                                                 OutifyBottomNav(
                                                     items = allRoutes,
                                                     selectedId = selectedId,
-                                                    onItemSelected = { item -> backStack.add(item.route) }
+                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) }
                                                 )
                                             }
                                         }
