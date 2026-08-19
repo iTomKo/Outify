@@ -64,6 +64,8 @@ pub extern "system" fn get_native_metadata(
                 SPOTIFY_ITEM_TYPE_ALBUM => get_album_metadata(&session, &spotify_uri).await,
                 SPOTIFY_ITEM_TYPE_ARTIST => get_artist_metadata(&session, &spotify_uri).await,
                 SPOTIFY_ITEM_TYPE_PLAYLIST => get_playlist_metadata(&session, &spotify_uri).await,
+                SPOTIFY_ITEM_TYPE_SHOW => get_show_metadata(&session, &spotify_uri).await,
+                SPOTIFY_ITEM_TYPE_EPISODE => get_episode_metadata(&session, &spotify_uri).await,
                 &_ => Ok(None),
             }
         })
@@ -187,6 +189,34 @@ async fn get_playlist_metadata(
         Ok(metadata) => {
             let playlist = crate::metadata::playlist::PlaylistJson::from(&metadata);
             Ok(convert_to_string(&playlist))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+// Retrieves the show metadata as JSON
+async fn get_show_metadata(
+    session: &Session,
+    spotify_uri: &SpotifyUri,
+) -> Result<Option<String>, librespot_core::error::Error> {
+    match librespot_metadata::Show::get(session, &spotify_uri).await {
+        Ok(metadata) => {
+            let show = crate::metadata::podcast::ShowJson::from(&metadata);
+            Ok(convert_to_string(&show))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+// Retrieves the episode metadata as JSON
+async fn get_episode_metadata(
+    session: &Session,
+    spotify_uri: &SpotifyUri,
+) -> Result<Option<String>, librespot_core::error::Error> {
+    match librespot_metadata::Episode::get(session, &spotify_uri).await {
+        Ok(metadata) => {
+            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
+            Ok(convert_to_string(&episode))
         }
         Err(e) => Err(e),
     }
