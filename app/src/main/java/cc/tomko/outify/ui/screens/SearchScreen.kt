@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.screens
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
@@ -83,6 +84,7 @@ import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.model.toOutifyUri
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -94,6 +96,7 @@ import cc.tomko.outify.ui.components.navigation.Route.TrackScreen
 import cc.tomko.outify.ui.components.rows.AlbumRow
 import cc.tomko.outify.ui.components.rows.ArtistRow
 import cc.tomko.outify.ui.components.rows.PlaylistRow
+import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.SearchUiModel
 import cc.tomko.outify.ui.viewmodel.SearchViewModel
@@ -135,8 +138,8 @@ fun SharedTransitionScope.SearchScreen(
     var showArtists by rememberSaveable { mutableStateOf(true) }
     var showAlbums by rememberSaveable { mutableStateOf(true) }
     var showPlaylists by rememberSaveable { mutableStateOf(true) }
-    var showShows by rememberSaveable { mutableStateOf(false) }
-    var showEpisodes by rememberSaveable { mutableStateOf(false) }
+    var showShows by rememberSaveable { mutableStateOf(true) }
+    var showEpisodes by rememberSaveable { mutableStateOf(true) }
 
     val filteredResults = remember(
         results,
@@ -423,6 +426,33 @@ fun SharedTransitionScope.SearchScreen(
                             )
                         }
 
+                        is SearchUiModel.EpisodeItem -> {
+                            val episode = item.episode
+                            SwipeableEpisodeRowConfigured(
+                                episode = episode,
+                                isLoaded = true,
+                                isPlaybackPlaying = isPlaybackPlaying,
+                                onRowClick = {
+                                    spirc.load(episode.toOutifyUri())
+                                },
+                                trailingContent = removeButton,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.ShowItem -> {
+                            val show = item.show
+                            SwipeableEpisodeRowConfigured(
+                                episode = null,
+                                isLoaded = false,
+                                onRowClick = {
+                                    spirc.load(show.toSpotifyUri())
+                                },
+                                trailingContent = removeButton,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
                         else -> {}
                     }
                 }
@@ -622,6 +652,33 @@ fun SharedTransitionScope.SearchScreen(
                                 },
                                 contentDescription = playlist.attributes.description,
                                 sharedTransitionScope = this@SearchScreen,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.EpisodeItem -> {
+                            val episode = item.episode
+                            SwipeableEpisodeRowConfigured(
+                                episode = episode,
+                                isLoaded = true,
+                                isPlaybackPlaying = isPlaybackPlaying,
+                                onRowClick = {
+                                    viewModel.addToHistory(item)
+                                    spirc.load(episode.toOutifyUri())
+                                },
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.ShowItem -> {
+                            val show = item.show
+                            SwipeableEpisodeRowConfigured(
+                                episode = null,
+                                isLoaded = false,
+                                onRowClick = {
+                                    viewModel.addToHistory(item)
+                                    spirc.load(show.toSpotifyUri())
+                                },
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -828,7 +885,6 @@ fun FiltersBar(
             onClick = { onTogglePlaylists(!showPlaylists) }
         ) { Text(stringResource(R.string.search_section_playlists)) }
 
-        // Optional: show & episodes if you support them
         FilterChipWithTick(
             selected = showShows,
             onClick = { onToggleShows(!showShows) }
@@ -1023,8 +1079,8 @@ private fun applyFiltersToSectionedResults(
                     is SearchUiModel.ArtistItem -> showArtists
                     is SearchUiModel.AlbumItem -> showAlbums
                     is SearchUiModel.PlaylistItem -> showPlaylists
-//                    is SearchUiModel.ShowItem -> showShows
-//                    is SearchUiModel.EpisodeItem -> showEpisodes
+                    is SearchUiModel.ShowItem -> showShows
+                    is SearchUiModel.EpisodeItem -> showEpisodes
                     else -> true
                 }
             }
@@ -1041,6 +1097,8 @@ private fun applyFiltersToSectionedResults(
                 is SearchUiModel.ArtistItem -> showArtists
                 is SearchUiModel.AlbumItem -> showAlbums
                 is SearchUiModel.PlaylistItem -> showPlaylists
+                is SearchUiModel.EpisodeItem -> showEpisodes
+                is SearchUiModel.ShowItem -> showShows
                 is SearchUiModel.SkeletonItem -> true
                 is SearchUiModel.SectionHeader -> true
             }

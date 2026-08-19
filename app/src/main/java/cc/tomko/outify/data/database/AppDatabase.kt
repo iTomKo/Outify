@@ -46,7 +46,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         EpisodeEntity::class,
         ShowEpisodeCrossRef::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -96,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                         isExplicit INTEGER NOT NULL,
                         mediaType TEXT NOT NULL,
                         consumptionOrder TEXT NOT NULL,
-                        trailerUri TEXT NOT NULL,
+                        trailerUri TEXT NULL,
                         hasMusicAndTalk INTEGER NOT NULL,
                         isAudiobook INTEGER NOT NULL,
                         keywordsJson TEXT NOT NULL,

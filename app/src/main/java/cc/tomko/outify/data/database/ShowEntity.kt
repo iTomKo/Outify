@@ -21,7 +21,7 @@ data class ShowEntity(
     val isExplicit: Boolean,
     val mediaType: String,
     val consumptionOrder: String,
-    val trailerUri: String,
+    val trailerUri: String?,
     val hasMusicAndTalk: Boolean,
     val isAudiobook: Boolean,
     val keywordsJson: String,

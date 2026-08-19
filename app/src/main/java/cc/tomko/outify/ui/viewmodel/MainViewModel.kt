@@ -14,6 +14,7 @@ import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.setting.EpisodeSwipeActionHandler
 import cc.tomko.outify.data.setting.GestureSetting
 import cc.tomko.outify.data.setting.SwipeActionHandler
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -45,6 +46,20 @@ class MainViewModel @Inject constructor(
 
     val interfaceSettings: Flow<InterfaceSettings> =
         settingsRepository.interfaceSettings
+
+    val episodeSwipeActionHandler = object : EpisodeSwipeActionHandler {
+        override fun addToQueue(uri: String) {
+            this@MainViewModel.addToQueue(uri)
+        }
+
+        override fun playNext(uri: String) {
+            this@MainViewModel.playNext(uri)
+        }
+
+        override fun favorite(episodeUri: String) {
+            this@MainViewModel.favorite(episodeUri)
+        }
+    }
 
     val swipeActionHandler = object : SwipeActionHandler {
         override fun addToQueue(uri: String) {

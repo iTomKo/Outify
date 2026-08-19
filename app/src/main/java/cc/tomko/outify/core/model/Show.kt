@@ -33,7 +33,7 @@ data class Show(
     @SerialName("consumption_order")
     val consumptionOrder: ConsumptionOrder,
     @SerialName("trailer_uri")
-    val trailerUri: String,
+    val trailerUri: String?,
     @SerialName("has_music_and_talk")
     val hasMusicAndTalk: Boolean,
     @SerialName("is_audiobook")

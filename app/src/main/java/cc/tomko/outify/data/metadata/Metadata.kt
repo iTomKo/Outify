@@ -6,6 +6,7 @@ import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Cover
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
@@ -23,6 +24,7 @@ class Metadata @Inject constructor(
     private val albumMetadataHelper: AlbumMetadataHelper,
     private val playlistMetadataHelper: PlaylistMetadataHelper,
     private val showMetadataHelper: ShowMetadataHelper,
+    private val episodeMetadataHelper: EpisodeMetadataHelper,
     private val nativeMetadata: NativeMetadata,
     private val spClient: SpClient,
     private val likedItemsDao: LikedItemsDao,
@@ -84,8 +86,20 @@ class Metadata @Inject constructor(
         return showMetadataHelper.getCoverByShowId(showId, size)
     }
 
+    fun observeEpisodes(uris: List<String>): Flow<List<Episode>> {
+        return episodeMetadataHelper.observeEpisodes(uris)
+    }
+
+    suspend fun getEpisodeMetadata(uris: List<String>): List<Episode> {
+        return episodeMetadataHelper.getEpisodeMetadata(uris)
+    }
+
+    suspend fun getEpisodeMetadata(uri: String): Episode? {
+        return episodeMetadataHelper.getEpisodeMetadata(uri)
+    }
+
     suspend fun getEpisodeCover(episodeId: String, size: CoverSize): Cover? {
-        return showMetadataHelper.getCoverByEpisodeId(episodeId, size)
+        return episodeMetadataHelper.getCoverByEpisodeId(episodeId, size)
     }
 
     suspend fun getArtistMetadata(uri: String): Artist? {

@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import cc.tomko.outify.data.database.EpisodeEntity
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Singleton
 
 @Dao
@@ -15,6 +16,12 @@ interface EpisodeDao {
 
     @Query("SELECT * FROM episodes WHERE episodeId = :episodeId LIMIT 1")
     suspend fun getEpisodeById(episodeId: String): EpisodeEntity?
+
+    @Query("SELECT * FROM episodes WHERE episodeId IN (:episodeIds)")
+    suspend fun getEpisodesByIds(episodeIds: List<String>): List<EpisodeEntity>
+
+    @Query("SELECT * FROM episodes WHERE episodeId IN (:episodeIds)")
+    fun observeEpisodesByIds(episodeIds: List<String>): Flow<List<EpisodeEntity>>
 
     @Query(
         """
