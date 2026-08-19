@@ -53,8 +53,6 @@ fun ShowRow(
     // Interaction handlers
     onRowClick: (() -> Unit)? = null,
     onRowLongClick: (() -> Unit)? = null,
-    onArtworkClick: (() -> Unit)? = null,
-    onTitleClick: (() -> Unit)? = null,
     onPublisherClick: (() -> Unit)? = null,
 
     contentDescription: String? = null,
@@ -116,15 +114,7 @@ fun ShowRow(
                 SmartImage(
                     url = show.getCover(CoverSize.MEDIUM)?.uri?.let { ALBUM_COVER_URL + it },
                     contentDescription = "Show artwork",
-                    modifier = artworkModifier
-                        .then(
-                            if (onArtworkClick != null) {
-                                Modifier.combinedClickable(
-                                    onClick = { onArtworkClick() },
-                                    onLongClick = {}
-                                )
-                            } else Modifier
-                        ),
+                    modifier = artworkModifier,
                     monochrome = LocalUiSettings.current.monochromeTracks
                 )
             }
@@ -150,14 +140,6 @@ fun ShowRow(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(
-                            if (onTitleClick != null) {
-                                Modifier.combinedClickable(
-                                    onClick = { onTitleClick() },
-                                    onLongClick = {}
-                                )
-                            } else Modifier
-                        )
                         .testTag("showrow.title")
                 )
 

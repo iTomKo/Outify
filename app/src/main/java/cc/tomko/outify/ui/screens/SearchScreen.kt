@@ -448,8 +448,6 @@ fun SharedTransitionScope.SearchScreen(
                                     backStack.add(Route.ShowScreen(show.uri))
                                 },
                                 onRowLongClick = {},
-                                onArtworkClick = {},
-                                onTitleClick = {},
                                 onPublisherClick = {},
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
