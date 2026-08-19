@@ -91,10 +91,8 @@ if [ ! -f "$TOOLCHAIN_TOML" ]; then
     echo "       for reproducible builds. See CONTRIBUTING.md."
     exit 1
 fi
-PINNED_CHANNEL=$(grep -E '^channel\s*=' "$TOOLCHAIN_TOML" \
-    | sed 's/.*=\s*"\(.*\)"/\1/')
-export RUSTUP_TOOLCHAIN="$PINNED_CHANNEL"
-echo "Rust toolchain (rust-toolchain.toml): $PINNED_CHANNEL"
+echo "Rust toolchain (rust-toolchain.toml):"
+rustup show active-toolchain
 
 # Resolving Android NDK
 if [ -z "$ANDROID_SDK_ROOT" ]; then
