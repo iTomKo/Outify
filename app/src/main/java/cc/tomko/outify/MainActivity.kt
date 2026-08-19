@@ -94,7 +94,6 @@ import cc.tomko.outify.ui.components.player.QueueBottomSheet
 import cc.tomko.outify.ui.components.player.rememberPlayerSheetState
 import cc.tomko.outify.ui.components.player.rememberQueueBottomSheetState
 import cc.tomko.outify.ui.notifications.InAppNotificationHost
-import cc.tomko.outify.ui.screens.PlayerScreen
 import cc.tomko.outify.ui.screens.player.PlayerContent
 import cc.tomko.outify.ui.viewmodel.MainViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
