@@ -28,9 +28,9 @@ pub struct EpisodeJson {
 impl From<&Episode> for EpisodeJson {
     fn from(episode: &Episode) -> Self {
         let episode_type = match episode.episode_type {
-            librespot_metadata::episode::EpisodeType::FULL => "full",
-            librespot_metadata::episode::EpisodeType::TRAILER => "trailer",
-            librespot_metadata::episode::EpisodeType::BONUS => "bonus",
+            librespot_metadata::episode::EpisodeType::FULL => "FULL",
+            librespot_metadata::episode::EpisodeType::TRAILER => "TRAILER",
+            librespot_metadata::episode::EpisodeType::BONUS => "BONUS",
         }
         .to_string();
 
@@ -78,16 +78,16 @@ pub struct ShowJson {
 impl From<&Show> for ShowJson {
     fn from(show: &Show) -> Self {
         let media_type = match show.media_type {
-            librespot_metadata::show::ShowMediaType::MIXED => "mixed",
-            librespot_metadata::show::ShowMediaType::AUDIO => "audio",
-            librespot_metadata::show::ShowMediaType::VIDEO => "video",
+            librespot_metadata::show::ShowMediaType::MIXED => "MIXED",
+            librespot_metadata::show::ShowMediaType::AUDIO => "AUDIO",
+            librespot_metadata::show::ShowMediaType::VIDEO => "VIDEO",
         }
         .to_string();
 
         let consumption_order = match show.consumption_order {
-            librespot_metadata::show::ShowConsumptionOrder::SEQUENTIAL => "sequential",
-            librespot_metadata::show::ShowConsumptionOrder::EPISODIC => "episodic",
-            librespot_metadata::show::ShowConsumptionOrder::RECENT => "recent",
+            librespot_metadata::show::ShowConsumptionOrder::SEQUENTIAL => "SEQUENTIAL",
+            librespot_metadata::show::ShowConsumptionOrder::EPISODIC => "EPISODIC",
+            librespot_metadata::show::ShowConsumptionOrder::RECENT => "RECENT",
         }
         .to_string();
 
