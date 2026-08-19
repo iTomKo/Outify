@@ -107,7 +107,7 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
                 val artworkUrl =
                     ALBUM_COVER_URL + (artistState.getCover(CoverSize.LARGE)?.uri ?: "")
                 val likedTracks by viewModel.likedTracks.collectAsState()
-                val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+                val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
                 val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
                 val spirc = viewModel.spirc
 
@@ -181,7 +181,7 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
                         items(likedTracks, key = { t -> "liked_song_${t.uri}" }) { track ->
                             SwipeableTrackRowConfigured(
                                 track = track,
-                                currentTrack = currentTrack,
+                                currentAudio = currentTrack,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 showAlbumName = true,
                                 onRowClick = remember(track.uri) {

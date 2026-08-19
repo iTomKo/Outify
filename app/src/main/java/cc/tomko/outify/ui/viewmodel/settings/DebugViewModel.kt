@@ -65,7 +65,7 @@ class DebugViewModel @Inject constructor(
     val isPlaying = playbackStateHolder.state.map { it.isPlaying }
     val isBuffering = playbackStateHolder.state.map { it.isBuffering }
     val isActiveDevice = playbackStateHolder.state.map { it.isActiveDevice }
-    val currentTrackName = playbackStateHolder.state.map { it.currentTrack?.name }
+    val currentAudioName = playbackStateHolder.state.map { it.currentAudio?.name }
     val queueSize = playbackStateHolder.state.map { it.queue.size }
     //endregion
 

@@ -9,7 +9,9 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.LikedRepository
@@ -87,8 +89,8 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -116,7 +118,7 @@ class MainViewModel @Inject constructor(
 
     fun startRadio(track: Track) {
         spirc.startRadio(track.toSpotifyUri(), false)
-        playbackStateHolder.setTrack(track)
+        playbackStateHolder.setAudio(track.toPlayableAudio())
         InAppNotificationController.show(
             "Radio started",
             { Icon(Icons.Default.Radio, contentDescription = "Radio started") },

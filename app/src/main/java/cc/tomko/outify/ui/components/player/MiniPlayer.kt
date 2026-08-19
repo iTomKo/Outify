@@ -79,18 +79,18 @@ fun MiniPlayer(
     onClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentAudio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isBuffering by viewModel.isBuffering().collectAsState(initial = false)
     val isActiveDevice by viewModel.isActiveDevice().collectAsState(initial = true)
     val currentTime by viewModel.positionMs.collectAsState(initial = 0L)
     val spirc = viewModel.spirc
 
-    val totalTime = currentTrack?.duration ?: 0L
+    val totalTime = currentAudio?.duration ?: 0L
 
     val imageSize = 40.dp
     val artworkUrl =
-        currentTrack?.album?.getCover(CoverSize.SMALL)?.uri.let { ALBUM_COVER_URL + it }
+        currentAudio?.getCover(CoverSize.SMALL)?.uri?.let { ALBUM_COVER_URL + it }
 
     val offsetY = remember { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
@@ -238,7 +238,7 @@ fun MiniPlayer(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = currentTrack?.name ?: "-----",
+                        text = currentAudio?.name ?: "Nothing playing",
                         style = MaterialTheme.typography.bodyLargeEmphasized,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -247,9 +247,13 @@ fun MiniPlayer(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
+                    val subtitle = currentAudio?.artists?.joinToString { it.name }
+                        ?: currentAudio?.showName
+                        ?: "Unknown source"
+
                     Text(
                         text = buildString {
-                            append(currentTrack?.artists?.joinToString { it.name } ?: "----")
+                            append(subtitle)
                             append(" · ")
                             append(formatTime(currentTime))
                             append(" / ")
@@ -297,7 +301,7 @@ fun MiniPlayer(
                         shape = MaterialShapes.Cookie4Sided.toShape()
                     ) {
                         IconButton(onClick = {
-                            viewModel.setTrack(currentTrack)
+                            viewModel.setAudio(currentAudio)
                             spirc.playerPlayPause()
                         }) {
                             if (isPlaying) {

@@ -7,7 +7,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,7 +103,7 @@ fun SharedTransitionScope.TrackDetailScreen(
             val track = uiState.track!!
             val lyrics = uiState.lyrics
             val artworkUrl = ALBUM_COVER_URL + track.album?.getCover(CoverSize.LARGE)?.uri
-            val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+            val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
             val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
             val spirc = viewModel.spirc
 
@@ -167,7 +166,7 @@ fun SharedTransitionScope.TrackDetailScreen(
                     item(key = "track_row") {
                         SwipeableTrackRowConfigured(
                             track = track,
-                            currentTrack = currentTrack,
+                            currentAudio = currentTrack,
                             isPlaybackPlaying = isPlaybackPlaying,
                             onRowClick = remember(track.uri) {
                                 {

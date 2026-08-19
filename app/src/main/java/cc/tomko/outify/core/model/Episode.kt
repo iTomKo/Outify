@@ -1,5 +1,6 @@
 package cc.tomko.outify.core.model
 
+import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -40,6 +41,18 @@ data class Episode(
 ) {
 
 }
+
+fun Episode.toPlayableAudio() =
+    PlayableAudio(
+        id = id,
+        uri = uri,
+        name = name,
+        covers = covers,
+        duration = duration,
+        explicit = isExplicit,
+        showName = showName,
+        sourceEpisode = this
+    )
 
 fun Episode.toSpotifyUri(): SpotifyUri =
     SpotifyUri.Episode(id)

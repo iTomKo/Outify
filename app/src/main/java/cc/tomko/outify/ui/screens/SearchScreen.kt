@@ -1,6 +1,5 @@
 package cc.tomko.outify.ui.screens
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
@@ -32,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -85,6 +83,7 @@ import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -118,7 +117,7 @@ fun SharedTransitionScope.SearchScreen(
     val spirc = viewModel.spirc
 
     val listState = rememberLazyListState()
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
 
@@ -208,12 +207,12 @@ fun SharedTransitionScope.SearchScreen(
                                 val track = item.track
                                 SwipeableTrackRowConfigured(
                                     track = track,
-                                    currentTrack = currentTrack,
+                                    currentAudio = currentTrack,
                                     isPlaybackPlaying = isPlaybackPlaying,
                                     onRowClick = remember(track.uri) {
                                         {
                                             spirc.load(track.toSpotifyUri())
-                                            viewModel.setTrack(track)
+                                            viewModel.setAudio(track.toPlayableAudio())
                                         }
                                     },
                                     onArtistClick = {
@@ -346,11 +345,11 @@ fun SharedTransitionScope.SearchScreen(
                             val track = item.track
                             SwipeableTrackRowConfigured(
                                 track = track,
-                                currentTrack = currentTrack,
+                                currentAudio = currentTrack,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
                                     spirc.load(track.toSpotifyUri())
-                                    viewModel.setTrack(track)
+                                    viewModel.setAudio(track.toPlayableAudio())
                                 },
                                 onArtistClick = {
                                     backStack.add(ArtistScreen(it.uri))
@@ -430,10 +429,10 @@ fun SharedTransitionScope.SearchScreen(
                             val episode = item.episode
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
-                                isLoaded = true,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
                                     spirc.load(episode.toOutifyUri())
+                                    viewModel.setAudio(episode.toPlayableAudio())
                                 },
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
@@ -568,14 +567,14 @@ fun SharedTransitionScope.SearchScreen(
 
                             SwipeableTrackRowConfigured(
                                 track = track,
-                                currentTrack = currentTrack,
+                                currentAudio = currentTrack,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = remember(track.uri) {
                                     {
                                         viewModel.addToHistory(item)
                                         spirc.load(track.toSpotifyUri()) // TODO: make context be the search screen
                                         // Optimistic UI
-                                        viewModel.setTrack(track)
+                                        viewModel.setAudio(track.toPlayableAudio())
                                     }
                                 },
                                 onArtistClick = {
@@ -665,6 +664,7 @@ fun SharedTransitionScope.SearchScreen(
                                 onRowClick = {
                                     viewModel.addToHistory(item)
                                     spirc.load(episode.toOutifyUri())
+                                    viewModel.setAudio(episode.toPlayableAudio())
                                 },
                                 modifier = Modifier.animateItem()
                             )

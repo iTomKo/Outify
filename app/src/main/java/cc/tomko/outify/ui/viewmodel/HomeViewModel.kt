@@ -8,6 +8,7 @@ import cc.tomko.outify.core.AuthStateEventBus
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
@@ -160,11 +161,11 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun loadTrack(track: Track) {
+    fun loadTrack(audio: PlayableAudio) {
         // TODO: set the context
-        spirc.load(track.toOutifyUri())
+        spirc.load(audio.toOutifyUri())
 
-        playbackStateHolder.setTrack(track)
+        playbackStateHolder.setAudio(audio)
     }
 
     fun loadData() {
@@ -335,8 +336,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,

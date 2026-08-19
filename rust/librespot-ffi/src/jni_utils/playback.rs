@@ -104,7 +104,7 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
 }
 
 // Updates the Outify player position
-pub fn on_player_position_update(position_ms: u32, track_id: SpotifyUri) {
+pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
     let jvm = match crate::JVM.get() {
         Some(j) => j,
         None => {
@@ -133,31 +133,6 @@ pub fn on_player_position_update(position_ms: u32, track_id: SpotifyUri) {
         };
 
         async move {
-            let maybe_metadata = match librespot_metadata::Track::get(&session, &track_id).await {
-                Ok(m) => Some(m),
-                Err(e) => {
-                    error!("track metadata fetch failed for on_player_position_update: {e}");
-                    None
-                }
-            };
-
-            let json = match maybe_metadata {
-                Some(metadata) => {
-                    let track = crate::metadata::track::TrackJson::from(&metadata);
-                    match serde_json::to_string(&track) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            error!("serde for track json failed on on_player_position_update: {e}");
-                            return;
-                        }
-                    }
-                }
-                None => {
-                    // TODO: call java with no JSON?
-                    return;
-                }
-            };
-
             let mut env = match jvm.attach_current_thread() {
                 Ok(e) => e,
                 Err(e) => {
@@ -166,17 +141,10 @@ pub fn on_player_position_update(position_ms: u32, track_id: SpotifyUri) {
                 }
             };
 
-            let j_uri = match env.new_string(&track_id.to_uri()) {
+            let j_uri = match env.new_string(&audio_id.to_uri()) {
                 Ok(s) => s,
                 Err(e) => {
                     error!("jni new_string for uri failed on on_player_position_update: {e}");
-                    return;
-                }
-            };
-            let j_json = match env.new_string(&json) {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("jni new_string for json failed on on_player_position_update: {e}");
                     return;
                 }
             };
@@ -184,11 +152,10 @@ pub fn on_player_position_update(position_ms: u32, track_id: SpotifyUri) {
             if let Err(e) = env.call_method(
                 listener_ref.as_obj(),
                 "onPositionUpdate",
-                "(Ljava/lang/String;JLjava/lang/String;)V",
+                "(Ljava/lang/String;J)V",
                 &[
                     JValue::Object(&j_uri),
                     JValue::Long(position_ms as i64),
-                    JValue::Object(&j_json),
                 ],
             ) {
                 error!("on_position_update callback failed: {e:?}");

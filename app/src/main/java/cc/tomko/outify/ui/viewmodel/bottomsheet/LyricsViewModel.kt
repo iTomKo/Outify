@@ -3,6 +3,7 @@ package cc.tomko.outify.ui.viewmodel.bottomsheet
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.SyncedLyric
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.repository.PlayerRepository
@@ -39,8 +40,8 @@ class LyricsViewModel @Inject constructor(
 
     private val lyricsCache = mutableMapOf<String, List<SyncedLyric>>()
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val isPlaying: StateFlow<Boolean> = playbackStateHolder.state
@@ -48,7 +49,7 @@ class LyricsViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val durationMs: StateFlow<Long> = playbackStateHolder.state
-        .map { it.currentTrack?.duration ?: 0L }
+        .map { it.currentAudio?.duration ?: 0L }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 
     init {
@@ -61,7 +62,7 @@ class LyricsViewModel @Inject constructor(
     }
 
     fun loadLyrics(track: Track) {
-        _isCurrentTrack.value = playbackStateHolder.state.value.currentTrack?.id == track.id
+        _isCurrentTrack.value = playbackStateHolder.state.value.currentAudio?.id == track.id
 
         val trackId = track.id
         val cached = lyricsCache[trackId]

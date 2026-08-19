@@ -8,14 +8,12 @@ use librespot_metadata::Metadata;
 use crate::{outifyuri::OutifyUri, session::with_session};
 
 // From librespot_metadata
-const SPOTIFY_ITEM_TYPE_ALBUM: &str = "album";
-const SPOTIFY_ITEM_TYPE_ARTIST: &str = "artist";
-#[allow(unused)]
-const SPOTIFY_ITEM_TYPE_EPISODE: &str = "episode";
-const SPOTIFY_ITEM_TYPE_PLAYLIST: &str = "playlist";
-#[allow(unused)]
-const SPOTIFY_ITEM_TYPE_SHOW: &str = "show";
-const SPOTIFY_ITEM_TYPE_TRACK: &str = "track";
+pub const SPOTIFY_ITEM_TYPE_ALBUM: &str = "album";
+pub const SPOTIFY_ITEM_TYPE_ARTIST: &str = "artist";
+pub const SPOTIFY_ITEM_TYPE_EPISODE: &str = "episode";
+pub const SPOTIFY_ITEM_TYPE_PLAYLIST: &str = "playlist";
+pub const SPOTIFY_ITEM_TYPE_SHOW: &str = "show";
+pub const SPOTIFY_ITEM_TYPE_TRACK: &str = "track";
 #[allow(unused)]
 const SPOTIFY_ITEM_TYPE_LOCAL: &str = "local";
 #[allow(unused)]

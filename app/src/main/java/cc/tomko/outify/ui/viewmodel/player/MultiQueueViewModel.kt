@@ -3,6 +3,7 @@ package cc.tomko.outify.ui.viewmodel.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.queue.SavedQueue
 import cc.tomko.outify.data.repository.SavedQueueRepository
@@ -32,9 +33,9 @@ class MultiQueueViewModel @Inject constructor(
 
     /**
      * Snapshot the current live spirc queue and persist it under [name].
-     * [currentTrack] is passed from the UI because this VM does not own PlaybackStateHolder.
+     * [currentAudio] is passed from the UI because this VM does not own PlaybackStateHolder.
      */
-    fun saveCurrentQueue(name: String, currentTrack: Track?) {
+    fun saveCurrentQueue(name: String, currentAudio: PlayableAudio?) {
         viewModelScope.launch(Dispatchers.IO) {
             val previousUris: List<String> = try {
                 json.decodeFromString(spirc.previousTracks())
@@ -50,7 +51,7 @@ class MultiQueueViewModel @Inject constructor(
 
             val allUris = buildList {
                 addAll(previousUris)
-                currentTrack?.uri?.let { add(it) }
+                currentAudio?.uri?.let { add(it) }
                 addAll(nextUris)
             }
             if (allUris.isEmpty()) return@launch

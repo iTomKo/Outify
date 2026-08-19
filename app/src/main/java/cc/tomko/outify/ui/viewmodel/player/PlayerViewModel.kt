@@ -1,18 +1,16 @@
 package cc.tomko.outify.ui.viewmodel.player
 
-import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.SyncedLyric
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.dao.LikedDao
-import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.LikedRepository
-import cc.tomko.outify.data.repository.PlaybackSettings
 import cc.tomko.outify.data.repository.PlayerRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -74,12 +72,12 @@ class PlayerViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     val isLiked: StateFlow<Boolean> =
         playbackStateHolder.state
-            .map { it.currentTrack?.id }
-            .flatMapLatest { trackId ->
-                if (trackId == null) {
+            .map { it.currentAudio }
+            .flatMapLatest { audio ->
+                if (audio == null || audio.isEpisode()) {
                     flowOf(false)
                 } else {
-                    likedDao.observeIsTrackLiked(trackId)
+                    likedDao.observeIsTrackLiked(audio.id)
                 }
             }
             .stateIn(
@@ -110,15 +108,15 @@ class PlayerViewModel @Inject constructor(
     val uiState: StateFlow<PlayerUIState> =
         playbackStateHolder.state
             .map { state ->
-                val track = state.currentTrack
+                val audio = state.currentAudio
                 val position = state.position
                 PlayerUIState(
-                    title = track?.name ?: "Unknown Track",
-                    artists = track?.artists ?: emptyList(),
-                    albumArt = track?.album?.getCover(CoverSize.LARGE)?.uri,
+                    title = audio?.name ?: "Unknown Track",
+                    artists = audio?.artists ?: emptyList(),
+                    albumArt = audio?.getCover(CoverSize.LARGE)?.uri,
                     isPlaying = state.isPlaying,
-                    isExplicit = track?.explicit ?: false,
-                    totalLengthMs = track?.duration ?: 0L,
+                    isExplicit = audio?.explicit ?: false,
+                    totalLengthMs = audio?.duration ?: 0L,
                     positionMs = position.active.inWholeMilliseconds,
                     lastUpdateTime = position.lastSync,
                     isBuffering = state.isBuffering,
@@ -171,7 +169,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun toggleFavorite() {
-        val trackId = currentTrack.value?.id ?: return
+        val trackId = currentAudio.value?.id ?: return
         viewModelScope.launch {
             val wasLiked = likedRepository.isLiked(trackId)
 
@@ -197,8 +195,8 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -213,32 +211,5 @@ class PlayerViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = false
-        )
-
-    private val lyricsCache = mutableMapOf<String, List<SyncedLyric>>()
-
-    fun loadLyrics() {
-        val track = playbackStateHolder.state.value.currentTrack
-        val trackId = track?.id ?: return
-        val cached = lyricsCache[trackId]
-        if (cached != null) {
-            _lyrics.value = cached
-            return
-        }
-        viewModelScope.launch {
-            val result = playerRepository.getLyrics(track)
-            _lyrics.value = result
-            lyricsCache[trackId] = result
-        }
-    }
-
-    val currentLyric: StateFlow<SyncedLyric?> =
-        combine(lyrics, positionMs) { lyrics, position ->
-            lyrics.lastOrNull { it.timeMs <= position }
-
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(),
-            null
         )
 }

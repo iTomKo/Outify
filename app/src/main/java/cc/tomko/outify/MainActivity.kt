@@ -250,7 +250,7 @@ class MainActivity : ComponentActivity() {
             .collectAsState(initial = InterfaceSettings())
 
         val trackSwipeSettings by viewModel.swipeSettings.collectAsState(initial = interfaceSettings.gestureSettings)
-        val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+        val currentAudio by viewModel.currentAudio.collectAsState(initial = null)
 
         val density = LocalDensity.current
         val fixedDensity = Density(density.density, fontScale = interfaceSettings.fontScale)
@@ -298,7 +298,7 @@ class MainActivity : ComponentActivity() {
         }
 
         OutifyTheme(
-            track = currentTrack,
+            audio = currentAudio,
             themeMode = themeMode,
             staticAccentColor = interfaceSettings.accentColor,
             pureBlack = interfaceSettings.pureBlack,
@@ -323,7 +323,7 @@ class MainActivity : ComponentActivity() {
                                         .consumeWindowInsets(WindowInsets(bottom = innerPadding.calculateBottomPadding()))
                                 ) {
                                     val notificationPaddingBottom by animateDpAsState(
-                                        targetValue = if (currentTrack != null) 168.dp
+                                        targetValue = if (currentAudio != null) 168.dp
                                         else if (interfaceSettings.experimentalFloatingNav) 80.dp
                                         else 68.dp,
                                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -333,7 +333,7 @@ class MainActivity : ComponentActivity() {
                                     NavigationRoot(
                                         backStack,
                                         modifier = Modifier.matchParentSize(),
-                                        bottomPadding = if (currentTrack != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+                                        bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                     )
 
                                     InAppNotificationHost(
@@ -418,7 +418,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         // Portrait mode
                                         AnimatedVisibility(
-                                            visible = currentTrack != null,
+                                            visible = currentAudio != null,
                                             enter = slideInVertically(
                                                 initialOffsetY = { fullHeight -> fullHeight }
                                             ) + fadeIn(),
@@ -437,7 +437,7 @@ class MainActivity : ComponentActivity() {
                                                     MiniPlayer(
                                                         viewModel = miniPlayerViewModel,
                                                         onDismiss = {
-                                                            miniPlayerViewModel.setTrack(null)
+                                                            miniPlayerViewModel.setAudio(null)
                                                         },
                                                         modifier = Modifier.padding(
                                                             horizontal = 12.dp,
@@ -467,7 +467,7 @@ class MainActivity : ComponentActivity() {
 
                                         if (interfaceSettings.experimentalFloatingNav) {
                                             AnimatedVisibility(
-                                                visible = currentTrack == null || !playerSheetState.isExpanded,
+                                                visible = currentAudio == null || !playerSheetState.isExpanded,
                                                 enter = slideInVertically(
                                                     initialOffsetY = { fullHeight -> fullHeight }
                                                 ) + fadeIn(),

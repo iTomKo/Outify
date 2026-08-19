@@ -65,6 +65,7 @@ import androidx.compose.ui.zIndex
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -117,7 +118,7 @@ fun SharedTransitionScope.PlaylistScreen(
             var showSearch by remember { mutableStateOf(false) }
 
             val lazyList = rememberLazyListState()
-            val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+            val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
             val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
             val spirc = viewModel.spirc
 
@@ -265,7 +266,7 @@ fun SharedTransitionScope.PlaylistScreen(
 
                         SwipeableTrackRowConfigured(
                             track = track,
-                            currentTrack = currentTrack,
+                            currentAudio = currentTrack,
                             isPlaybackPlaying = isPlaybackPlaying,
                             isLiked = track?.id in likedIds,
                             onRowClick = track?.let { t ->
@@ -273,7 +274,7 @@ fun SharedTransitionScope.PlaylistScreen(
                                     {
                                         spirc.load(playlistUri, t.toSpotifyUri())
                                         // Optimistic UI
-                                        viewModel.setTrack(t)
+                                        viewModel.setAudio(t.toPlayableAudio())
                                     }
                                 }
                             },

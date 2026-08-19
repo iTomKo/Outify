@@ -26,8 +26,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoveUp
 import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.filled.ShuffleOn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -50,7 +48,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -64,9 +61,8 @@ import androidx.compose.ui.unit.dp
 import cc.tomko.outify.MyIcons
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Track
-import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.ui.components.rows.SwipeGesture
-import cc.tomko.outify.ui.components.rows.SwipeableRowWithGestures
+import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.player.MultiQueueViewModel
 import cc.tomko.outify.ui.viewmodel.player.QueueViewModel
@@ -89,7 +85,7 @@ fun SharedTransitionScope.QueueBottomSheet(
 
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isShuffling by viewModel.isShuffling.collectAsState(initial = false)
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
     val likedTracksId by viewModel.likedTrackIds.collectAsState()
 
     val flipQueueGestures by viewModel.flipQueueGestures.collectAsState()
@@ -314,8 +310,8 @@ fun SharedTransitionScope.QueueBottomSheet(
                             key = { it.id },
                             contentType = { "track" },
                         ) { item ->
-                            val isCurrentTrack = remember(currentTrack, item.track.uri) {
-                                currentTrack?.uri == item.track.uri
+                            val isCurrentTrack = remember(currentTrack, item.audio.uri) {
+                                currentTrack?.uri == item.audio.uri
                             }
 
                             ReorderableItem(reorderState, key = item.id) { isDraggingItem ->
@@ -379,10 +375,10 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                     val currentUri = currentTrack?.uri
                                                     val mutable = localTracks.toMutableList()
                                                     mutable.remove(item)
-                                                    val currentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                    val currentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
                                                     val insertAt = (currentIdx + 1).coerceIn(0, mutable.size)
                                                     mutable.add(insertAt, item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                    val newCurrentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
                                                         .coerceAtLeast(0)
                                                     viewModel.setQueueEntries(mutable, newCurrentIdx)
                                                     viewModel.debouncedSaveToRepository(mutable)
@@ -397,7 +393,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                     val currentUri = currentTrack?.uri
                                                     val mutable = localTracks.toMutableList()
                                                     mutable.remove(item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.track.uri == currentUri }
+                                                    val newCurrentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
                                                         .coerceAtLeast(0)
                                                     viewModel.setQueueEntries(mutable, newCurrentIdx)
                                                     viewModel.debouncedSaveToRepository(mutable)
@@ -405,21 +401,34 @@ fun SharedTransitionScope.QueueBottomSheet(
                                             )
                                         )
 
-                                        SwipeableTrackRowConfigured(
-                                            startGestures = if(flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                            endGestures = if(flipQueueGestures) playNextGesture else removeFromQueueGesture,
-                                            track = item.track,
-                                            currentTrack = currentTrack,
-                                            isPlaybackPlaying = isPlaybackPlaying,
-                                            onRowClick = remember(item.track.uri) {
-                                                {
+                                        if(item.audio.isEpisode()) {
+                                            SwipeableEpisodeRowConfigured(
+                                                episode = item.audio.sourceEpisode,
+                                                isPlaybackPlaying = isPlaybackPlaying,
+                                                onRowClick = {
+//                                                    spirc.load(episode.toOutifyUri())
+                                                },
+                                                startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
+                                                endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                modifier = Modifier.animateItem()
+                                            )
+                                        } else {
+                                            SwipeableTrackRowConfigured(
+                                                startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
+                                                endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                track = item.audio.sourceTrack,
+                                                currentAudio = currentTrack,
+                                                isPlaybackPlaying = isPlaybackPlaying,
+                                                onRowClick = remember(item.audio.uri) {
+                                                    {
 //                                                    spirc.load(album.uri, item.track.uri)
-                                                }
-                                            },
-                                            isLiked = item.track.id in likedTracksId,
-                                            onArtistClick = { onArtistClick(it) },
-                                            onArtworkClick = { onArtworkClick(item.track) }
-                                        )
+                                                    }
+                                                },
+                                                isLiked = item.audio.id in likedTracksId,
+                                                onArtistClick = { onArtistClick(it) },
+                                                onArtworkClick = { onArtworkClick(item.audio.sourceTrack!!) }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -447,7 +456,7 @@ fun SharedTransitionScope.QueueBottomSheet(
     if (showSwitcher) {
         QueueSwitcherBottomSheet(
             viewModel = multiQueueViewModel,
-            currentTrack = currentTrack,
+            currentAudio = currentTrack,
             onDismiss = { showSwitcher = false },
         )
     }

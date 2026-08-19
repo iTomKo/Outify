@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,7 +39,6 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -55,7 +53,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.motionScheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
@@ -82,9 +79,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.tomko.outify.ALBUM_COVER_URL
-import cc.tomko.outify.MyIcons
 import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
@@ -108,7 +105,7 @@ fun PlayerContent(
    paddingValues: PaddingValues,
    modifier: Modifier = Modifier,
 ) {
-    val track by viewModel.currentTrack.collectAsState()
+    val audio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffling by viewModel.isShuffling.collectAsState()
     val isRepeating by viewModel.isRepeating.collectAsState()
@@ -124,7 +121,7 @@ fun PlayerContent(
 
     val albumCoverSection: @Composable (Modifier) -> Unit = { modifier ->
         AlbumCoverContent(
-            track = track,
+            audio = audio,
             isPlaying = isPlaying,
             modifier = modifier,
         )
@@ -133,7 +130,7 @@ fun PlayerContent(
     val playerProgressSection: @Composable () -> Unit = {
         PlayerProgressContent(
             elapsed = elapsedMs,
-            duration = track?.duration ?: 0L,
+            duration = audio?.duration ?: 0L,
             isPlaying = isPlaying,
             onSeek = {
                 viewModel.onAction(PlayerAction.SeekTo(it))
@@ -156,8 +153,8 @@ fun PlayerContent(
     val moreActions: @Composable () -> Unit = {
         MoreActionsSection(
             onQueueClick = { onShowQueue() },
-            onLyricsClick = { GlobalPopupController.show(PopupSpec.Lyrics(track!!)) },
-            onMoreClick = { GlobalPopupController.show(PopupSpec.TrackInfo(track!!, isLiked = isFavorite)) }
+            onLyricsClick = { GlobalPopupController.show(PopupSpec.Lyrics(audio!!.sourceTrack!!)) },
+            onMoreClick = { GlobalPopupController.show(PopupSpec.TrackInfo(audio!!.sourceTrack!!, isLiked = isFavorite)) }
         )
     }
 
@@ -182,8 +179,8 @@ fun PlayerContent(
     }
 
     val trackMetadataSection: @Composable () -> Unit = {
-        TrackMetadataSection(
-            track = track,
+        AudioMetadataSection(
+            audio = audio,
             textColor = textColor,
             artistTextColor = artistTextColor,
             gradientEdgeColor = gradientEdgeColor,
@@ -201,6 +198,7 @@ fun PlayerContent(
         ) {
             item {
                 val itemModifier = Modifier.height(itemHeight)
+                val isEpisode = audio?.isEpisode() ?: false
 
                 if (isLandscape) {
                     FullPlayerLandscapeContent(
@@ -212,6 +210,7 @@ fun PlayerContent(
                         playbackControlsSection = playbackControls,
                         controlsSection = controlsSection,
                         moreActions = moreActions,
+                        isEpisode = isEpisode
                     )
                 } else {
                     FullPlayerPortraitContent(
@@ -223,6 +222,7 @@ fun PlayerContent(
                         playbackControlsSection = playbackControls,
                         controlsSection = controlsSection,
                         moreActions = moreActions,
+                        isEpisode = isEpisode
                     )
                 }
             }
@@ -232,12 +232,12 @@ fun PlayerContent(
 
 @Composable
 private fun AlbumCoverContent(
-    track: Track?,
+    audio: PlayableAudio?,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceVariant
 ) {
-    val artworkUrl = track?.album?.let { ALBUM_COVER_URL + it.getCover(CoverSize.LARGE)?.uri }
+    val artworkUrl = audio?.getCover(CoverSize.LARGE)?.uri?.let { ALBUM_COVER_URL + it }
 
     val imageScale by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0.95f,
@@ -745,8 +745,8 @@ private fun PlaybackControls(
 }
 
 @Composable
-private fun TrackMetadataSection(
-    track: Track?,
+private fun AudioMetadataSection(
+    audio: PlayableAudio?,
     textColor: Color,
     artistTextColor: Color,
     gradientEdgeColor: Color,
@@ -777,7 +777,7 @@ private fun TrackMetadataSection(
     ) {
 
         AutoScrollingTextOnDemand(
-            text = track?.name ?: "Not playing",
+            text = audio?.name ?: "Not playing",
             style = titleStyle,
             gradientEdgeColor = gradientEdgeColor,
             expansionFractionProvider = expansionFractionProvider,
@@ -788,8 +788,12 @@ private fun TrackMetadataSection(
 
         Spacer(modifier = Modifier.height(2.dp))
 
+        val subtitle = audio?.artists?.joinToString { it.name }
+            ?: audio?.showName
+            ?: "Unknown source"
+
         AutoScrollingTextOnDemand(
-            text = track?.artists?.joinToString { it.name } ?: "Not playing",
+            text = subtitle,
             style = artistStyle,
             gradientEdgeColor = gradientEdgeColor,
             expansionFractionProvider = expansionFractionProvider,
@@ -809,7 +813,8 @@ private fun FullPlayerLandscapeContent(
     playerProgressSection: @Composable () -> Unit,
     playbackControlsSection: @Composable (height: Dp) -> Unit,
     controlsSection: @Composable (height: Dp) -> Unit,
-    moreActions: @Composable () -> Unit
+    moreActions: @Composable () -> Unit,
+    isEpisode: Boolean,
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -870,7 +875,8 @@ private fun FullPlayerPortraitContent(
     playerProgressSection: @Composable () -> Unit,
     playbackControlsSection: @Composable (height: Dp) -> Unit,
     controlsSection: @Composable (height: Dp) -> Unit,
-    moreActions: @Composable () -> Unit
+    moreActions: @Composable () -> Unit,
+    isEpisode: Boolean,
 ) {
     BoxWithConstraints(
         modifier = modifier
@@ -923,7 +929,9 @@ private fun FullPlayerPortraitContent(
 
             controlsSection(segmentedControlsHeight)
 
-            moreActions()
+            if(!isEpisode) {
+                moreActions()
+            }
         }
     }
 }

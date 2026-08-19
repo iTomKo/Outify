@@ -93,7 +93,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
             val album = uiState.album!!
             val tracks = uiState.tracks
             val artworkUrl = ALBUM_COVER_URL + album.getCover(CoverSize.LARGE)?.uri
-            val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+            val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
             val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
             val spirc = viewModel.spirc
 
@@ -182,7 +182,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
                                 Modifier.background(
                                     MaterialTheme.colorScheme.primaryContainer
                                 ) else Modifier,
-                            currentTrack = currentTrack,
+                            currentAudio = currentTrack,
                             isPlaybackPlaying = isPlaybackPlaying,
                             onRowClick = remember(track.uri) {
                                 {

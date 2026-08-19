@@ -2,6 +2,7 @@ package cc.tomko.outify.ui.viewmodel.widgets
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -23,8 +24,8 @@ class PlaybackConfigureViewModel @Inject constructor(
     val interfaceSettings: Flow<InterfaceSettings> =
         settingsRepository.interfaceSettings
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,

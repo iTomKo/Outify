@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.sharedTransitionKey
@@ -40,7 +41,7 @@ import cc.tomko.outify.ui.components.SkeletonBox
 fun SharedTransitionScope.SwipeableTrackRowConfigured(
     track: Track?,
     modifier: Modifier = Modifier,
-    currentTrack: Track? = null,
+    currentAudio: PlayableAudio? = null,
 
     isLiked: Boolean = false,
     isPlaybackPlaying: Boolean = false,
@@ -128,7 +129,7 @@ fun SharedTransitionScope.SwipeableTrackRowConfigured(
                 artists = track.artists,
                 artworkUrl = artworkUrl,
                 isExplicit = track.explicit,
-                isLoaded = currentTrack?.uri.equals(track.uri),
+                isLoaded = currentAudio?.uri.equals(track.uri),
                 isPlaying = isPlaybackPlaying,
                 isSelected = isSelected,
 

@@ -62,7 +62,7 @@ fun DebugScreen(
     val isPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isBuffering by viewModel.isBuffering.collectAsState(initial = true)
     val isActiveDevice by viewModel.isActiveDevice.collectAsState(initial = false)
-    val currentTrackName by viewModel.currentTrackName.collectAsState(initial = null)
+    val currentTrackName by viewModel.currentAudioName.collectAsState(initial = null)
     val queueSize by viewModel.queueSize.collectAsState(initial = 0)
     val preferences by viewModel.preferences.collectAsState()
     val exceptions = viewModel.exceptionCollector.exceptions

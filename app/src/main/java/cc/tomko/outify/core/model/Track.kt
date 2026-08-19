@@ -6,6 +6,7 @@ import cc.tomko.outify.data.database.TrackArtistEntity
 import cc.tomko.outify.data.database.TrackEntity
 import cc.tomko.outify.utils.canonicalIdFromUri
 import kotlinx.serialization.Serializable
+import kotlin.math.exp
 
 /**
  * Contains information about single Track.
@@ -112,6 +113,18 @@ fun Track.toEntities(now: Long): Triple<TrackEntity, List<ArtistEntity>, List<Tr
 
     return Triple(trackEntity, artistEntities, joins)
 }
+
+fun Track.toPlayableAudio() =
+    PlayableAudio(
+        id = id,
+        uri = uri,
+        name = name,
+        covers = album?.covers ?: emptyList(),
+        duration = duration,
+        explicit = explicit,
+        artists = artists,
+        sourceTrack = this
+    )
 
 fun Track.toSpotifyUri(): SpotifyUri =
     SpotifyUri.Track(id)

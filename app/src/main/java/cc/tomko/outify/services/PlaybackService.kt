@@ -180,9 +180,9 @@ class PlaybackService : MediaLibraryService(),
 
         scope.launch {
             playbackStateHolder.state
-                .map { it.currentTrack }
+                .map { it.currentAudio }
                 .distinctUntilChanged()
-                .collect { track ->
+                .collect { _ ->
                     updateNotification()
                 }
 
@@ -234,11 +234,12 @@ class PlaybackService : MediaLibraryService(),
 
     fun updateNotification() {
         mediaLibrarySession ?: return
-        val track = playbackStateHolder.state.value.currentTrack
-        val hasTrack = track != null
+        val audio = playbackStateHolder.state.value.currentAudio
+        val hasAudio = audio != null
 
         scope.launch {
-            val isLiked = if (hasTrack) likedDao.containsTrack(track.id) else false
+            // TODO: Add isLiked support for episodes
+            val isLiked = if (hasAudio && audio.isTrack()) likedDao.containsTrack(audio.id) else false
             val buttons = listOf(
                 CommandButton.Builder(
                     when (player.repeatMode) {
@@ -277,12 +278,12 @@ class PlaybackService : MediaLibraryService(),
                 )
                     .setDisplayName(getString(R.string.like))
                     .setSessionCommand(MediaSessionConstants.CommandToggleLike)
-                    .setEnabled(hasTrack)
+                    .setEnabled(hasAudio && audio.isTrack())
                     .build(),
                 CommandButton.Builder(CommandButton.ICON_RADIO)
                     .setDisplayName(getString(R.string.start_radio))
                     .setSessionCommand(MediaSessionConstants.CommandToggleStartRadio)
-                    .setEnabled(hasTrack)
+                    .setEnabled(hasAudio && audio.isTrack())
                     .build()
             )
             mediaLibrarySession!!.setMediaButtonPreferences(buttons)

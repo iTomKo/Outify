@@ -1,7 +1,6 @@
 package cc.tomko.outify.playback
 
 import android.app.Application
-import android.media.AudioFocusRequest
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -18,6 +17,7 @@ import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.services.PlaybackService
@@ -66,13 +66,14 @@ class Player @Inject constructor(
 
             override fun onTrackChange(spotify_uri: String, json_str: String) {
                 scope.launch {
+                    // TODO: Add support for Episodes -> PlayableAudio
                     val track: Track = try {
                         json.decodeFromString(json_str)
                     } catch (e: Exception) {
                         Log.w("Player", "Failed to decode track JSON", e)
                         return@launch
                     }
-                    stateHolder.setTrack(track)
+                    stateHolder.setAudio(track.toPlayableAudio())
 
                     val cover = track.album?.getCover(CoverSize.LARGE)
                     val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
@@ -131,7 +132,7 @@ class Player @Inject constructor(
 
                         val (loadedBitmap, loadedBytes) = loadResult
 
-                        val currentTrackId = stateHolder.state.value.currentTrack?.id
+                        val currentTrackId = stateHolder.state.value.currentAudio?.id
                         if (currentTrackId != track.id) {
                             return@launch
                         }
@@ -149,11 +150,7 @@ class Player @Inject constructor(
             override fun onPositionUpdate(
                 spotify_uri: String,
                 position_ms: Long,
-                json_raw: String
             ) {
-                if (stateHolder.state.value.currentTrack?.id != spotify_uri) {
-                    onTrackChange(spotify_uri, json_raw)
-                }
                 scope.launch {
                     stateHolder.seekTo(position_ms.toDuration(DurationUnit.MILLISECONDS))
                     invalidateState()
@@ -210,18 +207,21 @@ class Player @Inject constructor(
 
     override fun getState(): State {
         val ps = stateHolder.state.value
-        val track = ps.currentTrack ?: return State.Builder()
+        val audio = ps.currentAudio ?: return State.Builder()
             .setPlaybackState(STATE_IDLE)
             .setAvailableCommands(determineCommands())
             .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaylist(emptyList())
             .build()
 
+        val subtitle = audio.artists?.joinToString { it.name }
+            ?: audio.showName
+            ?: "Unknown source"
+
         val mediaMetadata = MediaMetadata.Builder()
-            .setTitle(track.name)
-            .setDisplayTitle(track.name)
-            .setArtist(track.artists.joinToString { it.name })
-            .setAlbumTitle(track.album?.name)
+            .setTitle(audio.name)
+            .setDisplayTitle(audio.name)
+            .setArtist(subtitle)
             .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
             .apply {
                 currentArtworkUri?.let { setArtworkUri(it.toUri()) }
@@ -232,15 +232,15 @@ class Player @Inject constructor(
             .build()
 
         val mediaItem = MediaItem.Builder()
-            .setMediaId(track.id)
-            .setUri(track.uri)
+            .setMediaId(audio.id)
+            .setUri(audio.uri)
             .setMediaMetadata(mediaMetadata)
             .build()
 
         val playlist = listOf(
-            MediaItemData.Builder(track.id)
+            MediaItemData.Builder(audio.id)
                 .setMediaItem(mediaItem)
-                .setDurationUs(track.duration * 1000L)
+                .setDurationUs(audio.duration * 1000L)
                 .setDefaultPositionUs(0)
                 .setIsSeekable(true)
                 .setMediaMetadata(mediaItem.mediaMetadata)
@@ -268,7 +268,7 @@ class Player @Inject constructor(
     }
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
-        val currentMedia3State = if (stateHolder.state.value.currentTrack == null) STATE_IDLE else STATE_READY
+        val currentMedia3State = if (stateHolder.state.value.currentAudio == null) STATE_IDLE else STATE_READY
 
         val playerCommand = audioFocusManager.updateAudioFocus(playWhenReady, currentMedia3State)
 

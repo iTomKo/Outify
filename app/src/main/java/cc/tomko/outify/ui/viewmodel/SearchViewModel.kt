@@ -10,6 +10,7 @@ import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Episode
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
@@ -63,8 +64,8 @@ class SearchViewModel @Inject constructor(
     private val _isRecommendationMode = MutableStateFlow(false)
     val isRecommendationMode: StateFlow<Boolean> = _isRecommendationMode
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -336,8 +337,8 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun setTrack(track: Track) {
-        playbackStateHolder.setTrack(track)
+    fun setAudio(audio: PlayableAudio) {
+        playbackStateHolder.setAudio(audio)
     }
 
     fun addToHistory(item: SearchUiModel) {

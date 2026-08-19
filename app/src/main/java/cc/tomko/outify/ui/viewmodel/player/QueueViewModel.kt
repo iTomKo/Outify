@@ -3,7 +3,9 @@ package cc.tomko.outify.ui.viewmodel.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.queue.SavedQueue
@@ -30,7 +32,7 @@ import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
 
-data class QueueEntry(val id: Long, val track: Track)
+data class QueueEntry(val id: Long, val audio: PlayableAudio)
 
 @HiltViewModel
 class QueueViewModel @Inject constructor(
@@ -43,8 +45,8 @@ class QueueViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -111,14 +113,14 @@ class QueueViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setShuffle(newValue)
             spirc.shuffle(newValue)
-            loadQueue(currentTrack.value)
+            loadQueue(currentAudio.value)
         }
     }
 
     val currentTrackEntry: QueueEntry?
         get() = _queueState.value.tracks.getOrNull(_queueState.value.currentIndex)
 
-    suspend fun loadQueue(currentTrack: Track?) {
+    suspend fun loadQueue(currentAudio: PlayableAudio?) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 _queueState.update { it.copy(isLoading = true, error = null) }
@@ -128,13 +130,13 @@ class QueueViewModel @Inject constructor(
 
                 val currentIndex = allPreviousUris.size
                 val total =
-                    allPreviousUris.size + (if (currentTrack != null) 1 else 0) + allNextUris.size
+                    allPreviousUris.size + (if (currentAudio != null) 1 else 0) + allNextUris.size
 
                 val half = INITIAL_LOAD_SIZE / 2
                 val startIndex = max(0, currentIndex - half)
                 val endIndex = min(total, currentIndex + half + 1)
 
-                val initialEntries = loadTracksInRange(startIndex, endIndex, currentTrack)
+                val initialEntries = loadAudioInRange(startIndex, endIndex, currentAudio)
 
                 unloadedPreviousHead = allPreviousUris.take(startIndex)
                 val loadedNextCount = max(0, endIndex - allPreviousUris.size - 1)
@@ -144,7 +146,7 @@ class QueueViewModel @Inject constructor(
                     it.copy(
                         tracks = initialEntries,
                         currentIndex = initialEntries
-                            .indexOfFirst { entry -> currentTrack != null && entry.track.uri == currentTrack.uri }
+                            .indexOfFirst { entry -> currentAudio != null && entry.audio.uri == currentAudio.uri }
                             .let { idx -> if (idx >= 0) idx else 0 },
                         totalSize = total,
                         loadedRange = startIndex until endIndex,
@@ -163,7 +165,7 @@ class QueueViewModel @Inject constructor(
     fun onScrollPositionChanged(
         firstVisibleIndex: Int,
         lastVisibleIndex: Int,
-        currentTrack: Track?
+        currentAudio: PlayableAudio?
     ) {
         val state = _queueState.value
         if (state.isLoading || state.tracks.isEmpty()) return
@@ -174,13 +176,13 @@ class QueueViewModel @Inject constructor(
         val canonicalLast = loadedRange.first + lastVisibleIndex
 
         if (canonicalFirst < loadedRange.first + PREFETCH_THRESHOLD && loadedRange.first > 0) {
-            loadPreviousPage(currentTrack)
+            loadPreviousPage(currentAudio)
         } else if (canonicalLast > loadedRange.last - PREFETCH_THRESHOLD && loadedRange.last + 1 < state.totalSize) {
-            loadNextPage(currentTrack)
+            loadNextPage(currentAudio)
         }
     }
 
-    private fun loadPreviousPage(currentTrack: Track?) {
+    private fun loadPreviousPage(currentAudio: PlayableAudio?) {
         if (previousLoadJob?.isActive == true) return
         previousLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -191,7 +193,7 @@ class QueueViewModel @Inject constructor(
 
                 _queueState.update { it.copy(isLoadingPrevious = true, error = null) }
 
-                val newEntries = loadTracksInRange(newStartIndex, currentRange.first, currentTrack)
+                val newEntries = loadAudioInRange(newStartIndex, currentRange.first, currentAudio)
 
                 unloadedPreviousHead = unloadedPreviousHead.drop(newEntries.size)
 
@@ -209,7 +211,7 @@ class QueueViewModel @Inject constructor(
         }
     }
 
-    private fun loadNextPage(currentTrack: Track?) {
+    private fun loadNextPage(currentAudio: PlayableAudio?) {
         if (nextLoadJob?.isActive == true) return
         nextLoadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -220,7 +222,7 @@ class QueueViewModel @Inject constructor(
 
                 _queueState.update { it.copy(isLoadingNext = true, error = null) }
 
-                val newEntries = loadTracksInRange(currentRange.last, newEndIndex, currentTrack)
+                val newEntries = loadAudioInRange(currentRange.last, newEndIndex, currentAudio)
 
                 unloadedNextTail = unloadedNextTail.drop(newEntries.size)
 
@@ -237,71 +239,106 @@ class QueueViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadTracksInRange(
+    private suspend fun loadAudioInRange(
         startIndex: Int,
         endIndex: Int,
-        currentTrack: Track?
+        currentAudio: PlayableAudio?
     ): List<QueueEntry> = withContext(Dispatchers.IO) {
-        val urisToLoad = mutableListOf<String>()
-        val positionsToUriIndex = mutableListOf<Pair<Int, Int>>()
+        val urisToLoad = mutableListOf<Pair<Int, String>>()
         val currentTrackIndex = allPreviousUris.size
 
         for (i in startIndex until endIndex) {
             when {
                 i < allPreviousUris.size -> {
-                    positionsToUriIndex += (i to urisToLoad.size)
-                    urisToLoad.add(allPreviousUris[i])
+                    urisToLoad += i to allPreviousUris[i]
                 }
 
-                i == currentTrackIndex && currentTrack != null -> {
-                    positionsToUriIndex += (i to -1)
+                i == currentTrackIndex && currentAudio != null -> {
+                    // Current audio is already loaded.
                 }
 
                 i > currentTrackIndex -> {
                     val nextIndex = i - currentTrackIndex - 1
+
                     if (nextIndex < allNextUris.size) {
-                        positionsToUriIndex += (i to urisToLoad.size)
-                        urisToLoad.add(allNextUris[nextIndex])
-                    } else {
-                        positionsToUriIndex += (i to -2)
+                        urisToLoad += i to allNextUris[nextIndex]
                     }
                 }
             }
         }
 
-        val loadedTracks: List<Track> = if (urisToLoad.isNotEmpty()) {
-            try {
-                metadata.getTrackMetadata(urisToLoad)
-            } catch (t: Throwable) {
-                emptyList()
-            }
-        } else {
-            emptyList()
-        }
+        val trackUris = urisToLoad
+            .filter { (_, uri) -> uri.startsWith("spotify:track:") }
+            .map { (_, uri) -> uri }
 
-        val entries = mutableListOf<QueueEntry>()
-        var loadedCursor = 0
-        for ((_, uriLoadIndex) in positionsToUriIndex) {
-            when {
-                uriLoadIndex >= 0 -> {
-                    loadedTracks.getOrNull(loadedCursor)?.let {
-                        entries.add(QueueEntry(nextId(), it))
-                        loadedCursor++
+        val episodeUris = urisToLoad
+            .filter { (_, uri) -> !uri.startsWith("spotify:track:") }
+            .map { (_, uri) -> uri }
+
+        val tracks = runCatching {
+            metadata.getTrackMetadata(trackUris)
+        }.getOrDefault(emptyList())
+
+        val episodes = runCatching {
+            metadata.getEpisodeMetadata(episodeUris)
+        }.getOrDefault(emptyList())
+
+        val tracksByUri = tracks.associateBy { it.uri }
+
+        val episodesByUri = episodes
+            .mapIndexedNotNull { index, episode ->
+                episodeUris.getOrNull(index)?.let { uri ->
+                    uri to episode
+                }
+            }
+            .toMap()
+
+        buildList {
+            for (i in startIndex until endIndex) {
+                when {
+                    i < allPreviousUris.size -> {
+                        val uri = allPreviousUris[i]
+
+                        tracksByUri[uri]?.let {
+                            add(QueueEntry(nextId(), it.toPlayableAudio()))
+                        }
+
+                        episodesByUri[uri]?.let {
+                            add(QueueEntry(nextId(), it.toPlayableAudio()))
+                        }
+                    }
+
+                    i == currentTrackIndex -> {
+                        currentAudio?.let {
+                            add(QueueEntry(nextId(), it))
+                        }
+                    }
+
+                    i > currentTrackIndex -> {
+                        val nextIndex = i - currentTrackIndex - 1
+
+                        if (nextIndex < allNextUris.size) {
+                            val uri = allNextUris[nextIndex]
+
+                            tracksByUri[uri]?.let {
+                                add(QueueEntry(nextId(), it.toPlayableAudio()))
+                            }
+
+                            episodesByUri[uri]?.let {
+                                add(QueueEntry(nextId(), it.toPlayableAudio()))
+                            }
+                        }
                     }
                 }
-
-                uriLoadIndex == -1 -> currentTrack?.let { entries.add(QueueEntry(nextId(), it)) }
-                // -2 = out-of-range, skip
             }
         }
-        entries
     }
 
     private suspend fun syncQueueToSpirc() = withContext(Dispatchers.IO) {
         val state = _queueState.value
 
-        val loadedPreviousUris = state.tracks.take(state.currentIndex).map { it.track.uri }
-        val loadedNextUris = state.tracks.drop(state.currentIndex + 1).map { it.track.uri }
+        val loadedPreviousUris = state.tracks.take(state.currentIndex).map { it.audio.uri }
+        val loadedNextUris = state.tracks.drop(state.currentIndex + 1).map { it.audio.uri }
 
         val newPreviousUris = unloadedPreviousHead + loadedPreviousUris
         val newNextUris = loadedNextUris + unloadedNextTail
@@ -311,7 +348,7 @@ class QueueViewModel @Inject constructor(
         allNextUris = newNextUris
 
         try {
-            spirc.setQueue(newNextUris.toTypedArray(), currentTrackEntry?.track?.uri)
+            spirc.setQueue(newNextUris.toTypedArray(), currentTrackEntry?.audio?.uri)
         } catch (e: Exception) {
             _queueState.update { it.copy(error = e.message) }
         }
@@ -340,7 +377,7 @@ class QueueViewModel @Inject constructor(
             val queue = SavedQueue(
                 id = "current",
                 name = "Current Queue",
-                trackUris = entries.map { it.track.uri },
+                trackUris = entries.map { it.audio.uri },
                 currentIndex = _queueState.value.currentIndex
             )
             savedQueueRepository.debouncedSaveQueue(queue)

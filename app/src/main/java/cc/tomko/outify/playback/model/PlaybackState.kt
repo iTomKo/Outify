@@ -1,14 +1,14 @@
 package cc.tomko.outify.playback.model
 
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.PlayableAudio
 
 /**
  * Holds current playback state
  */
 data class PlaybackState(
     val state: PlayState = PlayState.IDLE,
-    val currentTrack: Track? = null,
-    val queue: List<Track> = emptyList(),
+    val currentAudio: PlayableAudio? = null,
+    val queue: List<PlayableAudio> = emptyList(),
     val queueIndex: Int = 0,
     val position: PositionInfo = PositionInfo.EMPTY,
     val playbackSpeed: Float = 1.0f,
