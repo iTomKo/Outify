@@ -4,15 +4,12 @@ import android.util.Log
 import androidx.room.withTransaction
 import cc.tomko.outify.core.model.Cover
 import cc.tomko.outify.core.model.CoverSize
-import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.asInt
 import cc.tomko.outify.core.model.asSize
-import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.ShowDao
 import cc.tomko.outify.data.dao.ShowEpisodeDao
 import cc.tomko.outify.data.database.AppDatabase
-import cc.tomko.outify.data.database.EpisodeEntity
 import cc.tomko.outify.data.database.ShowEntity
 import cc.tomko.outify.data.database.show.ShowEpisodeCrossRef
 import cc.tomko.outify.data.database.show.ShowWithEpisodes
@@ -37,8 +34,8 @@ import javax.inject.Singleton
 class ShowMetadataHelper @Inject constructor(
     private val db: AppDatabase,
     private val showDao: ShowDao,
-    private val episodeDao: EpisodeDao,
     private val showEpisodeDao: ShowEpisodeDao,
+    private val episodeMetadataHelper: EpisodeMetadataHelper,
     private val nativeMetadata: NativeMetadata,
     private val json: Json,
     @Named("metadataConcurrency") private val concurrency: Int,
@@ -102,14 +99,10 @@ class ShowMetadataHelper @Inject constructor(
         }
 
         if (missingEpisodeUris.isNotEmpty()) {
-            val fetchedEpisodes = try {
-                fetchEpisodes(missingEpisodeUris)
+            try {
+                episodeMetadataHelper.getEpisodeMetadata(missingEpisodeUris)
             } catch (e: Exception) {
                 Log.w("Metadata", "Failed to fetch episodes for show $uri", e)
-                emptyList()
-            }
-            if (fetchedEpisodes.isNotEmpty()) {
-                persistEpisodes(fetchedEpisodes)
             }
         }
 
@@ -156,33 +149,7 @@ class ShowMetadataHelper @Inject constructor(
      * Fetches the episode if not cached.
      */
     suspend fun getCoverByEpisodeId(episodeId: String, size: CoverSize): Cover? {
-        if (episodeId.isBlank()) return null
-
-        val episode = episodeDao.getEpisodeById(episodeId)
-        if (episode != null) {
-            val url: String? = when (size) {
-                CoverSize.LARGE -> episode.largeCoverUri
-                CoverSize.SMALL -> episode.smallCoverUri
-                CoverSize.MEDIUM -> episode.mediumCoverUri
-            }
-
-            if (url != null)
-                return Cover(url, size.asSize(), size.asSize(), size.asInt())
-        }
-
-        val episodeUri = "spotify:episode:$episodeId"
-        val fetched = try {
-            fetchEpisodes(listOf(episodeUri)).firstOrNull()
-        } catch (e: Exception) {
-            Log.w("Metadata", "Failed to fetch episode for cover retrieval: $episodeUri", e)
-            null
-        }
-
-        fetched?.let { ep ->
-            return ep.covers.maxByOrNull { it.width * it.height }
-        }
-
-        return null
+        return episodeMetadataHelper.getCoverByEpisodeId(episodeId, size)
     }
 
     /**
@@ -206,37 +173,6 @@ class ShowMetadataHelper @Inject constructor(
                         null
                     } catch (e: Exception) {
                         Log.e("Metadata", "fetchShows: failed for $uri", e)
-                        null
-                    }
-                }
-            }
-            results += deferred.awaitAll().filterNotNull()
-        }
-
-        results
-    }
-
-    /**
-     * Fetches episodes from native source.
-     */
-    private suspend fun fetchEpisodes(uris: List<String>): List<Episode> = supervisorScope {
-        if (uris.isEmpty()) return@supervisorScope emptyList()
-
-        val results = mutableListOf<Episode>()
-
-        uris.chunked(concurrency).forEach { chunk ->
-            val deferred = chunk.map { uri ->
-                async {
-                    try {
-                        val raw = nativeMetadata.retryOnRateLimit {
-                            nativeMetadata.fetchMetadata(uri)
-                        }
-                        json.decodeFromString<Episode>(raw.toString())
-                    } catch (e: RateLimitException) {
-                        Log.w("Metadata", "fetchEpisodes: rate-limited for $uri, giving up", e)
-                        null
-                    } catch (e: Exception) {
-                        Log.e("Metadata", "fetchEpisodes: failed for $uri", e)
                         null
                     }
                 }
@@ -317,59 +253,5 @@ class ShowMetadataHelper @Inject constructor(
                 showEpisodeDao.insertAll(showEpisodeJoins)
             }
         }
-    }
-
-    /**
-     * Persist episode metadata.
-     */
-    private suspend fun persistEpisodes(episodes: List<Episode>) {
-        if (episodes.isEmpty()) return
-
-        val now = System.currentTimeMillis()
-
-        val episodeEntities = episodes.map { episode ->
-            val sortedByArea = episode.covers
-                .sortedBy { it.width * it.height }
-
-            val small = sortedByArea.firstOrNull()
-            val large = sortedByArea.lastOrNull()
-            val medium = sortedByArea.getOrNull(sortedByArea.size / 2)
-
-            val keywordsJson = try {
-                json.encodeToString(
-                    ListSerializer(String.serializer()),
-                    episode.keywords
-                )
-            } catch (_: Exception) {
-                "[]"
-            }
-
-            EpisodeEntity(
-                episodeId = episode.id,
-                uri = episode.uri,
-                name = episode.name,
-                duration = episode.duration,
-                description = episode.description,
-                number = episode.number,
-                publishTime = episode.publishTime,
-                language = episode.language,
-                isExplicit = episode.isExplicit,
-                showName = episode.showName,
-                allowBackgroundPlayback = episode.allowBackgroundPlayback,
-                externalUrl = episode.externalUrl,
-                episodeType = episode.episodeType.name,
-                hasMusicAndTalk = episode.hasMusicAndTalk,
-                isAudiobookChapter = episode.isAudiobookChapter,
-                keywordsJson = keywordsJson,
-                smallCoverUri = small?.uri,
-                mediumCoverUri = medium?.uri,
-                largeCoverUri = large?.uri,
-                isLibraryItem = false,
-                lastAccessed = now,
-                lastUpdated = now,
-            )
-        }
-
-        episodeDao.insertAll(episodeEntities)
     }
 }
