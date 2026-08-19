@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.motionScheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -159,7 +160,7 @@ fun PlayerContent(
         )
     }
 
-    val playbackControls: @Composable () -> Unit = {
+    val playbackControls: @Composable (height: Dp) -> Unit = { height ->
         PlaybackControls(
             onPrevious = { viewModel.onAction(PlayerAction.Previous) },
             onNext = { viewModel.onAction(PlayerAction.Next) },
@@ -175,6 +176,7 @@ fun PlayerContent(
             canFastForward = forwardMilliseconds > 0,
             isBuffering = uiState.isBuffering,
             isPlaying = isPlaying,
+            height = height,
         )
     }
 
@@ -803,40 +805,56 @@ private fun FullPlayerLandscapeContent(
     albumCoverSection: @Composable (Modifier) -> Unit,
     trackMetadataSection: @Composable () -> Unit,
     playerProgressSection: @Composable () -> Unit,
-    playbackControlsSection: @Composable () -> Unit,
+    playbackControlsSection: @Composable (height: Dp) -> Unit,
     controlsSection: @Composable () -> Unit,
     moreActions: @Composable () -> Unit
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(
-                horizontal = 24.dp,
-                vertical = 0.dp
-            ),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp
     ) {
-        albumCoverSection(
-            Modifier
-                .fillMaxHeight()
-                .weight(1f)
-        )
-        Spacer(Modifier.width(9.dp))
         Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .weight(1f)
+            modifier = modifier
+                .fillMaxSize()
                 .padding(paddingValues)
-                .padding(
-                    horizontal = 0.dp,
-                    vertical = 0.dp
-                ),
+                .padding(end = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly
         ) {
-            trackMetadataSection()
-            playerProgressSection()
-            controlsSection()
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                albumCoverSection(
+                    Modifier
+                        .fillMaxWidth(0.55f)
+                        .padding(top = 16.dp)
+                )
+            }
+
+            Spacer(Modifier.weight(0.25f))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                trackMetadataSection()
+                playerProgressSection()
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight(),
+            ) {
+                playbackControlsSection(50.dp)
+
+                Spacer(Modifier.weight(0.25f))
+
+                controlsSection()
+            }
         }
     }
 }
@@ -848,7 +866,7 @@ private fun FullPlayerPortraitContent(
     albumCoverSection: @Composable (Modifier) -> Unit,
     trackMetadataSection: @Composable () -> Unit,
     playerProgressSection: @Composable () -> Unit,
-    playbackControlsSection: @Composable () -> Unit,
+    playbackControlsSection: @Composable (height: Dp) -> Unit,
     controlsSection: @Composable () -> Unit,
     moreActions: @Composable () -> Unit
 ) {
@@ -888,7 +906,7 @@ private fun FullPlayerPortraitContent(
 
         Spacer(Modifier.height(12.dp))
 
-        playbackControlsSection()
+        playbackControlsSection(90.dp)
 
         Spacer(Modifier.weight(1f))
 
