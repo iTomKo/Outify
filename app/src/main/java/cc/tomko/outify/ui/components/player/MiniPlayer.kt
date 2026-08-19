@@ -70,7 +70,7 @@ private val TAB_HEIGHT = 20.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun SharedTransitionScope.MiniPlayer(
+fun MiniPlayer(
     viewModel: MiniPlayerViewModel,
     onDismiss: () -> Unit,
     showQueue: () -> Unit,
@@ -211,10 +211,6 @@ fun SharedTransitionScope.MiniPlayer(
                         shape = RoundedCornerShape(6.dp),
                         modifier = Modifier
                             .size(imageSize)
-                            .sharedElementWithCallerManagedVisibility(
-                                sharedContentState = rememberSharedContentState(SharedElementKey.PLAYER_ARTWORK),
-                                visible = true,
-                            )
                     ) {
                         SmartImage(
                             url = artworkUrl,

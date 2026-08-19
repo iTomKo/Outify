@@ -1,5 +1,6 @@
 package cc.tomko.outify
 
+import android.content.res.Configuration
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -10,6 +11,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -22,11 +24,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,6 +61,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -86,6 +95,7 @@ import cc.tomko.outify.ui.components.player.rememberPlayerSheetState
 import cc.tomko.outify.ui.components.player.rememberQueueBottomSheetState
 import cc.tomko.outify.ui.notifications.InAppNotificationHost
 import cc.tomko.outify.ui.screens.PlayerScreen
+import cc.tomko.outify.ui.screens.player.PlayerContent
 import cc.tomko.outify.ui.viewmodel.MainViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
@@ -287,6 +297,12 @@ class MainActivity : ComponentActivity() {
             } else routes
         }
 
+        BackHandler(enabled = playerSheetState.isExpanded) {
+            scope.launch {
+                playerSheetState.collapse()
+            }
+        }
+
         OutifyTheme(
             track = currentTrack,
             themeMode = themeMode,
@@ -350,92 +366,136 @@ class MainActivity : ComponentActivity() {
                                         addToWidgetViewModel = addToWidgetViewModel,
                                     )
 
-                                    AnimatedVisibility(
-                                        visible = currentTrack != null,
-                                        enter = slideInVertically(
-                                            initialOffsetY = { fullHeight -> fullHeight }
-                                        ) + fadeIn(),
-                                        exit = slideOutVertically(
-                                            targetOffsetY = { fullHeight -> fullHeight }
-                                        ) + fadeOut(),
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .padding(bottom = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp)
-                                    ) {
-                                        PlayerSheet(
-                                            sheetState = playerSheetState,
-                                            listState = playerListState,
-                                            miniPlayerHeight = 88.dp,
-                                            miniContent = { progress ->
-                                                MiniPlayer(
-                                                    viewModel = miniPlayerViewModel,
-                                                    onDismiss = {
-                                                        miniPlayerViewModel.setTrack(null)
-                                                    },
-                                                    modifier = Modifier.padding(
-                                                        horizontal = 12.dp,
-                                                        vertical = 12.dp
-                                                    ),
-                                                    showQueue = { sheetState.show() },
-                                                    onClick = {
-                                                        scope.launch { playerSheetState.expand() }
-                                                    }
-                                                )
-                                            },
-                                            fullContent = { progress ->
-                                                PlayerScreen(
+                                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+                                    if (isLandscape) {
+                                        Row(modifier = Modifier.fillMaxSize()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(3f)
+                                                    .fillMaxHeight()
+                                            ) {
+                                                PlayerContent(
                                                     viewModel = playerViewModel,
+                                                    expansionFractionProvider = { 1f },
                                                     listState = playerListState,
-                                                    onArtistClick = {
-                                                        scope.launch {
-                                                            playerSheetState.collapse()
-                                                        }
-                                                        backStack.add(Route.ArtistScreen(it.uri))
-                                                    },
-                                                    onMoreOptions = {
-                                                        val isLiked = playerViewModel.isLiked.value
-                                                        GlobalPopupController.show(
-                                                            PopupSpec.TrackInfo(
-                                                                currentTrack!!,
-                                                                action = {
-                                                                    scope.launch {
-                                                                        playerSheetState.collapse()
-                                                                    }
-                                                                },
-                                                                isLiked = isLiked
-                                                            )
-                                                        )
-                                                    }
+                                                    paddingValues = innerPadding,
+                                                    onShowQueue = { sheetState.show() },
+                                                    modifier = Modifier.fillMaxSize()
                                                 )
                                             }
-                                        )
-                                    }
 
-                                    if (interfaceSettings.experimentalFloatingNav) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(7f)
+                                                    .fillMaxHeight()
+                                            ) {
+                                                NavigationRoot(
+                                                    backStack = backStack,
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    bottomPadding = if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+                                                )
+
+                                                InAppNotificationHost(
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    maxWidthFraction = 0.92f,
+                                                    hostPaddingBottom = notificationPaddingBottom
+                                                )
+
+                                                if (interfaceSettings.experimentalFloatingNav) {
+                                                    FloatingOutifyBottomNav(
+                                                        items = allRoutes,
+                                                        selectedId = selectedId,
+                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                                        modifier = Modifier.align(Alignment.BottomCenter)
+                                                    )
+                                                } else {
+                                                    OutifyBottomNav(
+                                                        items = allRoutes,
+                                                        selectedId = selectedId,
+                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        modifier = Modifier.align(Alignment.BottomCenter)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        // Portrait mode
                                         AnimatedVisibility(
-                                            visible = currentTrack == null || !playerSheetState.isExpanded,
+                                            visible = currentTrack != null,
                                             enter = slideInVertically(
                                                 initialOffsetY = { fullHeight -> fullHeight }
                                             ) + fadeIn(),
                                             exit = slideOutVertically(
                                                 targetOffsetY = { fullHeight -> fullHeight }
                                             ) + fadeOut(),
-                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .padding(bottom = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp)
                                         ) {
-                                            FloatingOutifyBottomNav(
-                                                items = allRoutes,
-                                                selectedId = selectedId,
-                                                onItemSelected = { item -> backStack.add(item.route) },
-                                                showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                            PlayerSheet(
+                                                sheetState = playerSheetState,
+                                                listState = playerListState,
+                                                miniPlayerHeight = 88.dp,
+                                                miniContent = { progress ->
+                                                    MiniPlayer(
+                                                        viewModel = miniPlayerViewModel,
+                                                        onDismiss = {
+                                                            miniPlayerViewModel.setTrack(null)
+                                                        },
+                                                        modifier = Modifier.padding(
+                                                            horizontal = 12.dp,
+                                                            vertical = 12.dp
+                                                        ),
+                                                        showQueue = { sheetState.show() },
+                                                        onClick = {
+                                                            scope.launch { playerSheetState.expand() }
+                                                        }
+                                                    )
+                                                },
+                                                fullContent = { progress ->
+                                                    PlayerContent(
+                                                        viewModel = playerViewModel,
+                                                        expansionFractionProvider = { progress },
+                                                        listState = playerListState,
+                                                        paddingValues = innerPadding,
+                                                        onShowQueue = {
+                                                            sheetState.show()
+                                                        },
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                    )
+                                                }
                                             )
                                         }
-                                    } else {
-                                        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-                                            OutifyBottomNav(
-                                                items = allRoutes,
-                                                selectedId = selectedId,
-                                                onItemSelected = { item -> backStack.add(item.route) }
-                                            )
+
+                                        if (interfaceSettings.experimentalFloatingNav) {
+                                            AnimatedVisibility(
+                                                visible = currentTrack == null || !playerSheetState.isExpanded,
+                                                enter = slideInVertically(
+                                                    initialOffsetY = { fullHeight -> fullHeight }
+                                                ) + fadeIn(),
+                                                exit = slideOutVertically(
+                                                    targetOffsetY = { fullHeight -> fullHeight }
+                                                ) + fadeOut(),
+                                                modifier = Modifier.align(Alignment.BottomCenter),
+                                            ) {
+                                                FloatingOutifyBottomNav(
+                                                    items = allRoutes,
+                                                    selectedId = selectedId,
+                                                    onItemSelected = { item -> backStack.add(item.route) },
+                                                    showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                                )
+                                            }
+                                        } else {
+                                            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                                                OutifyBottomNav(
+                                                    items = allRoutes,
+                                                    selectedId = selectedId,
+                                                    onItemSelected = { item -> backStack.add(item.route) }
+                                                )
+                                            }
                                         }
                                     }
                                 }
