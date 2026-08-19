@@ -141,7 +141,7 @@ fun PlayerContent(
         )
     }
 
-    val controlsSection: @Composable () -> Unit = {
+    val controlsSection: @Composable (height: Dp) -> Unit = { height ->
         PlayerControlsContent(
             isShuffleEnabled = isShuffling,
             isRepeatEnabled = isRepeating,
@@ -149,6 +149,7 @@ fun PlayerContent(
             onShuffleToggle = { viewModel.onAction(PlayerAction.ShuffleToggle) },
             onRepeatToggle = { viewModel.onAction(PlayerAction.RepeatToggle) },
             onFavoriteToggle = { viewModel.toggleFavorite() },
+            height = height,
         )
     }
 
@@ -339,6 +340,7 @@ private fun PlayerControlsContent(
     isShuffleEnabled: Boolean,
     isRepeatEnabled: Boolean,
     isFavorite: Boolean,
+    height: Dp,
     onShuffleToggle: () -> Unit,
     onRepeatToggle: () -> Unit,
     onFavoriteToggle: () -> Unit,
@@ -358,7 +360,7 @@ private fun PlayerControlsContent(
         Spacer(Modifier.height(14.dp))
 
         Box(
-            modifier = Modifier.height(82.dp)
+            modifier = Modifier.height(height)
         ) {
             Row(
                 modifier = Modifier
@@ -806,7 +808,7 @@ private fun FullPlayerLandscapeContent(
     trackMetadataSection: @Composable () -> Unit,
     playerProgressSection: @Composable () -> Unit,
     playbackControlsSection: @Composable (height: Dp) -> Unit,
-    controlsSection: @Composable () -> Unit,
+    controlsSection: @Composable (height: Dp) -> Unit,
     moreActions: @Composable () -> Unit
 ) {
     Surface(
@@ -853,7 +855,7 @@ private fun FullPlayerLandscapeContent(
 
                 Spacer(Modifier.weight(0.25f))
 
-                controlsSection()
+                controlsSection(50.dp)
             }
         }
     }
@@ -867,53 +869,61 @@ private fun FullPlayerPortraitContent(
     trackMetadataSection: @Composable () -> Unit,
     playerProgressSection: @Composable () -> Unit,
     playbackControlsSection: @Composable (height: Dp) -> Unit,
-    controlsSection: @Composable () -> Unit,
+    controlsSection: @Composable (height: Dp) -> Unit,
     moreActions: @Composable () -> Unit
 ) {
-    Column(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
-            .padding(horizontal = 24.dp, vertical = 36.dp)
-            .padding(top = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            albumCoverSection(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 16.dp)
-            )
-        }
-
-        Spacer(Modifier.weight(0.5f))
+        val horizontalPadding = maxWidth * 0.06f
+        val outerVerticalPadding = maxHeight * 0.04f
+        val topPadding = maxHeight * 0.035f
+        val playbackControlsHeight = maxHeight * 0.105f
+        val segmentedControlsHeight = maxHeight * 0.09f
 
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .fillMaxSize()
+                .padding(horizontal = horizontalPadding, vertical = outerVerticalPadding)
+                .padding(top = topPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            trackMetadataSection()
-            playerProgressSection()
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                albumCoverSection(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = horizontalPadding * 0.65f)
+                        .padding(top = topPadding * 0.5f)
+                )
+            }
+
+            Spacer(Modifier.weight(0.5f))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = horizontalPadding * 0.65f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                trackMetadataSection()
+                playerProgressSection()
+            }
+
+            Spacer(Modifier.weight(0.05f))
+
+            playbackControlsSection(playbackControlsHeight)
+
+            Spacer(Modifier.weight(1f))
+
+            controlsSection(segmentedControlsHeight)
+
+            moreActions()
         }
-
-        Spacer(Modifier.height(12.dp))
-
-        playbackControlsSection(90.dp)
-
-        Spacer(Modifier.weight(1f))
-
-        controlsSection()
-
-        Spacer(Modifier.weight(0.5f))
-
-        moreActions()
     }
 }
