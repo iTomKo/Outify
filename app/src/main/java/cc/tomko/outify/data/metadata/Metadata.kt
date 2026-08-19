@@ -7,6 +7,7 @@ import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Cover
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Playlist
+import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.dao.LikedItemsDao
 import cc.tomko.outify.data.database.LikedItemsEntity
@@ -21,6 +22,7 @@ class Metadata @Inject constructor(
     private val trackMetadataHelper: TrackMetadataHelper,
     private val albumMetadataHelper: AlbumMetadataHelper,
     private val playlistMetadataHelper: PlaylistMetadataHelper,
+    private val showMetadataHelper: ShowMetadataHelper,
     private val nativeMetadata: NativeMetadata,
     private val spClient: SpClient,
     private val likedItemsDao: LikedItemsDao,
@@ -68,6 +70,22 @@ class Metadata @Inject constructor(
 
     suspend fun getAlbumCoverByTrackId(trackId: String, size: CoverSize): Cover? {
         return albumMetadataHelper.getCoverByTrackId(trackId, size)
+    }
+
+    fun observeShows(uris: List<String>): Flow<List<Show>> {
+        return showMetadataHelper.observeShows(uris)
+    }
+
+    suspend fun getShowMetadata(uri: String): Show? {
+        return showMetadataHelper.getShowMetadata(uri)
+    }
+
+    suspend fun getShowCover(showId: String, size: CoverSize): Cover? {
+        return showMetadataHelper.getCoverByShowId(showId, size)
+    }
+
+    suspend fun getEpisodeCover(episodeId: String, size: CoverSize): Cover? {
+        return showMetadataHelper.getCoverByEpisodeId(episodeId, size)
     }
 
     suspend fun getArtistMetadata(uri: String): Artist? {
@@ -127,6 +145,8 @@ class Metadata @Inject constructor(
         const val TYPE_PLAYLIST = "playlist"
         const val TYPE_ALBUM = "album"
         const val TYPE_ARTIST = "artist"
+        const val TYPE_SHOW = "show"
+        const val TYPE_EPISODE = "episode"
     }
 
     suspend fun isLikedPlaylist(uri: String): Boolean = likedItemsDao.contains(uri)
@@ -179,6 +199,38 @@ class Metadata @Inject constructor(
     }
 
     suspend fun removeLikedAlbum(uri: String) {
+        likedItemsDao.delete(uri)
+    }
+
+    suspend fun isLikedShow(uri: String): Boolean = likedItemsDao.contains(uri)
+
+    suspend fun isLikedEpisode(uri: String): Boolean = likedItemsDao.contains(uri)
+
+    fun observeLikedShowUris(): Flow<List<String>> =
+        likedItemsDao.observeUrisByType(TYPE_SHOW)
+
+    fun observeLikedEpisodeUris(): Flow<List<String>> =
+        likedItemsDao.observeUrisByType(TYPE_EPISODE)
+
+    fun observeIsShowLiked(uri: String): Flow<Boolean> =
+        likedItemsDao.observeContains(uri)
+
+    fun observeIsEpisodeLiked(uri: String): Flow<Boolean> =
+        likedItemsDao.observeContains(uri)
+
+    suspend fun addLikedShow(uri: String) {
+        likedItemsDao.insert(LikedItemsEntity(uri, TYPE_SHOW))
+    }
+
+    suspend fun removeLikedShow(uri: String) {
+        likedItemsDao.delete(uri)
+    }
+
+    suspend fun addLikedEpisode(uri: String) {
+        likedItemsDao.insert(LikedItemsEntity(uri, TYPE_EPISODE))
+    }
+
+    suspend fun removeLikedEpisode(uri: String) {
         likedItemsDao.delete(uri)
     }
 }
