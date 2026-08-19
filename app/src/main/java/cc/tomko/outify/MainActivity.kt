@@ -375,16 +375,14 @@ class MainActivity : ComponentActivity() {
                                                     .weight(3f)
                                                     .fillMaxHeight()
                                             ) {
-                                                if (currentTrack != null) {
-                                                    PlayerContent(
-                                                        viewModel = playerViewModel,
-                                                        expansionFractionProvider = { 1f },
-                                                        listState = playerListState,
-                                                        paddingValues = innerPadding,
-                                                        onShowQueue = { sheetState.show() },
-                                                        modifier = Modifier.fillMaxSize()
-                                                    )
-                                                }
+                                                PlayerContent(
+                                                    viewModel = playerViewModel,
+                                                    expansionFractionProvider = { 1f },
+                                                    listState = playerListState,
+                                                    paddingValues = innerPadding,
+                                                    onShowQueue = { sheetState.show() },
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
                                             }
 
                                             Box(
