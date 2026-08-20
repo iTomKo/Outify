@@ -180,6 +180,21 @@ class Metadata @Inject constructor(
         }
     }
 
+    suspend fun getSavedShowUris(): List<String> {
+        try {
+            val raw = spClient.getSavedItems(SpClient.SHOWS)
+            val checked = spClient.checkAndHandleError(raw, "getSavedShowUris")
+            return checked.split(",")
+                .filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved show URIs"),
+                "getSavedShowUris"
+            )
+            return emptyList()
+        }
+    }
+
     suspend fun getPlaylistMetadata(uri: String, allowCached: Boolean): Playlist? {
         return playlistMetadataHelper.getPlaylistMetadata(uri, allowCached)
     }
@@ -194,8 +209,6 @@ class Metadata @Inject constructor(
         const val TYPE_PLAYLIST = "playlist"
         const val TYPE_ALBUM = "album"
         const val TYPE_ARTIST = "artist"
-        const val TYPE_SHOW = "show"
-        const val TYPE_EPISODE = "episode"
     }
 
     suspend fun isLikedPlaylist(uri: String): Boolean = likedItemsDao.contains(uri)
@@ -248,38 +261,6 @@ class Metadata @Inject constructor(
     }
 
     suspend fun removeLikedAlbum(uri: String) {
-        likedItemsDao.delete(uri)
-    }
-
-    suspend fun isLikedShow(uri: String): Boolean = likedItemsDao.contains(uri)
-
-    suspend fun isLikedEpisode(uri: String): Boolean = likedItemsDao.contains(uri)
-
-    fun observeLikedShowUris(): Flow<List<String>> =
-        likedItemsDao.observeUrisByType(TYPE_SHOW)
-
-    fun observeLikedEpisodeUris(): Flow<List<String>> =
-        likedItemsDao.observeUrisByType(TYPE_EPISODE)
-
-    fun observeIsShowLiked(uri: String): Flow<Boolean> =
-        likedItemsDao.observeContains(uri)
-
-    fun observeIsEpisodeLiked(uri: String): Flow<Boolean> =
-        likedItemsDao.observeContains(uri)
-
-    suspend fun addLikedShow(uri: String) {
-        likedItemsDao.insert(LikedItemsEntity(uri, TYPE_SHOW))
-    }
-
-    suspend fun removeLikedShow(uri: String) {
-        likedItemsDao.delete(uri)
-    }
-
-    suspend fun addLikedEpisode(uri: String) {
-        likedItemsDao.insert(LikedItemsEntity(uri, TYPE_EPISODE))
-    }
-
-    suspend fun removeLikedEpisode(uri: String) {
         likedItemsDao.delete(uri)
     }
 }

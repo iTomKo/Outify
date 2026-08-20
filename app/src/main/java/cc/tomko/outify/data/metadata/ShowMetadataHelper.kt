@@ -60,6 +60,43 @@ class ShowMetadataHelper @Inject constructor(
     }
 
     /**
+     * Batch-fetch and persist show metadata for a list of URIs.
+     * Used by the library sync to populate the shows table.
+     */
+    suspend fun getShowsMetadata(uris: List<String>): List<Show> {
+        if (uris.isEmpty()) return emptyList()
+
+        val cleanedIds = uris.map { it.removePrefix("spotify:show:") }
+
+        // Check what's already cached
+        val cached = showDao.getShowsWithEpisodes(cleanedIds)
+            .associateBy { it.show.uri }
+            .mapValues { (_, v) -> v.toDomain() }
+
+        val missing = uris.filter { it !in cached }
+
+        if (missing.isNotEmpty()) {
+            val fetched = try {
+                fetchShows(missing)
+            } catch (e: Exception) {
+                Log.w("ShowMetadataHelper", "Failed to fetch shows", e)
+                emptyList()
+            }
+
+            if (fetched.isNotEmpty()) {
+                persistShowMetadata(fetched)
+            }
+        }
+
+        // Re-read everything from DB to ensure consistency
+        val all = showDao.getShowsWithEpisodes(cleanedIds)
+            .associateBy { it.show.uri }
+            .mapValues { (_, v) -> v.toDomain() }
+
+        return uris.mapNotNull { all[it] }
+    }
+
+    /**
      * Returns the show with its episodes.
      *
      * Since episodes are dynamic, we always re-fetch the show from native

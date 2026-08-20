@@ -124,6 +124,15 @@ class MiscSettingsViewModel @Inject constructor(
                 }
             }
 
+            // Sync liked shows in the background
+            launch {
+                runCatching {
+                    likedRepository.syncLikedShows(forceSync = true)
+                }.onFailure {
+                    Log.w("MiscSettingsViewModel", "syncLikedShows failed", it)
+                }
+            }
+
             launch {
                 delay(3000)
                 if (_syncStatus.value is SyncStatus.Success || _syncStatus.value is SyncStatus.Error) {

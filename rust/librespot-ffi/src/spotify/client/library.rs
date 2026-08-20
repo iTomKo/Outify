@@ -150,15 +150,22 @@ impl SpotifyClient {
             resume_position_ms: i64,
         }
 
-        let res = self
+        let resp = self
             .client
             .get(format!("{}/v1/episodes/{}", SPOTIFY_API_URL, episode_id))
             .bearer_auth(token.access_token)
             .timeout(REQUEST_TIMEOUT)
             .send()
-            .await?
-            .json::<EpisodeResponse>()
-            .await;
+            .await?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            error!("get_episode_details status {status}: {body}");
+            return Err(SpotifyApiError::Http(status.as_u16(), body));
+        }
+
+        let res = resp.json::<EpisodeResponse>().await;
 
         match res {
             Ok(ep) => Ok(EpisodeDetails {
@@ -166,9 +173,12 @@ impl SpotifyClient {
                 fully_played: ep.resume_point.as_ref().map(|r| r.fully_played).unwrap_or(false),
                 resume_position_ms: ep.resume_point.as_ref().map(|r| r.resume_position_ms).unwrap_or(0),
             }),
-            Err(e) => Err(SpotifyApiError::Generic(format!(
-                "get_episode_details failed: {e}"
-            ))),
+            Err(e) => {
+                error!("get_episode_details deserialization failed: {e}");
+                Err(SpotifyApiError::Generic(format!(
+                    "get_episode_details failed: {e}"
+                )))
+            }
         }
     }
 }
@@ -184,6 +194,7 @@ pub enum SavedItemType {
     Tracks,
     Albums,
     Episodes,
+    Shows,
 }
 
 impl SavedItemType {
@@ -192,6 +203,7 @@ impl SavedItemType {
             SavedItemType::Tracks => "tracks",
             SavedItemType::Albums => "albums",
             SavedItemType::Episodes => "episodes",
+            SavedItemType::Shows => "shows",
         }
     }
 }
@@ -204,6 +216,7 @@ impl FromStr for SavedItemType {
             "tracks" => Ok(Self::Tracks),
             "albums" => Ok(Self::Albums),
             "episodes" => Ok(Self::Episodes),
+            "shows" => Ok(Self::Shows),
             other => Err(SpotifyApiError::Generic(format!(
                 "Invalid SavedItemType: {other}"
             ))),

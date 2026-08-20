@@ -14,6 +14,7 @@ import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
@@ -47,17 +48,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-enum class LibraryTab { Playlists, Albums, Episodes }
+enum class LibraryTab { Playlists, Albums, Shows, Episodes }
 
 data class LibraryState(
     val playlists: List<Playlist> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val shows: List<Show> = emptyList(),
     val episodes: List<Episode> = emptyList(),
     val tracks: List<Track> = emptyList(),
     val folders: List<PlaylistFolder> = emptyList(),
     val selectedTab: LibraryTab = LibraryTab.Playlists,
     val error: String? = null,
     val isLoadingAlbums: Boolean = false,
+    val isLoadingShows: Boolean = false,
     val isLoadingEpisodes: Boolean = false,
     val isLoadingTracks: Boolean = false,
     val episodeShowUris: Map<String, String> = emptyMap(),
@@ -90,6 +93,9 @@ class LibraryViewModel @Inject constructor(
     private val albumUris = MutableStateFlow<List<String>>(emptyList())
     private var albumsLoaded = false
 
+    private val showUris = MutableStateFlow<List<String>>(emptyList())
+    private var showsLoaded = false
+
     private val episodeUris = MutableStateFlow<List<String>>(emptyList())
     private var episodesLoaded = false
 
@@ -107,6 +113,7 @@ class LibraryViewModel @Inject constructor(
     val selectedTab: StateFlow<LibraryTab> = _selectedTab
 
     private val _isLoadingAlbums = MutableStateFlow(false)
+    private val _isLoadingShows = MutableStateFlow(false)
     private val _isLoadingEpisodes = MutableStateFlow(false)
     private val _isLoadingTracks = MutableStateFlow(false)
 
@@ -116,6 +123,7 @@ class LibraryViewModel @Inject constructor(
         _selectedTab.value = tab
         when (tab) {
             LibraryTab.Albums -> loadAlbumUris()
+            LibraryTab.Shows -> loadShowUris()
             LibraryTab.Episodes -> loadEpisodeUris()
             else -> {}
         }
@@ -155,6 +163,22 @@ class LibraryViewModel @Inject constructor(
             )
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    val shows: StateFlow<List<Show>> =
+        showUris
+            .flatMapLatest { uris ->
+                if (uris.isEmpty()) {
+                    flow { emit(emptyList()) }
+                } else {
+                    metadata.observeShows(uris)
+                }
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyList()
+            )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     val episodes: StateFlow<List<Episode>> =
         episodeUris
             .flatMapLatest { uris ->
@@ -171,19 +195,21 @@ class LibraryViewModel @Inject constructor(
             )
 
     val libraryState: StateFlow<LibraryState> = combine(
-        listOf(playlists, albums, episodes, foldersFlow, _selectedTab, _error, _isLoadingAlbums, _isLoadingEpisodes, _isLoadingTracks, _episodeShowUris)
+        listOf(playlists, albums, shows, episodes, foldersFlow, _selectedTab, _error, _isLoadingAlbums, _isLoadingShows, _isLoadingEpisodes, _isLoadingTracks, _episodeShowUris)
     ) { values ->
         LibraryState(
             playlists = values[0] as List<Playlist>,
             albums = values[1] as List<Album>,
-            episodes = values[2] as List<Episode>,
-            folders = values[3] as List<PlaylistFolder>,
-            selectedTab = values[4] as LibraryTab,
-            error = values[5] as String?,
-            isLoadingAlbums = values[6] as Boolean,
-            isLoadingEpisodes = values[7] as Boolean,
-            isLoadingTracks = values[8] as Boolean,
-            episodeShowUris = values[9] as Map<String, String>,
+            shows = values[2] as List<Show>,
+            episodes = values[3] as List<Episode>,
+            folders = values[4] as List<PlaylistFolder>,
+            selectedTab = values[5] as LibraryTab,
+            error = values[6] as String?,
+            isLoadingAlbums = values[7] as Boolean,
+            isLoadingShows = values[8] as Boolean,
+            isLoadingEpisodes = values[9] as Boolean,
+            isLoadingTracks = values[10] as Boolean,
+            episodeShowUris = values[11] as Map<String, String>,
         )
     }.stateIn(
         viewModelScope,
@@ -240,6 +266,25 @@ class LibraryViewModel @Inject constructor(
             }
 
             _isLoadingAlbums.value = false
+        }
+    }
+
+    fun loadShowUris(force: Boolean = false) {
+        if (!force && showsLoaded) return
+        viewModelScope.launch {
+            _isLoadingShows.value = true
+
+            runCatching {
+                val raw = spClient.getSavedItems(SpClient.SHOWS)
+                raw.split(",").filter { it.isNotBlank() }
+            }.onSuccess { uris ->
+                showUris.value = uris
+                showsLoaded = true
+            }.onFailure { e ->
+                Log.w("LibraryViewModel", "Failed to fetch show URIs", e)
+            }
+
+            _isLoadingShows.value = false
         }
     }
 
@@ -338,7 +383,8 @@ class LibraryViewModel @Inject constructor(
         return withContext(Dispatchers.IO) {
             runCatching {
                 val raw = spClient.getEpisodeDetails(episodeId)
-                EpisodeDetails.fromJson(raw)
+                val checked = spClient.checkAndHandleError(raw, "resolveEpisodeDetails:$episodeId")
+                EpisodeDetails.fromJson(checked)
             }.getOrNull()
         }
     }
@@ -349,6 +395,7 @@ class LibraryViewModel @Inject constructor(
         authorsCache.clear()
         loadPlaylistUris(force = true)
         loadAlbumUris(force = true)
+        loadShowUris(force = true)
         loadEpisodeUris(force = true)
     }
 

@@ -73,6 +73,7 @@ import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
+import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.toColor
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -85,6 +86,7 @@ import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.components.rememberCollapsingHeaderState
 import cc.tomko.outify.ui.components.rows.AlbumRow
 import cc.tomko.outify.ui.components.rows.PlaylistRow
+import cc.tomko.outify.ui.components.rows.ShowRow
 import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.user.UserChipAvatar
 import cc.tomko.outify.ui.screens.MaterialSearchBar
@@ -171,6 +173,13 @@ fun SharedTransitionScope.LibraryScreen(
         }
     }
 
+    val filteredShows = remember(libraryState.shows, searchQuery) {
+        if (searchQuery.isBlank()) libraryState.shows
+        else libraryState.shows.filter { s ->
+            s.name.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     val filteredEpisodes = remember(libraryState.episodes, searchQuery) {
         if (searchQuery.isBlank()) libraryState.episodes
         else libraryState.episodes.filter { e ->
@@ -226,6 +235,7 @@ fun SharedTransitionScope.LibraryScreen(
                         placeholderText = when (selectedTab) {
                             LibraryTab.Playlists -> "Search playlists..."
                             LibraryTab.Albums -> "Search albums..."
+                            LibraryTab.Shows -> "Search shows..."
                             LibraryTab.Episodes -> "Search episodes..."
                         },
                     )
@@ -334,6 +344,46 @@ fun SharedTransitionScope.LibraryScreen(
                     }
                 }
 
+                LibraryTab.Shows -> {
+                    if (libraryState.isLoadingShows && filteredShows.isEmpty()) {
+                        item(key = "shows_loading") {
+                            Text(
+                                text = "Loading shows...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                            )
+                        }
+                    }
+
+                    if (!libraryState.isLoadingShows && filteredShows.isEmpty()) {
+                        item(key = "shows_empty") {
+                            Text(
+                                text = if (searchQuery.isBlank()) "No saved shows yet" else "No matching shows found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                            )
+                        }
+                    }
+
+                    items(
+                        items = filteredShows,
+                        key = { it.uri },
+                        contentType = { "show" }
+                    ) { show ->
+                        Box(modifier = Modifier.padding(horizontal = 4.dp)) {
+                            ShowRow(
+                                show = show,
+                                onRowClick = {
+                                    backStack.add(Route.ShowScreen(show.uri))
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
+                    }
+                }
+
                 LibraryTab.Episodes -> {
                     if (libraryState.isLoadingEpisodes && filteredEpisodes.isEmpty()) {
                         item(key = "episodes_loading") {
@@ -430,6 +480,7 @@ fun SharedTransitionScope.LibraryScreen(
                     text = when (selectedTab) {
                         LibraryTab.Playlists -> "Account • ${libraryState.playlists.count()} playlists"
                         LibraryTab.Albums -> "Account • ${libraryState.albums.count()} albums"
+                        LibraryTab.Shows -> "Account • ${libraryState.shows.count()} shows"
                         LibraryTab.Episodes -> "Account • ${libraryState.episodes.count()} episodes"
                     },
                     style = MaterialTheme.typography.bodyMedium
@@ -600,7 +651,7 @@ private fun LibraryExpressiveFilters(
         modifier = Modifier.fillMaxWidth()
     ) {
         // Explicitly handle desired dynamic filters instead of full structural tabs loop
-        val allowedFilters = listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Episodes)
+        val allowedFilters = listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Shows, LibraryTab.Episodes)
 
         allowedFilters.forEach { tab ->
             val isSelected = tab == selectedTab

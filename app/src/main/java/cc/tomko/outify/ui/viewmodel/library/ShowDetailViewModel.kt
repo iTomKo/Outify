@@ -14,6 +14,7 @@ import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
+import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.screens.library.show.ShowUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -43,6 +44,7 @@ class ShowDetailViewModel @Inject constructor(
     val spClient: SpClient,
     val json: Json,
     val likedDao: LikedDao,
+    private val likedRepository: LikedRepository,
     private val episodeDao: EpisodeDao,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -101,13 +103,14 @@ class ShowDetailViewModel @Inject constructor(
     fun toggleSave() {
         viewModelScope.launch {
             val show = _uiState.value.show ?: return@launch
+            val showId = show.id
             val uri = show.uri
             if (_isSaved.value) {
                 spClient.deleteItems(arrayOf(uri))
-                metadata.removeLikedShow(uri)
+                likedRepository.removeLikedShow(showId)
             } else {
                 spClient.saveItems(arrayOf(uri))
-                metadata.addLikedShow(uri)
+                likedRepository.addLikedShow(showId)
             }
             _isSaved.value = !_isSaved.value
         }
@@ -126,7 +129,8 @@ class ShowDetailViewModel @Inject constructor(
 
     private fun checkIsSaved(showUri: String) {
         viewModelScope.launch {
-            _isSaved.value = metadata.isLikedShow(showUri)
+            val showId = showUri.removePrefix("spotify:show:")
+            _isSaved.value = likedRepository.isLikedShow(showId)
         }
     }
 
@@ -260,7 +264,8 @@ class ShowDetailViewModel @Inject constructor(
                 episodes.map { episode ->
                     try {
                         val raw = spClient.getEpisodeDetails(episode.id)
-                        val details = EpisodeDetails.fromJson(raw)
+                        val checked = spClient.checkAndHandleError(raw, "getEpisodeDetails:${episode.id}")
+                        val details = EpisodeDetails.fromJson(checked)
                         episodeDao.updateEpisodePlayState(
                             episodeId = episode.id,
                             fullyPlayed = details.fullyPlayed,

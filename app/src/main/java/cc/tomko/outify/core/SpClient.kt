@@ -18,8 +18,9 @@ class SpClient @Inject constructor() {
         const val TRACKS = "tracks"
         const val ALBUMS = "albums"
         const val EPISODES = "episodes"
+        const val SHOWS = "shows"
 
-        @StringDef(TRACKS, ALBUMS, EPISODES)
+        @StringDef(TRACKS, ALBUMS, EPISODES, SHOWS)
         @Retention(AnnotationRetention.SOURCE)
         annotation class SavedItemType
     }

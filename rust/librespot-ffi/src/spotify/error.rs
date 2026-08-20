@@ -22,4 +22,7 @@ pub enum SpotifyApiError {
 
     #[error("{0}")]
     Generic(String),
+
+    #[error("HTTP {0}: {1}")]
+    Http(u16, String),
 }

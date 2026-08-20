@@ -11,6 +11,7 @@ use crate::{
     outifyuri::OutifyUri,
     session::with_session,
     spotify::client::{SavedItemType, get_client},
+    spotify::error::SpotifyApiError,
 };
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_username")]
@@ -236,7 +237,7 @@ pub extern "system" fn get_saved_items(
             error!("invalid SavedItemType: {e}");
             let _ = env.throw_new(
                 "java/lang/IllegalArgumentException",
-                "item_type must be 'tracks' or 'albums'",
+                "item_type must be 'tracks', 'albums', or 'shows'",
             );
             return std::ptr::null_mut();
         }
@@ -356,6 +357,9 @@ pub extern "system" fn get_episode_details(
                 return std::ptr::null_mut();
             }
         },
+        Err(SpotifyApiError::Http(_status, body)) => {
+            body
+        }
         Err(e) => {
             error!("get_episode_details failed: {e}");
             let _ = env.throw_new(

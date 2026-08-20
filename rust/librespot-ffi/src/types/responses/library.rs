@@ -7,7 +7,7 @@ pub struct SavedItemsResponse<T> {
 
 #[derive(Debug, Deserialize)]
 pub struct SavedItem<T> {
-    #[serde(alias = "album", alias = "track", alias = "episode")]
+    #[serde(alias = "album", alias = "track", alias = "episode", alias = "show")]
     pub item: T,
 }
 
