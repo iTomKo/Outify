@@ -10,17 +10,17 @@ data class LyricsResponse(
 @Serializable
 data class Lyrics(
     val syncType: String,
-    val lines: List<LyricLine>
+    val lines: List<RawLyricLine>
 )
 
 @Serializable
-data class LyricLine(
+data class RawLyricLine(
     val startTimeMs: String,
     val words: String,
     val endTimeMs: String? = null
 )
 
-data class SyncedLyric(
-    val timeMs: Long,
+data class LyricLine(
+    val timestampMs: Long,
     val text: String
 )

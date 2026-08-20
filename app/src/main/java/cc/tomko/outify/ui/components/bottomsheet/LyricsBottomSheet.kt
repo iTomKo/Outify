@@ -1,7 +1,6 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,7 +22,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -51,30 +49,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.LyricLine
 import cc.tomko.outify.ui.components.WavyMusicSlider
-
-data class LyricLine(
-    val timestampMs: Long,
-    val text: String
-)
+import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LyricsBottomSheet(
-    track: Track?,
-    lyrics: List<LyricLine>,
-    currentPositionMs: Long,
+    viewModel: LyricsViewModel,
     onDismissRequest: () -> Unit,
     onSeekToTimestamp: (Long) -> Unit,
-    isCurrentTrack: Boolean = true,
-    isPlaying: Boolean = false,
-    durationMs: Long = 0L,
     onPlayPause: () -> Unit = {},
     onSeek: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
+    val lyrics by viewModel.lyrics.collectAsState()
+    val positionMs by viewModel.positionMs.collectAsState()
+    val isCurrentTrack by viewModel.isCurrentTrack.collectAsState()
+    val isPlaying by viewModel.isPlaying.collectAsState()
+    val durationMs by viewModel.durationMs.collectAsState()
+    val displayedTrack by viewModel.displayedTrack.collectAsState()
+    val isEpisode by viewModel.isEpisode.collectAsState()
+    val hasSyncedContent by viewModel.hasSyncedContent.collectAsState()
+
+    val showPlaybackControls = hasSyncedContent && isCurrentTrack
+
     val backgroundColor = MaterialTheme.colorScheme.background
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
     val activeTabColor = MaterialTheme.colorScheme.primaryContainer
@@ -86,7 +86,7 @@ fun LyricsBottomSheet(
     val playPauseButtonColor = MaterialTheme.colorScheme.secondaryContainer
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val isSynced = selectedTab == 0
+    val isSynced = selectedTab == 0 && showPlaybackControls
 
     fun formatTime(ms: Long): String {
         val s = (ms / 1000).coerceAtLeast(0L)
@@ -96,9 +96,9 @@ fun LyricsBottomSheet(
     var sliderPosition by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
 
-    LaunchedEffect(currentPositionMs, durationMs, isDragging) {
+    LaunchedEffect(positionMs, durationMs, isDragging) {
         if (!isDragging && durationMs > 0) {
-            sliderPosition = (currentPositionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+            sliderPosition = (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
         }
     }
 
@@ -144,7 +144,7 @@ fun LyricsBottomSheet(
                         modifier = Modifier.padding(horizontal = 56.dp)
                     ) {
                         Text(
-                            text = track?.name ?: "Unknown Track",
+                            text = displayedTrack?.name ?: "Unknown Track",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
@@ -152,7 +152,7 @@ fun LyricsBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = track?.artists?.joinToString { it.name } ?: "Unknown Artist",
+                            text = displayedTrack?.artists?.joinToString { it.name } ?: "Unknown Artist",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
@@ -163,7 +163,7 @@ fun LyricsBottomSheet(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 // Synced / Static segmented selector
-                if (isCurrentTrack) {
+                if (showPlaybackControls) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -207,19 +207,35 @@ fun LyricsBottomSheet(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
 
-                // Lyrics list
-                LyricsList(
-                    lyrics = lyrics,
-                    currentPositionMs = currentPositionMs,
-                    isSynced = isSynced,
-                    activeLineColor = activeLineColor,
-                    inactiveTextColor = inactiveTextColor,
-                    onLineClick = if (isCurrentTrack) onSeekToTimestamp else { _ -> }
-                )
+                // Content area
+                if (isEpisode) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No lyrics for episodes",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = inactiveTextColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LyricsList(
+                        lyrics = lyrics,
+                        currentPositionMs = positionMs,
+                        isSynced = isSynced,
+                        activeLineColor = activeLineColor,
+                        inactiveTextColor = inactiveTextColor,
+                        onLineClick = if (showPlaybackControls) onSeekToTimestamp else { _ -> }
+                    )
+                }
             }
 
-            // Bottom overlay: pause button + slider bar (only for current track)
-            if (isCurrentTrack) {
+            // Bottom overlay: pause button + slider bar
+            if (showPlaybackControls) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -228,7 +244,6 @@ fun LyricsBottomSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Floating pause button
                     Box(
                         modifier = Modifier
                             .size(width = 96.dp, height = 72.dp)
@@ -245,7 +260,6 @@ fun LyricsBottomSheet(
                         )
                     }
 
-                    // Slider bar
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(0.7f)
@@ -257,7 +271,7 @@ fun LyricsBottomSheet(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = formatTime(currentPositionMs),
+                            text = formatTime(positionMs),
                             style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onSurface
                         )

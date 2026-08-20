@@ -42,6 +42,7 @@ sealed class PopupSpec(
 
     data class Lyrics(
         val track: Track,
+        val shouldFollowCurrentTrack: Boolean = true,
         override val id: String = UUID.randomUUID().toString(),
     ) : PopupSpec(id)
 

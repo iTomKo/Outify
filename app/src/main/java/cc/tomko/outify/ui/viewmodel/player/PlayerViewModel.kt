@@ -6,7 +6,7 @@ import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.SyncedLyric
+import cc.tomko.outify.core.model.LyricLine
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.dao.LikedDao
@@ -53,8 +53,8 @@ class PlayerViewModel @Inject constructor(
     private val _state = MutableStateFlow(PlaybackState())
     val state: StateFlow<PlaybackState> = _state.asStateFlow()
 
-    private val _lyrics = MutableStateFlow<List<SyncedLyric>>(emptyList())
-    val lyrics: StateFlow<List<SyncedLyric>> = _lyrics
+    private val _lyrics = MutableStateFlow<List<LyricLine>>(emptyList())
+    val lyrics: StateFlow<List<LyricLine>> = _lyrics
 
     private val _positionMs =
         MutableStateFlow(playbackStateHolder.estimatePosition().inWholeMilliseconds)

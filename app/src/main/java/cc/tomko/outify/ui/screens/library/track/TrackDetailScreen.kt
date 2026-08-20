@@ -60,7 +60,7 @@ import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
-import cc.tomko.outify.core.model.SyncedLyric
+import cc.tomko.outify.core.model.LyricLine
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.sharedTransitionKey
 import cc.tomko.outify.core.model.toSpotifyUri
@@ -314,7 +314,7 @@ fun SharedTransitionScope.TrackDetailScreen(
 }
 
 @Composable
-private fun LyricsSection(lyrics: List<SyncedLyric>) {
+private fun LyricsSection(lyrics: List<LyricLine>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
