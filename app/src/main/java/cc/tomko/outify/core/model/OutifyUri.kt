@@ -1,8 +1,6 @@
 package cc.tomko.outify.core.model
 
 sealed class SpotifyUri : OutifyUri() {
-    abstract val id: String
-
     data class Album(override val id: String) : SpotifyUri()
     data class Artist(override val id: String) : SpotifyUri()
     data class Episode(override val id: String) : SpotifyUri()
@@ -85,10 +83,29 @@ sealed class SpotifyUri : OutifyUri() {
             }
         }
     }
+
+    override val isAlbum: Boolean get() = itemType == "album"
+    override val isArtist: Boolean get() = itemType == "artist"
+    override val isEpisode: Boolean get() = itemType == "episode"
+    override val isPlaylist: Boolean get() = itemType == "playlist"
+    override val isShow: Boolean get() = itemType == "show"
+    override val isTrack: Boolean get() = itemType == "track"
+    override val isLocal: Boolean get() = itemType == "local"
 }
 
 sealed class OutifyUri {
     abstract fun toUriString(): String
+    open val id: String get() = toUriString().substringAfterLast(":")
+
+    open val isAlbum: Boolean get() = false
+    open val isArtist: Boolean get() = false
+    open val isEpisode: Boolean get() = false
+    open val isPlaylist: Boolean get() = false
+    open val isShow: Boolean get() = false
+    open val isTrack: Boolean get() = false
+    open val isLocal: Boolean get() = false
+    open val isLiked: Boolean get() = this is Liked
+    open val isArtistLiked: Boolean get() = this is ArtistLiked
 
     data object Liked : OutifyUri() {
         override fun toUriString(): String = "outify:liked"
