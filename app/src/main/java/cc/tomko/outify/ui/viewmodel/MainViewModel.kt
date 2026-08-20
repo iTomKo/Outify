@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toPlayableAudio
@@ -145,35 +146,35 @@ class MainViewModel @Inject constructor(
         GlobalPopupController.show(PopupSpec.AddToPlaylist(tracks))
     }
 
-    fun favorite(trackUri: String) {
+    fun favorite(rawUri: String) {
         viewModelScope.launch {
-            val trackId = trackUri.substringAfterLast(":")
-            val wasLiked = likedRepository.isLiked(trackId)
+            val uri = OutifyUri.fromUriString(rawUri)
+            val id = uri.id
+            val isTrack = uri.isTrack
 
-            // Optimistic UI update
+            val wasLiked = if (isTrack) {
+                likedRepository.isLiked(id)
+            } else {
+                likedRepository.isLikedEpisode(id)
+            }
+
             if (wasLiked) {
-                // Remove from liked
-                likedRepository.removeLiked(trackId)
+                if (isTrack) likedRepository.removeLikedEpisode(id) else likedRepository.removeLikedEpisode(id)
             } else {
-                // Add to liked
-                likedRepository.addLiked(trackId)
+                if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(id)
             }
 
-            // Make the API call
             val success = if (wasLiked) {
-                spClient.deleteItems(arrayOf(trackUri))
+                spClient.deleteItems(arrayOf(rawUri))
             } else {
-                spClient.saveItems(arrayOf(trackUri))
+                spClient.saveItems(arrayOf(rawUri))
             }
 
-            // Rollback if failed
-            if (!success) {
+            if(!success) {
                 if (wasLiked) {
-                    // Restore to liked
-                    likedRepository.addLiked(trackId)
+                    if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(id)
                 } else {
-                    // Restore to not liked
-                    likedRepository.removeLiked(trackId)
+                    if (isTrack) likedRepository.removeLiked(id) else likedRepository.removeLikedEpisode(id)
                 }
                 InAppNotificationController.show(
                     "Failed to update favorite",

@@ -61,6 +61,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -209,6 +210,10 @@ fun SharedTransitionScope.SearchScreen(
                         when (item) {
                             is SearchUiModel.TrackItem -> {
                                 val track = item.track
+                                val isLiked by produceState(initialValue = false, track.uri) {
+                                    viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                                }
+
                                 SwipeableTrackRowConfigured(
                                     track = track,
                                     currentAudio = currentTrack,
@@ -230,6 +235,7 @@ fun SharedTransitionScope.SearchScreen(
                                             backStack.add(TrackScreen(track.uri))
                                         }
                                     },
+                                    isLiked = isLiked,
                                     modifier = Modifier.animateItem()
                                 )
                             }
@@ -347,6 +353,10 @@ fun SharedTransitionScope.SearchScreen(
                     when (item) {
                         is SearchUiModel.TrackItem -> {
                             val track = item.track
+                            val isLiked by produceState(initialValue = false, track.uri) {
+                                viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                            }
+
                             SwipeableTrackRowConfigured(
                                 track = track,
                                 currentAudio = currentTrack,
@@ -367,6 +377,7 @@ fun SharedTransitionScope.SearchScreen(
                                         backStack.add(TrackScreen(track.uri))
                                     }
                                 },
+                                isLiked = isLiked,
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -450,6 +461,10 @@ fun SharedTransitionScope.SearchScreen(
                                 }
                             }
 
+                            val isLiked by produceState(initialValue = false, episode.uri) {
+                                viewModel.isLiked(episode.toOutifyUri()).collect { value = it }
+                            }
+
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
                                 isPlaybackPlaying = isPlaybackPlaying,
@@ -459,6 +474,7 @@ fun SharedTransitionScope.SearchScreen(
                                 },
                                 onArtworkClick = openShow,
                                 onShowNameClick = openShow,
+                                isLiked = isLiked,
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -590,6 +606,9 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.TrackItem -> {
                             val track = item.track
+                            val isLiked by produceState(initialValue = false, track.uri) {
+                                viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                            }
 
                             SwipeableTrackRowConfigured(
                                 track = track,
@@ -615,6 +634,7 @@ fun SharedTransitionScope.SearchScreen(
                                         backStack.add(TrackScreen(track.uri))
                                     }
                                 },
+                                isLiked = isLiked,
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -701,6 +721,9 @@ fun SharedTransitionScope.SearchScreen(
                                     }
                                 }
                             }
+                            val isLiked by produceState(initialValue = false, episode.uri) {
+                                viewModel.isLiked(episode.toOutifyUri()).collect { value = it }
+                            }
 
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
@@ -711,6 +734,7 @@ fun SharedTransitionScope.SearchScreen(
                                 },
                                 onArtworkClick = openShow,
                                 onShowNameClick = openShow,
+                                isLiked = isLiked,
                                 modifier = Modifier.animateItem()
                             )
                         }

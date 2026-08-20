@@ -394,6 +394,7 @@ fun SharedTransitionScope.LibraryScreen(
                                     }
                                 }
                             },
+                            isLiked = true,
                             modifier = Modifier
                                 .padding(horizontal = 4.dp)
                                 .animateItem(),

@@ -10,11 +10,13 @@ import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Episode
+import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.SearchRepository
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -26,12 +28,14 @@ import cc.tomko.outify.ui.model.search.SearchResultType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -49,6 +53,7 @@ class SearchViewModel @Inject constructor(
     private val playbackStateHolder: PlaybackStateHolder,
     private val settingsRepository: SettingsRepository,
     private val recommendations: Recommendations,
+    private val likedDao: LikedDao,
 ) : ViewModel() {
     private val queryFlow = MutableStateFlow("")
 
@@ -334,6 +339,15 @@ class SearchViewModel @Inject constructor(
             if (!spClient.saveItems(arrayOf(uri))) {
                 Log.w("SearchViewModel", "saveItem failed")
             }
+        }
+    }
+
+    fun isLiked(uri: OutifyUri): Flow<Boolean> {
+        val id = uri.id
+        return if (uri.isTrack) {
+            likedDao.observeIsTrackLiked(id)
+        } else {
+            likedDao.observeIsEpisodeLiked(id)
         }
     }
 
