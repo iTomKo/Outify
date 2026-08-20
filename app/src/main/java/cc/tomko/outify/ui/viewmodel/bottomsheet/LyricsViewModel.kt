@@ -149,4 +149,16 @@ class LyricsViewModel @Inject constructor(
             playbackStateHolder.setPlaying(!playbackStateHolder.state.value.isPlaying)
         }
     }
+
+    fun skipPrevious() {
+        viewModelScope.launch {
+            spirc.playerPrevious()
+        }
+    }
+
+    fun skipNext() {
+        viewModelScope.launch {
+            spirc.playerNext()
+        }
+    }
 }

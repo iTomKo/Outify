@@ -140,6 +140,8 @@ fun GlobalPopupHost(
                     viewModel = lyricsViewModel,
                     onDismissRequest = { GlobalPopupController.dismiss(popup.id) },
                     onPlayPause = { lyricsViewModel.playPause() },
+                    onSkipNext = { lyricsViewModel.skipNext() },
+                    onSkipPrevious = { lyricsViewModel.skipPrevious() },
                     onSeek = { lyricsViewModel.seekTo(it) },
                     onSeekToTimestamp = { timestamp ->
                         lyricsViewModel.seekTo(timestamp)

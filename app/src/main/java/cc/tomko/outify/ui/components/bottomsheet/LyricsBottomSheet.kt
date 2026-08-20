@@ -1,9 +1,12 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,12 +27,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -45,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +68,8 @@ fun LyricsBottomSheet(
     onDismissRequest: () -> Unit,
     onSeekToTimestamp: (Long) -> Unit,
     onPlayPause: () -> Unit = {},
+    onSkipPrevious: () -> Unit = {},
+    onSkipNext: () -> Unit = {},
     onSeek: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -244,21 +254,68 @@ fun LyricsBottomSheet(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .size(width = 96.dp, height = 72.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(playPauseButtonColor)
-                            .clickable { onPlayPause() },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth(0.7f)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        Surface(
+                            onClick = { onSkipPrevious() },
+                            modifier = Modifier.size(width = 76.dp, height = 52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = playPauseButtonColor,
+                            tonalElevation = 6.dp
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(width = 96.dp, height = 72.dp)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(playPauseButtonColor)
+                                .clickable { onPlayPause() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        Surface(
+                            onClick = { onSkipNext() },
+                            modifier = Modifier.size(width = 76.dp, height = 52.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = playPauseButtonColor,
+                            tonalElevation = 6.dp
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
                     }
+
 
                     Row(
                         modifier = Modifier
@@ -322,11 +379,26 @@ private fun LyricsList(
         -1
     }
 
-    LaunchedEffect(activeIndex) {
-        if (isSynced && lyrics.isNotEmpty()) {
+    LaunchedEffect(activeIndex, isSynced) {
+        if (!isSynced || lyrics.isEmpty()) return@LaunchedEffect
+
+        val layoutInfo = listState.layoutInfo
+        val viewportHeight = layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset
+        val visibleItem = layoutInfo.visibleItemsInfo.find { it.index == activeIndex }
+
+        if (visibleItem != null) {
+            val itemCenter = visibleItem.offset + visibleItem.size / 2
+            val viewportCenter = viewportHeight / 2
+            val delta = (itemCenter - viewportCenter).toFloat()
+
+            listState.animateScrollBy(
+                value = delta,
+                animationSpec = tween(durationMillis = 550, easing = FastOutSlowInEasing)
+            )
+        } else {
             listState.animateScrollToItem(
                 index = activeIndex,
-                scrollOffset = -150
+                scrollOffset = -(viewportHeight / 2)
             )
         }
     }
@@ -346,17 +418,32 @@ private fun LyricsList(
                 label = "textColor"
             )
 
+            val scale by animateFloatAsState(
+                targetValue = if (isActive) 1f else 20f / 22f,
+                animationSpec = tween(durationMillis = 250),
+                label = "lineScale"
+            )
+
+            val fontWeight by remember(isActive) {
+                mutableStateOf(if (isActive) FontWeight.Bold else FontWeight.Medium)
+            }
+
             Text(
                 text = line.text,
                 style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = if (isActive) 22.sp else 20.sp
+                    fontWeight = fontWeight,
+                    fontSize = 22.sp // always measured at the largest size
                 ),
                 color = textColor,
                 textAlign = TextAlign.Start,
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onLineClick(line.timestampMs) }
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        transformOrigin = TransformOrigin(0f, 0.5f)
+                    }
             )
         }
     }
