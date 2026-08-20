@@ -48,7 +48,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         EpisodeEntity::class,
         ShowEpisodeCrossRef::class,
     ],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -189,6 +189,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_21_22 = object : Migration(21, 22) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN fullyPlayed INTEGER NOT NULL DEFAULT 0"
+                )
+                database.execSQL(
+                    "ALTER TABLE episodes ADD COLUMN resumePositionMs INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -196,7 +207,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "outify_database"
                 )
-                    .addMigrations(MIGRATION_15_16, MIGRATION_16_17, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21)
+                    .addMigrations(MIGRATION_15_16, MIGRATION_16_17, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22)
                     .build()
                 INSTANCE = instance
                 instance

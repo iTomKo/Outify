@@ -3,11 +3,15 @@ package cc.tomko.outify.ui.viewmodel.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.ConsumptionOrder
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -15,12 +19,14 @@ import cc.tomko.outify.ui.screens.library.show.ShowUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -37,6 +43,7 @@ class ShowDetailViewModel @Inject constructor(
     val spClient: SpClient,
     val json: Json,
     val likedDao: LikedDao,
+    private val episodeDao: EpisodeDao,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -50,6 +57,15 @@ class ShowDetailViewModel @Inject constructor(
         } ?: ShowUiState()
     )
     val uiState: StateFlow<ShowUiState> = _uiState
+
+    init {
+        // Restoring user selected consumption order
+        savedStateHandle.get<String>("consumption_order")?.let { name ->
+            runCatching { ConsumptionOrder.valueOf(name) }.getOrNull()?.let { restored ->
+                _uiState.update { it.copy(consumptionOrder = restored) }
+            }
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val likedEpisodeIds: StateFlow<Set<String>> =
@@ -120,6 +136,32 @@ class ShowDetailViewModel @Inject constructor(
 
     suspend fun loadShow(showUri: String) {
         _lastShowUri = showUri
+        val requestedOrder = _uiState.value.consumptionOrder
+        loadShowInternal(showUri, requestedOrder)
+    }
+
+    fun setConsumptionOrder(order: ConsumptionOrder) {
+        val showUri = _lastShowUri ?: return
+        if (order == _uiState.value.consumptionOrder) return
+
+        savedStateHandle["consumption_order"] = order.name
+
+        _uiState.update {
+            it.copy(
+                consumptionOrder = order,
+                episodes = emptyList(),
+                hasMore = true,
+                isLoadingMore = false,
+                isLoading = true,
+            )
+        }
+
+        viewModelScope.launch {
+            loadShowInternal(showUri, order)
+        }
+    }
+
+    private suspend fun loadShowInternal(showUri: String, order: ConsumptionOrder?) {
         try {
             val show = withContext(Dispatchers.IO) {
                 metadata.getShowMetadata(showUri)
@@ -128,7 +170,8 @@ class ShowDetailViewModel @Inject constructor(
             if (show == null) {
                 val newState = ShowUiState(
                     isLoading = false,
-                    error = "Show not found"
+                    error = "Show not found",
+                    consumptionOrder = order,
                 )
                 _uiState.value = newState
                 saveState(newState)
@@ -148,6 +191,7 @@ class ShowDetailViewModel @Inject constructor(
                 show = show,
                 episodes = firstPage,
                 hasMore = show.episodes.size > firstPage.size,
+                consumptionOrder = order ?: show.consumptionOrder,
             )
             _uiState.value = newState
             _isSaved.value = false
@@ -156,7 +200,8 @@ class ShowDetailViewModel @Inject constructor(
         } catch (e: Exception) {
             val newState = ShowUiState(
                 isLoading = false,
-                error = e.message
+                error = e.message,
+                consumptionOrder = order,
             )
             _uiState.value = newState
             saveState(newState)
@@ -197,7 +242,6 @@ class ShowDetailViewModel @Inject constructor(
                 _uiState.value = newState
                 saveState(newState)
             } catch (e: Exception) {
-                // Keep existing episodes; just stop the spinner so the user can retry by scrolling.
                 _uiState.value = _uiState.value.copy(isLoadingMore = false)
             }
         }
@@ -205,5 +249,69 @@ class ShowDetailViewModel @Inject constructor(
 
     fun setEpisode(episode: Episode) {
         playbackStateHolder.setAudio(episode.toPlayableAudio())
+    }
+
+    fun fetchEpisodeDetailsForShow() {
+        val episodes = _uiState.value.episodes
+        if (episodes.isEmpty()) return
+
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                episodes.map { episode ->
+                    try {
+                        val raw = spClient.getEpisodeDetails(episode.id)
+                        val details = EpisodeDetails.fromJson(raw)
+                        episodeDao.updateEpisodePlayState(
+                            episodeId = episode.id,
+                            fullyPlayed = details.fullyPlayed,
+                            resumePositionMs = details.resumePositionMs,
+                        )
+                        episode.copy(
+                            fullyPlayed = details.fullyPlayed,
+                            resumePositionMs = details.resumePositionMs,
+                        )
+                    } catch (_: Exception) {
+                        episode
+                    }
+                }
+            }
+            _uiState.update { it.copy(episodes = updated) }
+            saveState(_uiState.value)
+        }
+    }
+
+    fun playEpisode(episode: Episode) {
+        val showUri = _uiState.value.show?.uri
+        spirc.load(showUri?.let { cc.tomko.outify.core.model.OutifyUri.fromUriString(it) }, episode.toSpotifyUri())
+        setEpisode(episode)
+        if (episode.resumePositionMs > 0 && !episode.fullyPlayed) {
+            viewModelScope.launch {
+                delay(600)
+                spirc.seekTo(episode.resumePositionMs)
+            }
+        }
+    }
+
+    fun playNextInSequence() {
+        val episodes = _uiState.value.episodes
+        if (episodes.isEmpty()) return
+
+        val nextEpisode = findNextEpisode(episodes)
+        playEpisode(nextEpisode)
+    }
+
+    internal fun findNextEpisode(episodes: List<Episode>): Episode {
+        val lastFullyPlayed = episodes.indexOfLast { it.fullyPlayed }
+        val firstResumable = episodes.firstOrNull {
+            !it.fullyPlayed && it.resumePositionMs > 0
+        }
+        return when {
+            firstResumable != null -> firstResumable
+            lastFullyPlayed in episodes.indices -> {
+                val nextIndex = lastFullyPlayed + 1
+                if (nextIndex < episodes.size) episodes[nextIndex] else episodes.first()
+            }
+            else -> episodes.first()
+        }
     }
 }

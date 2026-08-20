@@ -133,5 +133,7 @@ fun EpisodeEntity.toDomain(): Episode {
         episodeType = try { EpisodeType.valueOf(episodeType) } catch (_: Exception) { EpisodeType.FULL },
         hasMusicAndTalk = hasMusicAndTalk,
         isAudiobookChapter = isAudiobookChapter,
+        fullyPlayed = fullyPlayed,
+        resumePositionMs = resumePositionMs,
     )
 }

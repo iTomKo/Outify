@@ -40,6 +40,10 @@ data class Episode(
     val hasMusicAndTalk: Boolean,
     @SerialName("is_audiobook_chapter")
     val isAudiobookChapter: Boolean,
+    @SerialName("fully_played")
+    val fullyPlayed: Boolean = false,
+    @SerialName("resume_position_ms")
+    val resumePositionMs: Long = 0,
 ) {
 
 }

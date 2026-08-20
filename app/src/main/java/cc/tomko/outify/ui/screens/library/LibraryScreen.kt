@@ -375,9 +375,9 @@ fun SharedTransitionScope.LibraryScreen(
                                     backStack.add(Route.ShowScreen(showUri))
                                 } else {
                                     scope.launch {
-                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
-                                        if (!resolved.isNullOrBlank()) {
-                                            backStack.add(Route.ShowScreen(resolved))
+                                        val details = viewModel.resolveEpisodeDetails(episode.id)
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
                                         }
                                     }
                                 }
@@ -387,9 +387,9 @@ fun SharedTransitionScope.LibraryScreen(
                                     backStack.add(Route.ShowScreen(showUri))
                                 } else {
                                     scope.launch {
-                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
-                                        if (!resolved.isNullOrBlank()) {
-                                            backStack.add(Route.ShowScreen(resolved))
+                                        val details = viewModel.resolveEpisodeDetails(episode.id)
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
                                         }
                                     }
                                 }

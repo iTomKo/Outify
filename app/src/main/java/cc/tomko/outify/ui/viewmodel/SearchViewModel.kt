@@ -341,12 +341,6 @@ class SearchViewModel @Inject constructor(
         playbackStateHolder.setAudio(audio)
     }
 
-    suspend fun resolveEpisodeShowUri(episodeId: String): String? {
-        return withContext(Dispatchers.IO) {
-            runCatching { spClient.getEpisodeShowUri(episodeId) }.getOrNull()
-        }
-    }
-
     fun addToHistory(item: SearchUiModel) {
         val historyItem = when (item) {
             is SearchUiModel.TrackItem -> SearchHistoryItem(item.uri, SearchResultType.TRACK)

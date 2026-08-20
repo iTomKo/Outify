@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.Album
@@ -333,9 +334,12 @@ class LibraryViewModel @Inject constructor(
         playbackStateHolder.setAudio(episode.toPlayableAudio())
     }
 
-    suspend fun resolveEpisodeShowUri(episodeId: String): String? {
+    suspend fun resolveEpisodeDetails(episodeId: String): EpisodeDetails? {
         return withContext(Dispatchers.IO) {
-            runCatching { spClient.getEpisodeShowUri(episodeId) }.getOrNull()
+            runCatching {
+                val raw = spClient.getEpisodeDetails(episodeId)
+                EpisodeDetails.fromJson(raw)
+            }.getOrNull()
         }
     }
 

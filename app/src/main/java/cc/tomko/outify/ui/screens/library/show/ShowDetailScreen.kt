@@ -10,7 +10,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,14 +20,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeExtendedFloatingActionButton
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -37,8 +44,10 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -47,10 +56,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.core.model.ConsumptionOrder
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.sharedTransitionKey
-import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.components.AlbumDetailSkeleton
 import cc.tomko.outify.ui.components.ArtworkBackground
 import cc.tomko.outify.ui.components.CollapsingHeader
@@ -91,14 +100,20 @@ fun SharedTransitionScope.ShowDetailScreen(
             val episodes = uiState.episodes
             val isLoadingMore = uiState.isLoadingMore
             val hasMore = uiState.hasMore
+            val effectiveOrder = uiState.consumptionOrder ?: show.consumptionOrder
 
             val artworkUrl = ALBUM_COVER_URL + show.getCover(CoverSize.LARGE)?.uri
             val currentAudio by viewModel.currentAudio.collectAsState(initial = null)
             val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
-            val spirc = viewModel.spirc
 
             val likedEpisodeIds by viewModel.likedEpisodeIds.collectAsState()
             val isSaved by viewModel.isSaved.collectAsState()
+
+            LaunchedEffect(episodes.size) {
+                if (episodes.isNotEmpty()) {
+                    viewModel.fetchEpisodeDetailsForShow()
+                }
+            }
 
             val lazyList = rememberLazyListState()
             val scope = rememberCoroutineScope()
@@ -130,14 +145,6 @@ fun SharedTransitionScope.ShowDetailScreen(
                 }
             }
 
-            // Procedural / infinite-scroll loading: fire once the user is
-            // within the last 5 rows of what's currently loaded.
-            //
-            // IMPORTANT: episodes/hasMore/isLoadingMore are plain locals, not
-            // State objects, so they must be passed as `remember` keys —
-            // otherwise this derivedStateOf freezes on whatever those values
-            // were the first time this branch composed, and never notices
-            // that more episodes loaded or hasMore flipped.
             val shouldLoadMore by remember(episodes.size, hasMore, isLoadingMore) {
                 derivedStateOf {
                     val lastVisible =
@@ -170,11 +177,23 @@ fun SharedTransitionScope.ShowDetailScreen(
                         .fillMaxSize()
                 ) {
                     item {
-                        Text(
-                            text = "Episodes",
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 8.dp, bottom = 8.dp)
+                        ) {
+                            Text(
+                                text = "Episodes",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            ConsumptionOrderMenu(
+                                selected = effectiveOrder,
+                                recommended = show.consumptionOrder,
+                                onSelect = { viewModel.setConsumptionOrder(it) },
+                            )
+                        }
                     }
 
                     items(episodes.size, key = { index -> "show_episode_$index" }) { index ->
@@ -186,8 +205,7 @@ fun SharedTransitionScope.ShowDetailScreen(
                             isLiked = episode.id in likedEpisodeIds,
                             onRowClick = remember(episode.uri) {
                                 {
-                                    spirc.load(show.toSpotifyUri(), episode.toSpotifyUri())
-                                    viewModel.setEpisode(episode)
+                                    viewModel.playEpisode(episode)
                                 }
                             },
                             onArtworkClick = { artworkClick(episode.uri) }
@@ -226,22 +244,27 @@ fun SharedTransitionScope.ShowDetailScreen(
                         )
 
                         Text(
-                            text = "${show.publisher} • ${totalEpisodes} episodes",
+                            text = "${show.publisher} • $totalEpisodes episodes",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     },
                     fabContent = {
                         LargeExtendedFloatingActionButton(
                             onClick = {
-                                episodes.firstOrNull()?.let { latest ->
-                                    spirc.load(show.toSpotifyUri(), latest.toSpotifyUri())
-                                    viewModel.setEpisode(latest)
+                                val target = when (effectiveOrder) {
+                                    ConsumptionOrder.SEQUENTIAL ->
+                                        viewModel.findNextEpisode(episodes)
+                                    ConsumptionOrder.EPISODIC, ConsumptionOrder.RECENT ->
+                                        episodes.firstOrNull()
+                                }
+                                target?.let { latest ->
+                                    viewModel.playEpisode(latest)
                                 }
                             },
+                            text = { },
+                            icon = { Icon(Icons.Rounded.PlayArrow, null) },
                             shape = MaterialShapes.Cookie9Sided.toShape()
-                        ) {
-                            Icon(Icons.Rounded.PlayArrow, null)
-                        }
+                        )
                     },
                     actionButtonContent = {
                         FilledIconButton(onClick = { viewModel.toggleSave() }) {
@@ -284,4 +307,41 @@ fun SharedTransitionScope.ShowDetailScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ConsumptionOrderMenu(
+    selected: ConsumptionOrder,
+    recommended: ConsumptionOrder,
+    onSelect: (ConsumptionOrder) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box {
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Change episode order")
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            ConsumptionOrder.entries.forEach { order ->
+                DropdownMenuItem(
+                    text = {
+                        Text(order.label() + if (order == recommended) " (Recommended)" else "")
+                    },
+                    leadingIcon = if (order == selected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else null,
+                    onClick = {
+                        expanded = false
+                        onSelect(order)
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun ConsumptionOrder.label() = when (this) {
+    ConsumptionOrder.SEQUENTIAL -> "Sequential"
+    ConsumptionOrder.EPISODIC -> "Episodic"
+    ConsumptionOrder.RECENT -> "Recent"
 }

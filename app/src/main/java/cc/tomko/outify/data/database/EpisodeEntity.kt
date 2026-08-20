@@ -38,4 +38,6 @@ data class EpisodeEntity(
     var isLibraryItem: Boolean,
     val lastAccessed: Long,
     val lastUpdated: Long,
+    val fullyPlayed: Boolean = false,
+    val resumePositionMs: Long = 0,
 )

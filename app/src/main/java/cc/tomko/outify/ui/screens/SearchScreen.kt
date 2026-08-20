@@ -80,6 +80,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toOutifyUri
@@ -436,9 +437,14 @@ fun SharedTransitionScope.SearchScreen(
                                     backStack.add(Route.ShowScreen(showUri))
                                 } else {
                                     scope.launch {
-                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
-                                        if (!resolved.isNullOrBlank()) {
-                                            backStack.add(Route.ShowScreen(resolved))
+                                        val details = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val raw = viewModel.spClient.getEpisodeDetails(episode.id)
+                                                EpisodeDetails.fromJson(raw)
+                                            }.getOrNull()
+                                        }
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
                                         }
                                     }
                                 }
@@ -683,9 +689,14 @@ fun SharedTransitionScope.SearchScreen(
                                     backStack.add(Route.ShowScreen(showUri))
                                 } else {
                                     scope.launch {
-                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
-                                        if (!resolved.isNullOrBlank()) {
-                                            backStack.add(Route.ShowScreen(resolved))
+                                        val details = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val raw = viewModel.spClient.getEpisodeDetails(episode.id)
+                                                EpisodeDetails.fromJson(raw)
+                                            }.getOrNull()
+                                        }
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
                                         }
                                     }
                                 }

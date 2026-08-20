@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use reqwest::StatusCode;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     spotify::error::SpotifyApiError,
@@ -124,11 +124,11 @@ impl SpotifyClient {
         }
     }
 
-    /// Get the show URI for a given episode ID via the Spotify Web API
-    pub async fn get_episode_show_uri(
+    /// Get episode details (show URI, resume point, etc.) via the Spotify Web API
+    pub async fn get_episode_details(
         &self,
         episode_id: &str,
-    ) -> Result<String, SpotifyApiError> {
+    ) -> Result<EpisodeDetails, SpotifyApiError> {
         let token = self.load_token().await?;
         let token = token
             .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
@@ -136,11 +136,18 @@ impl SpotifyClient {
         #[derive(Deserialize)]
         struct EpisodeResponse {
             show: ShowRef,
+            resume_point: Option<ResumePoint>,
         }
 
         #[derive(Deserialize)]
         struct ShowRef {
             uri: String,
+        }
+
+        #[derive(Deserialize)]
+        struct ResumePoint {
+            fully_played: bool,
+            resume_position_ms: i64,
         }
 
         let res = self
@@ -154,12 +161,23 @@ impl SpotifyClient {
             .await;
 
         match res {
-            Ok(ep) => Ok(ep.show.uri),
+            Ok(ep) => Ok(EpisodeDetails {
+                show_uri: ep.show.uri,
+                fully_played: ep.resume_point.as_ref().map(|r| r.fully_played).unwrap_or(false),
+                resume_position_ms: ep.resume_point.as_ref().map(|r| r.resume_position_ms).unwrap_or(0),
+            }),
             Err(e) => Err(SpotifyApiError::Generic(format!(
-                "get_episode_show_uri failed: {e}"
+                "get_episode_details failed: {e}"
             ))),
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct EpisodeDetails {
+    pub show_uri: String,
+    pub fully_played: bool,
+    pub resume_position_ms: i64,
 }
 
 pub enum SavedItemType {

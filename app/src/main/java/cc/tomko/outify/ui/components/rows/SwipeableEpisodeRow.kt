@@ -147,6 +147,8 @@ fun SharedTransitionScope.SwipeableEpisodeRowConfigured(
                 isLoaded = isLoaded,
                 isPlaying = isPlaybackPlaying,
                 isSelected = isSelected,
+                fullyPlayed = episode.fullyPlayed,
+                resumePositionMs = episode.resumePositionMs,
                 onRowClick = onRowClick,
                 onRowLongClick = {
                     if (onRowLongClick != null) {
@@ -178,6 +180,8 @@ fun SharedTransitionScope.EpisodeRow(
     isLoaded: Boolean = false,
     isPlaying: Boolean = false,
     isSelected: Boolean = false,
+    fullyPlayed: Boolean = false,
+    resumePositionMs: Long = 0,
     density: TrackRowDensity = TrackRowDensity.Default,
     trailingContent: @Composable (() -> Unit)? = null,
 
@@ -340,10 +344,11 @@ fun SharedTransitionScope.EpisodeRow(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = formatEpisodeMeta(publishTime, duration),
+                    text = formatEpisodeMeta(publishTime, duration, fullyPlayed, resumePositionMs),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodySmall,
+                    color = if (!fullyPlayed && resumePositionMs > 0) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("episoderow.meta")
                 )
             }
@@ -377,7 +382,7 @@ fun SharedTransitionScope.EpisodeRow(
     }
 }
 
-private fun formatEpisodeMeta(publishTimeMs: Long, durationMs: Long): String {
+private fun formatEpisodeMeta(publishTimeMs: Long, durationMs: Long, fullyPlayed: Boolean, resumePositionMs: Long): String {
     val now = System.currentTimeMillis()
     val daysAgo = TimeUnit.MILLISECONDS.toDays(now - publishTimeMs)
     val whenStr = when {
@@ -390,7 +395,17 @@ private fun formatEpisodeMeta(publishTimeMs: Long, durationMs: Long): String {
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-    return "$whenStr · $durationStr"
+
+    return when {
+        fullyPlayed -> "$whenStr · $durationStr"
+        resumePositionMs > 0 -> {
+            val resumeMin = TimeUnit.MILLISECONDS.toMinutes(resumePositionMs)
+            val resumeSec = TimeUnit.MILLISECONDS.toSeconds(resumePositionMs) % 60
+            val resumeStr = if (resumeMin > 0) "${resumeMin}m ${resumeSec}s" else "${resumeSec}s"
+            "$whenStr · $durationStr · Resume $resumeStr"
+        }
+        else -> "$whenStr · $durationStr"
+    }
 }
 
 @Composable

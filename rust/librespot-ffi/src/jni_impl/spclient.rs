@@ -316,8 +316,8 @@ pub extern "system" fn get_saved_episode_items(
     }
 }
 
-#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getEpisodeShowUri")]
-pub extern "system" fn get_episode_show_uri(
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getEpisodeDetails")]
+pub extern "system" fn get_episode_details(
     mut env: JNIEnv,
     _class: JClass,
     episode_id: JString,
@@ -327,7 +327,7 @@ pub extern "system" fn get_episode_show_uri(
     let rt = match crate::TOKIO_RUNTIME.get() {
         Some(r) => r,
         None => {
-            error!("tokio runtime not available for get_episode_show_uri");
+            error!("tokio runtime not available for get_episode_details");
             return std::ptr::null_mut();
         }
     };
@@ -344,10 +344,20 @@ pub extern "system" fn get_episode_show_uri(
         }
     };
 
-    let result = match rt.block_on(client.get_episode_show_uri(&episode_id)) {
-        Ok(show_uri) => show_uri,
+    let result = match rt.block_on(client.get_episode_details(&episode_id)) {
+        Ok(details) => match serde_json::to_string(&details) {
+            Ok(json) => json,
+            Err(e) => {
+                error!("failed to serialize episode details: {e}");
+                let _ = env.throw_new(
+                    "java/io/RuntimeException",
+                    format!("Serialization failed: {e}"),
+                );
+                return std::ptr::null_mut();
+            }
+        },
         Err(e) => {
-            error!("get_episode_show_uri failed: {e}");
+            error!("get_episode_details failed: {e}");
             let _ = env.throw_new(
                 "java/io/RuntimeException",
                 format!("Spotify request failed: {e}"),

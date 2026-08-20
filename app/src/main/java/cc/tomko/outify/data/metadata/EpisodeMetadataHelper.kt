@@ -173,6 +173,9 @@ class EpisodeMetadataHelper @Inject constructor(
 
         val now = System.currentTimeMillis()
 
+        val existingPlayState = episodeDao.getEpisodesByIds(episodes.map { it.id })
+            .associateBy { it.episodeId }
+
         val episodeEntities = episodes.map { episode ->
             val sortedByArea = episode.covers
                 .sortedBy { it.width * it.height }
@@ -189,6 +192,8 @@ class EpisodeMetadataHelper @Inject constructor(
             } catch (_: Exception) {
                 "[]"
             }
+
+            val existing = existingPlayState[episode.id]
 
             EpisodeEntity(
                 episodeId = episode.id,
@@ -214,6 +219,8 @@ class EpisodeMetadataHelper @Inject constructor(
                 isLibraryItem = false,
                 lastAccessed = now,
                 lastUpdated = now,
+                fullyPlayed = existing?.fullyPlayed ?: false,
+                resumePositionMs = existing?.resumePositionMs ?: 0,
             )
         }
 
