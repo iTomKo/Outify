@@ -2,6 +2,7 @@ package cc.tomko.outify.ui.screens.settings
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -227,6 +228,23 @@ fun AccountsScreen(
                                 Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
                             }
                         },
+                        trailingContent = {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        shape = CircleShape
+                                    )
+                            ) {
+                                Text(
+                                    text = "0",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            }
+                        },
                         onClick = {
                             if (isPlaybackLoggedIn) {
                                 showPlaybackSheet = true
@@ -317,6 +335,22 @@ fun AccountsScreen(
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
+
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = CircleShape
+                                        )
+                                ) {
+                                    Text(
+                                        text = "1",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                }
                             }
 
                             if (!isPremium) {
@@ -349,6 +383,23 @@ fun AccountsScreen(
                                         Icons.AutoMirrored.Filled.Login,
                                         contentDescription = null
                                     )
+                                },
+                                trailingContent = {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primaryContainer,
+                                                shape = CircleShape
+                                            )
+                                    ) {
+                                        Text(
+                                            text = "1",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        )
+                                    }
                                 },
                                 onClick = { viewModel.startAccountAuth(context) },
                             )
@@ -407,20 +458,23 @@ fun AccountsScreen(
 
                         FeatureAvailability(
                             "Stream tracks from Outify",
-                            isPlaybackLoggedIn && isPremium
+                            isPlaybackLoggedIn && isPremium,
+                            0
                         )
                         FeatureAvailability(
                             "Sync your liked tracks and playlists",
-                            isPlaybackLoggedIn && isPremium
+                            isPlaybackLoggedIn && isPremium,
+                            0
                         )
                         FeatureAvailability(
                             "View artists, albums, playlists",
-                            isPlaybackLoggedIn && isPremium
+                            isPlaybackLoggedIn && isPremium,
+                            0
                         )
 
                         Spacer(Modifier.height(12.dp))
 
-                        FeatureAvailability("Search Spotify", isAccountLoggedIn)
+                        FeatureAvailability("Search Spotify", isAccountLoggedIn, 1)
                         FeatureAvailability(
                             "Modify playlists",
                             isAccountLoggedIn && scopes.containsAll(
@@ -428,7 +482,8 @@ fun AccountsScreen(
                                     "playlist-modify-public",
                                     "playlist-modify-private"
                                 )
-                            )
+                            ),
+                            1
                         )
                         FeatureAvailability(
                             "Create playlists",
@@ -437,7 +492,8 @@ fun AccountsScreen(
                                     "playlist-modify-public",
                                     "playlist-modify-private"
                                 )
-                            )
+                            ),
+                            1
                         )
                         FeatureAvailability(
                             "Liking and unliking tracks, playlists, artists, ..",
@@ -447,9 +503,26 @@ fun AccountsScreen(
                                     "user-follow-modify",
                                     "playlist-modify-public"
                                 )
-                            )
+                            ),
+                            1
                         )
-                        FeatureAvailability("Viewing user profiles", isPlaybackLoggedIn)
+
+                        FeatureAvailability(
+                            "Syncing liked albums, episodes, ..",
+                            isAccountLoggedIn && scopes.containsAll(
+                                listOf(
+                                    "user-library-read",
+                                )
+                            ),
+                            1
+                        )
+
+                        FeatureAvailability(
+                            "Navigating from episode to show",
+                            isAccountLoggedIn,
+                            1
+                        )
+                        FeatureAvailability("Viewing user profiles", isPlaybackLoggedIn, 0)
 
                         Spacer(Modifier.height(12.dp))
 
@@ -492,7 +565,7 @@ private fun FeatureItem(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun FeatureAvailability(text: String, available: Boolean, modifier: Modifier = Modifier) {
+private fun FeatureAvailability(text: String, available: Boolean, badgeNumber: Int, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -515,5 +588,23 @@ private fun FeatureAvailability(text: String, available: Boolean, modifier: Modi
             color = if (available) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(24.dp)
+                .background(
+                    color = if (available) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = CircleShape
+                )
+        ) {
+            Text(
+                text = badgeNumber.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (available) MaterialTheme.colorScheme.onPrimaryContainer
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
