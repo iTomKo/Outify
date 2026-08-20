@@ -244,7 +244,6 @@ fun SharedTransitionScope.ArtistDetailScreen(
                                     contentDescription = "See all albums",
                                     modifier = Modifier
                                         .clickable {
-                                            println("open albums")
                                         }
                                 )
                             }

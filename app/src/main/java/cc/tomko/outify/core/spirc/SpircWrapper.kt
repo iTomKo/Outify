@@ -212,16 +212,12 @@ class SpircWrapper @Inject constructor(
      * Transfers current Spirc session only if no other session is streaming.
      */
     override fun smartTransfer(): Boolean {
-        println("sum1")
         val json = spClient.getDevices() ?: return false
-        println("sum2")
         val devices = Json.decodeFromString<DevicesResponse>(json)
-        println("sum3")
 
         for (device in devices.devices) {
             if (device.isActive) return false
         }
-        println("sum4")
 
         return Spirc.transfer()
     }

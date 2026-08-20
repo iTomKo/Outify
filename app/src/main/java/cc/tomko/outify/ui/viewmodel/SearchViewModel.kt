@@ -185,7 +185,6 @@ class SearchViewModel @Inject constructor(
                                     runCatching {
                                         metadata.getShowMetadata(uri)
                                     }.getOrNull()?.let { show ->
-                                        println(show)
                                         SearchUiModel.ShowItem(uri, show)
                                     }
                                 }
@@ -200,7 +199,6 @@ class SearchViewModel @Inject constructor(
                                     metadata.getEpisodeMetadata(uris)
                                 }.getOrNull()
                                     ?.mapIndexed { index, episode ->
-                                        println(episode)
                                         SearchUiModel.EpisodeItem(uris[index], episode)
                                     }
                                     ?: emptyList()

@@ -98,7 +98,6 @@ fun ProfileDetailScreen(
         is ProfileUiState.Success -> {
             val profile = state.profile
             val artworkUrl = profile?.imageUrl
-            println(artworkUrl)
             val playlists = profile?.publicPlaylists ?: emptyList()
 
             Box(
@@ -242,7 +241,6 @@ private fun ProfilePlaylistRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    println(playlist)
     val artworkUrl = playlist.imageUrl
 
     Surface(

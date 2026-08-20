@@ -26,7 +26,6 @@ class SpircController @Inject constructor(
     fun start() {
         session.initializeSession(object : SessionCallback {
             override fun onInitialized() {
-                println("Session initialized")
                 spirc.scope.launch {
                     initializeSpirc()
                 }
@@ -73,12 +72,10 @@ class SpircController @Inject constructor(
 
                 Spirc.deviceCallback(object : SpircDeviceCallback {
                     override fun becameActive() {
-                        println("we are active")
                         playbackStateHolder.setActiveDevice(true)
                     }
 
                     override fun becameInactive() {
-                        println("we are inactive")
                         playbackStateHolder.setActiveDevice(false)
                     }
 

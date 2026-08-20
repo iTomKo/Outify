@@ -115,7 +115,6 @@ class PlaybackWidget : GlanceAppWidget() {
                     .build()
 
                 currentTrackBitmap = context.imageLoader.execute(request).image?.toBitmap()
-                println(currentTrackBitmap)
             }
 
             GlanceTheme {

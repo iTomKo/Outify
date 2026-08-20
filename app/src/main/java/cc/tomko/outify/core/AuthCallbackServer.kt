@@ -35,7 +35,6 @@ class AuthCallbackServer(
                 else -> newFixedLengthResponse(Response.Status.NOT_FOUND, "text/plain", "Not Found")
             }
         } catch (e: SocketException) {
-            println("AuthCallbackServer: socket closed while responding")
             newFixedLengthResponse(Response.Status.INTERNAL_ERROR, "text/plain", "")
         } catch (t: Throwable) {
             t.printStackTrace()
