@@ -74,6 +74,7 @@ fun SharedTransitionScope.SwipeableEpisodeRowConfigured(
     onRowLongClick: (() -> Unit)? = null,
     onArtworkClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
+    onShowNameClick: (() -> Unit)? = null,
 
     trailingContent: @Composable (() -> Unit)? = null,
 
@@ -156,6 +157,7 @@ fun SharedTransitionScope.SwipeableEpisodeRowConfigured(
                 },
                 onArtworkClick = onArtworkClick,
                 onTitleClick = onTitleClick,
+                onShowNameClick = onShowNameClick,
                 trailingContent = trailingContent
             )
         }
@@ -183,6 +185,7 @@ fun SharedTransitionScope.EpisodeRow(
     onRowLongClick: (() -> Unit)? = null,
     onArtworkClick: (() -> Unit)? = null,
     onTitleClick: (() -> Unit)? = null,
+    onShowNameClick: (() -> Unit)? = null,
 
     contentDescription: String? = null,
 
@@ -295,7 +298,17 @@ fun SharedTransitionScope.EpisodeRow(
                     ),
                     color = tertiary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (onShowNameClick != null) {
+                                Modifier.combinedClickable(
+                                    onClick = { onShowNameClick() },
+                                    onLongClick = {}
+                                )
+                            } else Modifier
+                        )
                 )
 
                 Text(

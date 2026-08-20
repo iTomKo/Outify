@@ -5,9 +5,12 @@ import androidx.room.withTransaction
 import cc.tomko.outify.data.dao.AlbumDao
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.database.AppDatabase
+import cc.tomko.outify.data.database.EpisodeEntity
 import cc.tomko.outify.data.database.TrackWithArtists
 import cc.tomko.outify.data.database.album.AlbumWithArtists
+import cc.tomko.outify.data.database.track.LikedEpisodeEntity
 import cc.tomko.outify.data.database.track.LikedTrackEntity
+import cc.tomko.outify.data.metadata.EpisodeMetadataHelper
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +31,7 @@ class LikedRepository @Inject constructor(
     private val likedDao: LikedDao,
     private val albumDao: AlbumDao,
     private val trackMetadataHelper: TrackMetadataHelper,
+    private val episodeMetadataHelper: EpisodeMetadataHelper,
     private val metadata: Metadata,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -35,6 +39,7 @@ class LikedRepository @Inject constructor(
     companion object {
         private const val TAG = "LikedRepository"
         private const val SUBSTRING_OFFSET = "spotify:track:".length
+        private const val EPISODE_SUBSTRING_OFFSET = "spotify:episode:".length
     }
 
     suspend fun syncLikedTracks(
@@ -217,5 +222,158 @@ class LikedRepository @Inject constructor(
         val trackId = trackUri.substringAfterLast(":")
         val allIds = likedDao.getLikedIds()
         return allIds.indexOf(trackId)
+    }
+
+    // ── Episodes ──────────────────────────────────────────────────────────
+
+    suspend fun syncLikedEpisodes(
+        forceSync: Boolean = false,
+        onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
+    ): Boolean = withContext(Dispatchers.IO) {
+        val pageSize = 20
+        val perPageDelayMs = 100L
+        val maxRetries = 3
+        val initialBackoffMs = 500L
+
+        try {
+            try {
+                if (!syncLikedEpisodeUris() && !forceSync) return@withContext false
+            } catch (t: Throwable) {
+                Log.w(TAG, "syncLikedEpisodeUris failed (continuing): ${t.message}", t)
+            }
+
+            yield()
+            var offset = 0
+            var anyFetched = false
+            val total = likedDao.getEpisodeCount()
+
+            while (true) {
+                val ids = likedDao.getEpisodeIdsWindow(limit = pageSize, offset = offset)
+                if (ids.isEmpty()) break
+
+                val uris = ids.map { "spotify:episode:$it" }
+
+                var attempt = 0
+                var succeeded = false
+                var backoff = initialBackoffMs
+
+                while (attempt < maxRetries && !succeeded) {
+                    try {
+                        val fetched = episodeMetadataHelper.getEpisodeMetadata(uris)
+
+                        if (fetched.isNotEmpty()) {
+                            anyFetched = true
+                        }
+
+                        succeeded = true
+                    } catch (e: Exception) {
+                        attempt++
+                        if (attempt >= maxRetries) {
+                            Log.e(
+                                TAG,
+                                "Failed fetching metadata for liked episodes (offset=$offset).",
+                                e
+                            )
+                            return@withContext false
+                        } else {
+                            Log.w(
+                                TAG,
+                                "Transient failure fetching episode metadata (offset=$offset), retrying in $backoff ms (attempt=$attempt).",
+                                e
+                            )
+                            delay(backoff)
+                            backoff = min(backoff * 2, 10_000L)
+                        }
+                    }
+                }
+
+                val processed = min(offset + pageSize, total)
+                onProgress(processed, total)
+
+                yield()
+                delay(perPageDelayMs)
+                offset += pageSize
+            }
+
+            Log.d(TAG, "syncLikedEpisodes finished; anyFetched=$anyFetched")
+            return@withContext true
+        } catch (t: Throwable) {
+            Log.e(TAG, "syncLikedEpisodes failed unexpectedly", t)
+            return@withContext false
+        }
+    }
+
+    suspend fun syncLikedEpisodeUris(): Boolean {
+        val remote = metadata.getSavedEpisodeInfo()
+        val cached = likedDao.getLikedEpisodeIds()
+
+        if (remote.size == cached.size) {
+            var allMatch = true
+            for ((i, pair) in remote.withIndex()) {
+                if (pair.first.length <= EPISODE_SUBSTRING_OFFSET || pair.first.substring(EPISODE_SUBSTRING_OFFSET) != cached[i]) {
+                    allMatch = false
+                    break
+                }
+            }
+            if (allMatch) return false
+        }
+
+        Log.d(TAG, "Liked episodes changed (${cached.size} → ${remote.size}), resyncing")
+        db.withTransaction {
+            likedDao.clearAllEpisodes()
+            val now = System.currentTimeMillis()
+            remote.forEachIndexed { i, (episodeUri, showUri) ->
+                likedDao.insertEpisode(
+                    LikedEpisodeEntity(
+                        episodeId = episodeUri.substring(EPISODE_SUBSTRING_OFFSET),
+                        position = i.toDouble(),
+                        addedAt = now,
+                        showUri = showUri,
+                    )
+                )
+            }
+        }
+        return true
+    }
+
+    fun observeLikedEpisodesWithDetails(): Flow<List<EpisodeEntity>> =
+        likedDao.observeLikedEpisodesWithDetails()
+
+    fun observeSearchLikedEpisodes(query: String): Flow<List<EpisodeEntity>> =
+        likedDao.observeSearchLikedEpisodes(query)
+
+    fun observeEpisodeCount(): Flow<Int> = likedDao.observeEpisodeCount()
+
+    val likedEpisodeCountState = likedDao.observeEpisodeCount()
+        .stateIn(scope, SharingStarted.Eagerly, 0)
+
+    suspend fun isLikedEpisode(episodeId: String): Boolean = likedDao.containsEpisode(episodeId)
+
+    suspend fun addLikedEpisode(episodeId: String) {
+        val currentCount = likedDao.getLikedEpisodeIds().size
+        likedDao.insertEpisode(
+            LikedEpisodeEntity(
+                episodeId = episodeId,
+                position = currentCount.toDouble(),
+                addedAt = System.currentTimeMillis()
+            )
+        )
+    }
+
+    suspend fun removeLikedEpisode(episodeId: String) {
+        likedDao.deleteEpisode(episodeId)
+    }
+
+    suspend fun ensureEpisodeWindowLoaded(offset: Int, size: Int) {
+        val ids = likedDao.getEpisodeIdsWindow(limit = size, offset = offset)
+        if (ids.isNotEmpty()) {
+            episodeMetadataHelper.getEpisodeMetadata(ids.map { "spotify:episode:$it" })
+        }
+    }
+
+    suspend fun getEpisodeIndex(episodeUri: String): Int {
+        val episodeId = episodeUri.substringAfterLast(":")
+        val allIds = likedDao.getLikedEpisodeIds()
+        return allIds.indexOf(episodeId)
     }
 }

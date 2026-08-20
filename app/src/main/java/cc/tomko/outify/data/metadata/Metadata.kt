@@ -145,6 +145,41 @@ class Metadata @Inject constructor(
         }
     }
 
+    suspend fun getSavedEpisodeUris(): List<String> {
+        try {
+            val raw = spClient.getSavedEpisodeItems()
+            val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeUris")
+            return checked.split(";")
+                .map { it.substringBefore(",") }
+                .filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode URIs"),
+                "getSavedEpisodeUris"
+            )
+            return emptyList()
+        }
+    }
+
+    suspend fun getSavedEpisodeInfo(): List<Pair<String, String>> {
+        try {
+            val raw = spClient.getSavedEpisodeItems()
+            val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeInfo")
+            return checked.split(";")
+                .filter { it.isNotBlank() }
+                .map { pair ->
+                    val parts = pair.split(",", limit = 2)
+                    parts[0] to (parts.getOrElse(1) { "" })
+                }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode info"),
+                "getSavedEpisodeInfo"
+            )
+            return emptyList()
+        }
+    }
+
     suspend fun getPlaylistMetadata(uri: String, allowCached: Boolean): Playlist? {
         return playlistMetadataHelper.getPlaylistMetadata(uri, allowCached)
     }

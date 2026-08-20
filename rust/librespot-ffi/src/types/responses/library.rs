@@ -7,11 +7,22 @@ pub struct SavedItemsResponse<T> {
 
 #[derive(Debug, Deserialize)]
 pub struct SavedItem<T> {
-    #[serde(alias = "album", alias = "track")]
+    #[serde(alias = "album", alias = "track", alias = "episode")]
     pub item: T,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Uri {
+    pub uri: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EpisodeUri {
+    pub uri: String,
+    pub show: Option<ShowUri>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ShowUri {
     pub uri: String,
 }

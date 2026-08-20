@@ -23,6 +23,7 @@ data class EpisodeEntity(
     val language: String,
     val isExplicit: Boolean,
     val showName: String,
+    val showUri: String = "",
     val allowBackgroundPlayback: Boolean,
     val externalUrl: String,
     val episodeType: String,

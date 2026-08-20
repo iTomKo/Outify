@@ -100,7 +100,9 @@ import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.SearchUiModel
 import cc.tomko.outify.ui.viewmodel.SearchViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -428,6 +430,20 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.EpisodeItem -> {
                             val episode = item.episode
+                            val showUri = episode.showUri
+                            val openShow: () -> Unit = {
+                                if (showUri.isNotBlank()) {
+                                    backStack.add(Route.ShowScreen(showUri))
+                                } else {
+                                    scope.launch {
+                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
+                                        if (!resolved.isNullOrBlank()) {
+                                            backStack.add(Route.ShowScreen(resolved))
+                                        }
+                                    }
+                                }
+                            }
+
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
                                 isPlaybackPlaying = isPlaybackPlaying,
@@ -435,6 +451,8 @@ fun SharedTransitionScope.SearchScreen(
                                     spirc.load(episode.toOutifyUri())
                                     viewModel.setAudio(episode.toPlayableAudio())
                                 },
+                                onArtworkClick = openShow,
+                                onShowNameClick = openShow,
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -659,15 +677,29 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.EpisodeItem -> {
                             val episode = item.episode
+                            val showUri = episode.showUri
+                            val openShow: () -> Unit = {
+                                if (showUri.isNotBlank()) {
+                                    backStack.add(Route.ShowScreen(showUri))
+                                } else {
+                                    scope.launch {
+                                        val resolved = viewModel.resolveEpisodeShowUri(episode.id)
+                                        if (!resolved.isNullOrBlank()) {
+                                            backStack.add(Route.ShowScreen(resolved))
+                                        }
+                                    }
+                                }
+                            }
+
                             SwipeableEpisodeRowConfigured(
                                 episode = episode,
-                                isLoaded = currentTrack?.uri == episode.uri,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
-                                    viewModel.addToHistory(item)
                                     spirc.load(episode.toOutifyUri())
                                     viewModel.setAudio(episode.toPlayableAudio())
                                 },
+                                onArtworkClick = openShow,
+                                onShowNameClick = openShow,
                                 modifier = Modifier.animateItem()
                             )
                         }

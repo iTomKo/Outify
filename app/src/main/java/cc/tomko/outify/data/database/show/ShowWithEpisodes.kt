@@ -126,6 +126,7 @@ fun EpisodeEntity.toDomain(): Episode {
         language = language,
         isExplicit = isExplicit,
         showName = showName,
+        showUri = showUri,
         keywords = keywords,
         allowBackgroundPlayback = allowBackgroundPlayback,
         externalUrl = externalUrl,

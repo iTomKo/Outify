@@ -201,6 +201,7 @@ class EpisodeMetadataHelper @Inject constructor(
                 language = episode.language,
                 isExplicit = episode.isExplicit,
                 showName = episode.showName,
+                showUri = episode.showUri,
                 allowBackgroundPlayback = episode.allowBackgroundPlayback,
                 externalUrl = episode.externalUrl,
                 episodeType = episode.episodeType.name,

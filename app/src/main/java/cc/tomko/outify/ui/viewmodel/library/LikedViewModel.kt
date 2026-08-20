@@ -154,6 +154,15 @@ class LikedViewModel @Inject constructor(
 
                     isRefreshing.value = false
                 }
+
+                // Sync liked episodes in the background (no progress UI)
+                launch {
+                    runCatching {
+                        likedRepository.syncLikedEpisodes()
+                    }.onFailure {
+                        Log.w("LikedViewModel", "syncLikedEpisodes failed", it)
+                    }
+                }
             }
             // Kick off the first page
             triggerLoad(offset = 0)

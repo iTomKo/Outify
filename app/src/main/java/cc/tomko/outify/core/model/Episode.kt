@@ -27,6 +27,8 @@ data class Episode(
     val isExplicit: Boolean,
     @SerialName("show_name")
     val showName: String,
+    @SerialName("show_id")
+    val showUri: String = "",
     val keywords: List<String>,
     @SerialName("allow_background_playback")
     val allowBackgroundPlayback: Boolean,

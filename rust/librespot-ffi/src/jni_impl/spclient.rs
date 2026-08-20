@@ -269,6 +269,102 @@ pub extern "system" fn get_saved_items(
     }
 }
 
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getSavedEpisodeItems")]
+pub extern "system" fn get_saved_episode_items(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let client = get_client();
+
+    let rt = match crate::TOKIO_RUNTIME.get() {
+        Some(r) => r,
+        None => {
+            error!("tokio runtime not available for get_saved_episode_items");
+            return std::ptr::null_mut();
+        }
+    };
+
+    let result = match rt.block_on(client.get_saved_episode_items()) {
+        Ok(items) => {
+            let pairs: Vec<String> = items
+                .items
+                .into_iter()
+                .filter_map(|i| {
+                    let ep_uri = i.item.uri;
+                    let show_uri = i.item.show.map(|s| s.uri).unwrap_or_default();
+                    Some(format!("{ep_uri},{show_uri}"))
+                })
+                .collect();
+            pairs.join(";")
+        }
+        Err(e) => {
+            error!("get_saved_episode_items failed: {e}");
+            let _ = env.throw_new(
+                "java/io/RuntimeException",
+                format!("Spotify request failed: {e}"),
+            );
+            return std::ptr::null_mut();
+        }
+    };
+
+    match env.new_string(result) {
+        Ok(jni_str) => jni_str.into_raw(),
+        Err(e) => {
+            error!("jni new_string failed: {e}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getEpisodeShowUri")]
+pub extern "system" fn get_episode_show_uri(
+    mut env: JNIEnv,
+    _class: JClass,
+    episode_id: JString,
+) -> jstring {
+    let client = get_client();
+
+    let rt = match crate::TOKIO_RUNTIME.get() {
+        Some(r) => r,
+        None => {
+            error!("tokio runtime not available for get_episode_show_uri");
+            return std::ptr::null_mut();
+        }
+    };
+
+    let episode_id: String = match env.get_string(&episode_id) {
+        Ok(s) => s.into(),
+        Err(e) => {
+            error!("jni get_string failed for episode_id: {e}");
+            let _ = env.throw_new(
+                "java/lang/IllegalArgumentException",
+                format!("Invalid episode_id: {e}"),
+            );
+            return std::ptr::null_mut();
+        }
+    };
+
+    let result = match rt.block_on(client.get_episode_show_uri(&episode_id)) {
+        Ok(show_uri) => show_uri,
+        Err(e) => {
+            error!("get_episode_show_uri failed: {e}");
+            let _ = env.throw_new(
+                "java/io/RuntimeException",
+                format!("Spotify request failed: {e}"),
+            );
+            return std::ptr::null_mut();
+        }
+    };
+
+    match env.new_string(result) {
+        Ok(jni_str) => jni_str.into_raw(),
+        Err(e) => {
+            error!("jni new_string failed: {e}");
+            std::ptr::null_mut()
+        }
+    }
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getUserTop")]
 pub extern "system" fn get_user_top(
     mut env: JNIEnv,

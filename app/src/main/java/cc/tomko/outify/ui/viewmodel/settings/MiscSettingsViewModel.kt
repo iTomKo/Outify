@@ -2,6 +2,7 @@ package cc.tomko.outify.ui.viewmodel.settings
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.BuildConfig
@@ -112,6 +113,15 @@ class MiscSettingsViewModel @Inject constructor(
                 syncNotificationManager.showError(e.message ?: "Unknown error")
             } finally {
                 OAuthService.stop(context)
+            }
+
+            // Sync liked episodes in the background
+            launch {
+                runCatching {
+                    likedRepository.syncLikedEpisodes(forceSync = true)
+                }.onFailure {
+                    Log.w("MiscSettingsViewModel", "syncLikedEpisodes failed", it)
+                }
             }
 
             launch {

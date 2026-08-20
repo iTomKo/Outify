@@ -16,8 +16,9 @@ class SpClient @Inject constructor() {
 
         const val TRACKS = "tracks"
         const val ALBUMS = "albums"
+        const val EPISODES = "episodes"
 
-        @StringDef(TRACKS, ALBUMS)
+        @StringDef(TRACKS, ALBUMS, EPISODES)
         @Retention(AnnotationRetention.SOURCE)
         annotation class SavedItemType
     }
@@ -57,6 +58,17 @@ class SpClient @Inject constructor() {
      * Get uris of items saved in users library
      */
     external fun getSavedItems(@SavedItemType itemType: String = TRACKS): String
+
+    /**
+     * Get episode URIs and their show URIs saved in users library.
+     * Returns semicolon-separated pairs of "episodeUri,showUri"
+     */
+    external fun getSavedEpisodeItems(): String
+
+    /**
+     * Get the show URI for a given episode ID via the Spotify Web API
+     */
+    external fun getEpisodeShowUri(episodeId: String): String
 
     /**
      * Get the current user's top artists or tracks based on calculated affinity.
