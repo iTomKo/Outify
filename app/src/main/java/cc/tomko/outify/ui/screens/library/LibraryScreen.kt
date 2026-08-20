@@ -62,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -206,15 +207,18 @@ fun SharedTransitionScope.LibraryScreen(
         modifier = modifier
             .fillMaxSize()
             .background(color = MaterialTheme.colorScheme.surface)
-            .nestedScroll(collapsingState.nestedScrollConnection)
     ) {
-        val topPadding = with(density) { collapsingState.height.value.toDp() }
+        val maxHeightDp = with(density) { collapsingState.maxHeightPx.toDp() }
 
         LazyColumn(
             state = lazyListState,
-            contentPadding = PaddingValues(top = topPadding, bottom = 80.dp),
+            contentPadding = PaddingValues(top = maxHeightDp,bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxSize()
+                .graphicsLayer {
+                    translationY = -(collapsingState.maxHeightPx - collapsingState.height)
+                }
+                .nestedScroll(collapsingState.nestedScrollConnection)
         ) {
             item(key = "expressive_filter_bar") {
                 Column(
@@ -457,8 +461,7 @@ fun SharedTransitionScope.LibraryScreen(
         }
 
         CollapsingHeader(
-            collapseFraction = collapsingState.collapseFraction,
-            headerHeight = topPadding,
+            state = collapsingState,
             onBackPressed = { backStack.removeAt(backStack.lastIndex) },
             backgroundContent = {
                 var artworkUrl by viewModel.headerArtwork

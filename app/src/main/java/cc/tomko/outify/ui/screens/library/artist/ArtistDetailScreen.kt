@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -158,12 +159,10 @@ fun SharedTransitionScope.ArtistDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(color = MaterialTheme.colorScheme.surface)
-                    .nestedScroll(collapsingState.nestedScrollConnection)
             ) {
-                val currentTopBarHeightDp =
-                    with(density) { collapsingState.height.value.toDp() }
+                val maxHeightDp = with(density) { collapsingState.maxHeightPx.toDp() }
 
-                val topPadding = currentTopBarHeightDp + if (likedTrackCount > 0) 8.dp else 0.dp
+                val topPadding = maxHeightDp + if (likedTrackCount > 0) 8.dp else 0.dp
 
                 if (isContentLoading) {
                     ArtistDetailSkeleton(
@@ -182,6 +181,10 @@ fun SharedTransitionScope.ArtistDetailScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = -(collapsingState.maxHeightPx - collapsingState.height)
+                        }
+                        .nestedScroll(collapsingState.nestedScrollConnection)
                 ) {
                     item {
                         Text(
@@ -285,8 +288,7 @@ fun SharedTransitionScope.ArtistDetailScreen(
                 }
 
                 CollapsingHeader(
-                    collapseFraction = collapsingState.collapseFraction,
-                    headerHeight = currentTopBarHeightDp,
+                    state = collapsingState,
                     onBackPressed = onBack,
                     backgroundContent = {
                         ArtworkBackground(

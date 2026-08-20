@@ -50,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -162,19 +163,21 @@ fun SharedTransitionScope.ShowDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(color = MaterialTheme.colorScheme.surface)
-                    .nestedScroll(collapsingState.nestedScrollConnection)
             ) {
-                val currentTopBarHeightDp =
-                    with(density) { collapsingState.height.value.toDp() }
+                val maxHeightDp = with(density) { collapsingState.maxHeightPx.toDp() }
 
                 LazyColumn(
                     state = lazyList,
                     contentPadding = PaddingValues(
-                        top = currentTopBarHeightDp,
+                        top = maxHeightDp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer {
+                            translationY = -(collapsingState.maxHeightPx - collapsingState.height)
+                        }
+                        .nestedScroll(collapsingState.nestedScrollConnection)
                 ) {
                     item {
                         Row(
@@ -223,8 +226,7 @@ fun SharedTransitionScope.ShowDetailScreen(
                 }
 
                 CollapsingHeader(
-                    collapseFraction = collapsingState.collapseFraction,
-                    headerHeight = currentTopBarHeightDp,
+                    state = collapsingState,
                     onBackPressed = onBack,
                     backgroundContent = {
                         ArtworkBackground(

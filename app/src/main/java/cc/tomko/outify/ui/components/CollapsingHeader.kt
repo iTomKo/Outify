@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.components
 
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -23,15 +24,23 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -39,12 +48,12 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.lerp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CollapsingHeader(
-    collapseFraction: Float,
-    headerHeight: Dp,
+    state: CollapsingHeaderState,
     onBackPressed: () -> Unit,
     modifier: Modifier = Modifier,
     backgroundContent: @Composable BoxScope.() -> Unit = {},
@@ -52,6 +61,8 @@ fun CollapsingHeader(
     fabContent: @Composable (() -> Unit)? = null,
     actionButtonContent: @Composable (() -> Unit)? = null,
 ) {
+    val collapseFraction = state.collapseFraction
+
     val surfaceColor = MaterialTheme.colorScheme.surface
     val backgroundAlpha = collapseFraction
     val headerContentAlpha = 1f - (collapseFraction * 2).coerceAtMost(1f)
@@ -66,8 +77,20 @@ fun CollapsingHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(headerHeight)
-            .background(surfaceColor.copy(alpha = backgroundAlpha))
+            .layout { measurable, constraints ->
+                val heightPx = state.height.roundToInt()
+                val placeable = measurable.measure(
+                    constraints.copy(minHeight = heightPx, maxHeight = heightPx)
+                )
+                layout(placeable.width, heightPx) {
+                    placeable.place(0, 0)
+                }
+            }
+            .onGloballyPositioned { coords ->
+                Log.d("GapDebug", "Header bottom in window: ${coords.positionInWindow().y + coords.size.height}, isRefreshing=?")
+            }
+//            .background(surfaceColor.copy(alpha = backgroundAlpha))
+            .background(Color.Magenta)
     ) {
 
         // Background layer
@@ -75,6 +98,7 @@ fun CollapsingHeader(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = headerContentAlpha }
+                .background(Color.Green)
         ) {
             backgroundContent()
         }
@@ -84,6 +108,7 @@ fun CollapsingHeader(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .background(Color.Blue)
         ) {
 
             FilledIconButton(
@@ -113,6 +138,7 @@ fun CollapsingHeader(
                     .align(animatedTitleAlignment)
                     .height(titleContainerHeight)
                     .fillMaxWidth()
+                    .background(Color.Red)
             ) {
                 Column(
                     modifier = Modifier
@@ -122,6 +148,7 @@ fun CollapsingHeader(
                             scaleX = titleScale
                             scaleY = titleScale
                         }
+                        .background(Color.Yellow)
                 ) {
                     titleContent()
                 }
@@ -153,11 +180,12 @@ class CollapsingHeaderState(
     private val scope: CoroutineScope
 ) {
 
-    val height = Animatable(maxHeightPx)
+    var height by mutableFloatStateOf(maxHeightPx)
+        private set
 
     val collapseFraction: Float
         get() = 1f - (
-                (height.value - minHeightPx) /
+                (height - minHeightPx) /
                         (maxHeightPx - minHeightPx)
                 ).coerceIn(0f, 1f)
 
@@ -174,7 +202,7 @@ class CollapsingHeaderState(
             // Only expand when the list is scrolled all the way to the top
             if (delta > 0 && !canExpand) return Offset.Zero
 
-            val previous = height.value
+            val previous = height
 
             val newHeight = (previous + delta)
                 .coerceIn(minHeightPx, maxHeightPx)
@@ -182,9 +210,7 @@ class CollapsingHeaderState(
             val consumed = newHeight - previous
 
             if (consumed != 0f) {
-                scope.launch {
-                    height.snapTo(newHeight)
-                }
+                height = newHeight
             }
 
             return Offset(0f, consumed)
@@ -193,17 +219,11 @@ class CollapsingHeaderState(
 
     suspend fun snapIfNeeded(canExpand: Boolean) {
         val midpoint = (minHeightPx + maxHeightPx) / 2f
-        val target =
-            if (height.value > midpoint && canExpand)
-                maxHeightPx
-            else
-                minHeightPx
+        val target = if (height > midpoint && canExpand) maxHeightPx else minHeightPx
+        if (height == target) return
 
-        if (height.value != target) {
-            height.animateTo(
-                target,
-                spring(stiffness = Spring.StiffnessMedium)
-            )
+        Animatable(height).animateTo(target, spring(stiffness = Spring.StiffnessMedium)) {
+            height = value
         }
     }
 }
