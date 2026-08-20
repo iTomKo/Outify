@@ -5,17 +5,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.Album
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.Show
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
-import cc.tomko.outify.data.database.toDomain
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -37,23 +42,28 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 
-enum class LibraryTab { Playlists, Albums }
+enum class LibraryTab { Playlists, Albums, Shows, Episodes }
 
 data class LibraryState(
     val playlists: List<Playlist> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val shows: List<Show> = emptyList(),
+    val episodes: List<Episode> = emptyList(),
     val tracks: List<Track> = emptyList(),
     val folders: List<PlaylistFolder> = emptyList(),
     val selectedTab: LibraryTab = LibraryTab.Playlists,
     val error: String? = null,
     val isLoadingAlbums: Boolean = false,
+    val isLoadingShows: Boolean = false,
+    val isLoadingEpisodes: Boolean = false,
     val isLoadingTracks: Boolean = false,
+    val episodeShowUris: Map<String, String> = emptyMap(),
 )
 
 @HiltViewModel
@@ -83,6 +93,12 @@ class LibraryViewModel @Inject constructor(
     private val albumUris = MutableStateFlow<List<String>>(emptyList())
     private var albumsLoaded = false
 
+    private val showUris = MutableStateFlow<List<String>>(emptyList())
+    private var showsLoaded = false
+
+    private val episodeUris = MutableStateFlow<List<String>>(emptyList())
+    private var episodesLoaded = false
+
     private val _authors = MutableStateFlow<Map<String, Profile>>(emptyMap())
     val authors: StateFlow<Map<String, Profile>> = _authors
     val isRefreshing = MutableStateFlow(false)
@@ -97,12 +113,18 @@ class LibraryViewModel @Inject constructor(
     val selectedTab: StateFlow<LibraryTab> = _selectedTab
 
     private val _isLoadingAlbums = MutableStateFlow(false)
+    private val _isLoadingShows = MutableStateFlow(false)
+    private val _isLoadingEpisodes = MutableStateFlow(false)
     private val _isLoadingTracks = MutableStateFlow(false)
+
+    private val _episodeShowUris = MutableStateFlow<Map<String, String>>(emptyMap())
 
     fun selectTab(tab: LibraryTab) {
         _selectedTab.value = tab
         when (tab) {
             LibraryTab.Albums -> loadAlbumUris()
+            LibraryTab.Shows -> loadShowUris()
+            LibraryTab.Episodes -> loadEpisodeUris()
             else -> {}
         }
     }
@@ -140,17 +162,54 @@ class LibraryViewModel @Inject constructor(
                 emptyList()
             )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val shows: StateFlow<List<Show>> =
+        showUris
+            .flatMapLatest { uris ->
+                if (uris.isEmpty()) {
+                    flow { emit(emptyList()) }
+                } else {
+                    metadata.observeShows(uris)
+                }
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyList()
+            )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val episodes: StateFlow<List<Episode>> =
+        episodeUris
+            .flatMapLatest { uris ->
+                if (uris.isEmpty()) {
+                    flow { emit(emptyList()) }
+                } else {
+                    metadata.observeEpisodes(uris)
+                }
+            }
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyList()
+            )
+
     val libraryState: StateFlow<LibraryState> = combine(
-        listOf(playlists, albums, foldersFlow, _selectedTab, _error, _isLoadingAlbums, _isLoadingTracks)
+        listOf(playlists, albums, shows, episodes, foldersFlow, _selectedTab, _error, _isLoadingAlbums, _isLoadingShows, _isLoadingEpisodes, _isLoadingTracks, _episodeShowUris)
     ) { values ->
         LibraryState(
             playlists = values[0] as List<Playlist>,
             albums = values[1] as List<Album>,
-            folders = values[2] as List<PlaylistFolder>,
-            selectedTab = values[3] as LibraryTab,
-            error = values[4] as String?,
-            isLoadingAlbums = values[5] as Boolean,
-            isLoadingTracks = values[6] as Boolean,
+            shows = values[2] as List<Show>,
+            episodes = values[3] as List<Episode>,
+            folders = values[4] as List<PlaylistFolder>,
+            selectedTab = values[5] as LibraryTab,
+            error = values[6] as String?,
+            isLoadingAlbums = values[7] as Boolean,
+            isLoadingShows = values[8] as Boolean,
+            isLoadingEpisodes = values[9] as Boolean,
+            isLoadingTracks = values[10] as Boolean,
+            episodeShowUris = values[11] as Map<String, String>,
         )
     }.stateIn(
         viewModelScope,
@@ -210,8 +269,49 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    fun loadShowUris(force: Boolean = false) {
+        if (!force && showsLoaded) return
+        viewModelScope.launch {
+            _isLoadingShows.value = true
+
+            runCatching {
+                val raw = spClient.getSavedItems(SpClient.SHOWS)
+                raw.split(",").filter { it.isNotBlank() }
+            }.onSuccess { uris ->
+                showUris.value = uris
+                showsLoaded = true
+            }.onFailure { e ->
+                Log.w("LibraryViewModel", "Failed to fetch show URIs", e)
+            }
+
+            _isLoadingShows.value = false
+        }
+    }
+
+    fun loadEpisodeUris(force: Boolean = false) {
+        if (!force && episodesLoaded) return
+        viewModelScope.launch {
+            _isLoadingEpisodes.value = true
+
+            runCatching {
+                val pairs = metadata.getSavedEpisodeInfo()
+                val uris = pairs.map { it.first }
+                val showMap = pairs.associate { it.first to it.second }
+                uris to showMap
+            }.onSuccess { (uris, showMap) ->
+                episodeUris.value = uris
+                _episodeShowUris.value = showMap
+                episodesLoaded = true
+            }.onFailure { e ->
+                Log.w("LibraryViewModel", "Failed to fetch episode URIs", e)
+            }
+
+            _isLoadingEpisodes.value = false
+        }
+    }
+
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val isPlaying: StateFlow<Boolean> = playbackStateHolder.state
@@ -274,12 +374,29 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    fun playEpisode(episode: Episode) {
+        spirc.load(episode.toOutifyUri())
+        playbackStateHolder.setAudio(episode.toPlayableAudio())
+    }
+
+    suspend fun resolveEpisodeDetails(episodeId: String): EpisodeDetails? {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val raw = spClient.getEpisodeDetails(episodeId)
+                val checked = spClient.checkAndHandleError(raw, "resolveEpisodeDetails:$episodeId")
+                EpisodeDetails.fromJson(checked)
+            }.getOrNull()
+        }
+    }
+
     fun refresh() {
         playlistsLoaded = false
         artworkCache.clear()
         authorsCache.clear()
         loadPlaylistUris(force = true)
         loadAlbumUris(force = true)
+        loadShowUris(force = true)
+        loadEpisodeUris(force = true)
     }
 
     fun createFolder(folder: PlaylistFolder) {

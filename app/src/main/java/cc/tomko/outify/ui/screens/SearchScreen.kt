@@ -31,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Login
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -62,6 +61,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -81,8 +81,11 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -94,10 +97,14 @@ import cc.tomko.outify.ui.components.navigation.Route.TrackScreen
 import cc.tomko.outify.ui.components.rows.AlbumRow
 import cc.tomko.outify.ui.components.rows.ArtistRow
 import cc.tomko.outify.ui.components.rows.PlaylistRow
+import cc.tomko.outify.ui.components.rows.ShowRow
+import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.SearchUiModel
 import cc.tomko.outify.ui.viewmodel.SearchViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +122,7 @@ fun SharedTransitionScope.SearchScreen(
     val spirc = viewModel.spirc
 
     val listState = rememberLazyListState()
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
 
@@ -135,8 +142,8 @@ fun SharedTransitionScope.SearchScreen(
     var showArtists by rememberSaveable { mutableStateOf(true) }
     var showAlbums by rememberSaveable { mutableStateOf(true) }
     var showPlaylists by rememberSaveable { mutableStateOf(true) }
-    var showShows by rememberSaveable { mutableStateOf(false) }
-    var showEpisodes by rememberSaveable { mutableStateOf(false) }
+    var showShows by rememberSaveable { mutableStateOf(true) }
+    var showEpisodes by rememberSaveable { mutableStateOf(true) }
 
     val filteredResults = remember(
         results,
@@ -203,14 +210,18 @@ fun SharedTransitionScope.SearchScreen(
                         when (item) {
                             is SearchUiModel.TrackItem -> {
                                 val track = item.track
+                                val isLiked by produceState(initialValue = false, track.uri) {
+                                    viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                                }
+
                                 SwipeableTrackRowConfigured(
                                     track = track,
-                                    currentTrack = currentTrack,
+                                    currentAudio = currentTrack,
                                     isPlaybackPlaying = isPlaybackPlaying,
                                     onRowClick = remember(track.uri) {
                                         {
                                             spirc.load(track.toSpotifyUri())
-                                            viewModel.setTrack(track)
+                                            viewModel.setAudio(track.toPlayableAudio())
                                         }
                                     },
                                     onArtistClick = {
@@ -224,6 +235,7 @@ fun SharedTransitionScope.SearchScreen(
                                             backStack.add(TrackScreen(track.uri))
                                         }
                                     },
+                                    isLiked = isLiked,
                                     modifier = Modifier.animateItem()
                                 )
                             }
@@ -341,13 +353,17 @@ fun SharedTransitionScope.SearchScreen(
                     when (item) {
                         is SearchUiModel.TrackItem -> {
                             val track = item.track
+                            val isLiked by produceState(initialValue = false, track.uri) {
+                                viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                            }
+
                             SwipeableTrackRowConfigured(
                                 track = track,
-                                currentTrack = currentTrack,
+                                currentAudio = currentTrack,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = {
                                     spirc.load(track.toSpotifyUri())
-                                    viewModel.setTrack(track)
+                                    viewModel.setAudio(track.toPlayableAudio())
                                 },
                                 onArtistClick = {
                                     backStack.add(ArtistScreen(it.uri))
@@ -361,6 +377,7 @@ fun SharedTransitionScope.SearchScreen(
                                         backStack.add(TrackScreen(track.uri))
                                     }
                                 },
+                                isLiked = isLiked,
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -418,6 +435,60 @@ fun SharedTransitionScope.SearchScreen(
                                 },
                                 contentDescription = playlist.attributes.description,
                                 sharedTransitionScope = this@SearchScreen,
+                                trailingContent = removeButton,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.EpisodeItem -> {
+                            val episode = item.episode
+                            val showUri = episode.showUri
+                            val openShow: () -> Unit = {
+                                if (showUri.isNotBlank()) {
+                                    backStack.add(Route.ShowScreen(showUri))
+                                } else {
+                                    scope.launch {
+                                        val details = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val raw = viewModel.spClient.getEpisodeDetails(episode.id)
+                                                EpisodeDetails.fromJson(raw)
+                                            }.getOrNull()
+                                        }
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
+                                        }
+                                    }
+                                }
+                            }
+
+                            val isLiked by produceState(initialValue = false, episode.uri) {
+                                viewModel.isLiked(episode.toOutifyUri()).collect { value = it }
+                            }
+
+                            SwipeableEpisodeRowConfigured(
+                                episode = episode,
+                                isPlaybackPlaying = isPlaybackPlaying,
+                                onRowClick = {
+                                    spirc.load(episode.toOutifyUri())
+                                    viewModel.setAudio(episode.toPlayableAudio())
+                                },
+                                onArtworkClick = openShow,
+                                onShowNameClick = openShow,
+                                isLiked = isLiked,
+                                trailingContent = removeButton,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.ShowItem -> {
+                            val show = item.show
+                            ShowRow(
+                                show = show,
+                                onRowClick = {
+                                    backStack.add(Route.ShowScreen(show.uri))
+                                },
+                                onRowLongClick = {},
+                                onPublisherClick = {},
                                 trailingContent = removeButton,
                                 modifier = Modifier.animateItem()
                             )
@@ -535,17 +606,20 @@ fun SharedTransitionScope.SearchScreen(
 
                         is SearchUiModel.TrackItem -> {
                             val track = item.track
+                            val isLiked by produceState(initialValue = false, track.uri) {
+                                viewModel.isLiked(track.toOutifyUri()).collect { value = it }
+                            }
 
                             SwipeableTrackRowConfigured(
                                 track = track,
-                                currentTrack = currentTrack,
+                                currentAudio = currentTrack,
                                 isPlaybackPlaying = isPlaybackPlaying,
                                 onRowClick = remember(track.uri) {
                                     {
                                         viewModel.addToHistory(item)
                                         spirc.load(track.toSpotifyUri()) // TODO: make context be the search screen
                                         // Optimistic UI
-                                        viewModel.setTrack(track)
+                                        viewModel.setAudio(track.toPlayableAudio())
                                     }
                                 },
                                 onArtistClick = {
@@ -560,6 +634,7 @@ fun SharedTransitionScope.SearchScreen(
                                         backStack.add(TrackScreen(track.uri))
                                     }
                                 },
+                                isLiked = isLiked,
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -622,6 +697,57 @@ fun SharedTransitionScope.SearchScreen(
                                 },
                                 contentDescription = playlist.attributes.description,
                                 sharedTransitionScope = this@SearchScreen,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.EpisodeItem -> {
+                            val episode = item.episode
+                            val showUri = episode.showUri
+                            val openShow: () -> Unit = {
+                                if (showUri.isNotBlank()) {
+                                    backStack.add(Route.ShowScreen(showUri))
+                                } else {
+                                    scope.launch {
+                                        val details = withContext(Dispatchers.IO) {
+                                            runCatching {
+                                                val raw = viewModel.spClient.getEpisodeDetails(episode.id)
+                                                EpisodeDetails.fromJson(raw)
+                                            }.getOrNull()
+                                        }
+                                        if (details != null && details.showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(details.showUri))
+                                        }
+                                    }
+                                }
+                            }
+                            val isLiked by produceState(initialValue = false, episode.uri) {
+                                viewModel.isLiked(episode.toOutifyUri()).collect { value = it }
+                            }
+
+                            SwipeableEpisodeRowConfigured(
+                                episode = episode,
+                                isPlaybackPlaying = isPlaybackPlaying,
+                                onRowClick = {
+                                    spirc.load(episode.toOutifyUri())
+                                    viewModel.setAudio(episode.toPlayableAudio())
+                                },
+                                onArtworkClick = openShow,
+                                onShowNameClick = openShow,
+                                isLiked = isLiked,
+                                modifier = Modifier.animateItem()
+                            )
+                        }
+
+                        is SearchUiModel.ShowItem -> {
+                            val show = item.show
+                            ShowRow(
+                                show = show,
+                                onRowClick = {
+                                    backStack.add(Route.ShowScreen(show.uri))
+                                    viewModel.addToHistory(item)
+                                },
+                                onPublisherClick = {},
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -828,7 +954,6 @@ fun FiltersBar(
             onClick = { onTogglePlaylists(!showPlaylists) }
         ) { Text(stringResource(R.string.search_section_playlists)) }
 
-        // Optional: show & episodes if you support them
         FilterChipWithTick(
             selected = showShows,
             onClick = { onToggleShows(!showShows) }
@@ -1023,8 +1148,8 @@ private fun applyFiltersToSectionedResults(
                     is SearchUiModel.ArtistItem -> showArtists
                     is SearchUiModel.AlbumItem -> showAlbums
                     is SearchUiModel.PlaylistItem -> showPlaylists
-//                    is SearchUiModel.ShowItem -> showShows
-//                    is SearchUiModel.EpisodeItem -> showEpisodes
+                    is SearchUiModel.ShowItem -> showShows
+                    is SearchUiModel.EpisodeItem -> showEpisodes
                     else -> true
                 }
             }
@@ -1041,6 +1166,8 @@ private fun applyFiltersToSectionedResults(
                 is SearchUiModel.ArtistItem -> showArtists
                 is SearchUiModel.AlbumItem -> showAlbums
                 is SearchUiModel.PlaylistItem -> showPlaylists
+                is SearchUiModel.EpisodeItem -> showEpisodes
+                is SearchUiModel.ShowItem -> showShows
                 is SearchUiModel.SkeletonItem -> true
                 is SearchUiModel.SectionHeader -> true
             }

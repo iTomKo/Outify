@@ -1,5 +1,6 @@
 package cc.tomko.outify.playback
 
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.playback.model.PlaybackState
@@ -27,13 +28,13 @@ class PlaybackStateHolder @Inject constructor() {
 
     private val mutex = Mutex()
 
-    fun setQueue(queue: List<Track>, startIndex: Int = 0) {
-        val track = queue.getOrNull(startIndex)
+    fun setQueue(queue: List<PlayableAudio>, startIndex: Int = 0) {
+        val currentAudio = queue.getOrNull(startIndex)
         _state.update {
             it.copy(
                 queue = queue,
                 queueIndex = startIndex,
-                currentTrack = track,
+                currentAudio = currentAudio,
                 position = PositionInfo.EMPTY.copy(
                     lastSync = System.currentTimeMillis()
                 )
@@ -89,10 +90,10 @@ class PlaybackStateHolder @Inject constructor() {
         }
     }
 
-    fun setTrack(track: Track?) {
+    fun setAudio(audio: PlayableAudio?) {
         _state.update { current ->
-            if (current.currentTrack?.id == track?.id) current
-            else current.copy(currentTrack = track)
+            if (current.currentAudio?.id == audio?.id) current
+            else current.copy(currentAudio = audio)
         }
     }
 

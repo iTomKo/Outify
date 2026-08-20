@@ -40,7 +40,6 @@ import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import cc.tomko.outify.ui.components.bottomsheet.LyricLine
 import cc.tomko.outify.ui.components.bottomsheet.LyricsBottomSheet
 import kotlinx.coroutines.launch
 
@@ -132,25 +131,17 @@ fun GlobalPopupHost(
 
             is PopupSpec.Lyrics -> {
                 val lyricsViewModel: LyricsViewModel = hiltViewModel()
-                val lyrics by lyricsViewModel.lyrics.collectAsState()
-                val positionMs by lyricsViewModel.positionMs.collectAsState()
-                val isCurrentTrack by lyricsViewModel.isCurrentTrack.collectAsState()
-                val isPlaying by lyricsViewModel.isPlaying.collectAsState()
-                val durationMs by lyricsViewModel.durationMs.collectAsState()
 
                 LaunchedEffect(popup.id) {
-                    lyricsViewModel.loadLyrics(popup.track)
+                    lyricsViewModel.loadLyrics(popup.track, popup.shouldFollowCurrentTrack)
                 }
 
                 LyricsBottomSheet(
+                    viewModel = lyricsViewModel,
                     onDismissRequest = { GlobalPopupController.dismiss(popup.id) },
-                    track = popup.track,
-                    lyrics = lyrics.map { LyricLine(it.timeMs, it.text) },
-                    currentPositionMs = positionMs,
-                    isCurrentTrack = isCurrentTrack,
-                    isPlaying = isPlaying,
-                    durationMs = durationMs,
                     onPlayPause = { lyricsViewModel.playPause() },
+                    onSkipNext = { lyricsViewModel.skipNext() },
+                    onSkipPrevious = { lyricsViewModel.skipPrevious() },
                     onSeek = { lyricsViewModel.seekTo(it) },
                     onSeekToTimestamp = { timestamp ->
                         lyricsViewModel.seekTo(timestamp)

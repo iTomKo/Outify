@@ -2,7 +2,7 @@ package cc.tomko.outify.data.repository
 
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.model.LyricsResponse
-import cc.tomko.outify.core.model.SyncedLyric
+import cc.tomko.outify.core.model.LyricLine
 import cc.tomko.outify.core.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +14,7 @@ class PlayerRepository @Inject constructor(
     private val spClient: SpClient,
     private val json: Json,
 ) {
-    suspend fun getLyrics(track: Track?, timeoutMs: Long = 2000L): List<SyncedLyric> =
+    suspend fun getLyrics(track: Track?, timeoutMs: Long = 2000L): List<LyricLine> =
         withContext(Dispatchers.IO) {
             val id = track?.id ?: return@withContext emptyList()
 
@@ -32,8 +32,8 @@ class PlayerRepository @Inject constructor(
                 response.lyrics.lines
                     .filter { it.words.isNotBlank() }
                     .map {
-                        SyncedLyric(
-                            timeMs = it.startTimeMs.toLong(),
+                        LyricLine(
+                            timestampMs = it.startTimeMs.toLong(),
                             text = it.words
                         )
                     }

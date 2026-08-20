@@ -3,6 +3,7 @@ package cc.tomko.outify.ui.viewmodel.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.GlobalPopupController
@@ -39,8 +40,8 @@ class MiniPlayerViewModel @Inject constructor(
         }
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -75,10 +76,10 @@ class MiniPlayerViewModel @Inject constructor(
         playbackStateHolder.state
             .map { it.isActiveDevice }
 
-    fun setTrack(track: Track?) {
-        if (track == null) {
+    fun setAudio(audio: PlayableAudio?) {
+        if (audio == null){
             spirc.playerPause()
         }
-        playbackStateHolder.setTrack(track)
+        playbackStateHolder.setAudio(audio)
     }
 }

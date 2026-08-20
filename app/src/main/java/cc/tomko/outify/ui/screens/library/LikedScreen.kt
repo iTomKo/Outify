@@ -63,6 +63,7 @@ import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.components.ArtworkBackground
 import cc.tomko.outify.ui.components.CollapsingHeader
@@ -129,7 +130,7 @@ fun SharedTransitionScope.LikedScreen(
             }
     }
 
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentAudio by viewModel.currentAudio.collectAsState(initial = null)
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isFetchingTracks by viewModel.isFetchingTracks.collectAsState(initial = false)
     val fetchedCount by viewModel.fetchedCount.collectAsState(initial = 0)
@@ -246,14 +247,14 @@ fun SharedTransitionScope.LikedScreen(
             ) { track ->
                 SwipeableTrackRowConfigured(
                     track = track,
-                    currentTrack = currentTrack,
+                    currentAudio = currentAudio,
                     isPlaybackPlaying = isPlaybackPlaying,
                     onRowClick = remember(track.uri) {
                         {
                             transitioningTrackUri = track.uri
                             spirc.load(OutifyUri.Liked, track.toSpotifyUri())
                             // Optimistic UI
-                            viewModel.setTrack(track)
+                            viewModel.setAudio(track.toPlayableAudio())
                         }
                     },
                     onArtworkClick = {

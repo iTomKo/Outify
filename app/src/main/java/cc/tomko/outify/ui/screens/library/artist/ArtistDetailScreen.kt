@@ -130,7 +130,7 @@ fun SharedTransitionScope.ArtistDetailScreen(
 
             val popularTracks by viewModel.popularTracks.collectAsState()
 
-            val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+            val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
             val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
 
             val lazyList = rememberLazyListState()
@@ -207,7 +207,7 @@ fun SharedTransitionScope.ArtistDetailScreen(
                     items(popularTracks, key = { track -> track.uri }) { track ->
                         SwipeableTrackRowConfigured(
                             track = track,
-                            currentTrack = currentTrack,
+                            currentAudio = currentTrack,
                             isLiked = track.id in likedTrackIds,
                             isPlaybackPlaying = isPlaybackPlaying,
                             showAlbumName = true,

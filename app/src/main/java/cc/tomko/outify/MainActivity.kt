@@ -24,17 +24,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -45,6 +40,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -61,7 +57,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -75,6 +70,7 @@ import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.spirc.VolumeController
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.PendingBackupImport
+import cc.tomko.outify.data.setting.LocalEpisodeSwipeActionHandler
 import cc.tomko.outify.data.setting.LocalSwipeActionHandler
 import cc.tomko.outify.data.setting.LocalSwipeGestureSettings
 import cc.tomko.outify.data.setting.LocalUiSettings
@@ -232,6 +228,11 @@ class MainActivity : ComponentActivity() {
             Route.SearchScreen -> "search"
             is Route.LikedScreen -> "liked"
             Route.LibraryScreen -> "library"
+            is Route.ArtistScreen -> "detail_artist"
+            is Route.AlbumScreen, is Route.TrackScreen -> "detail_album"
+            is Route.PlaylistScreen -> "detail_playlist"
+            is Route.ProfileScreen -> "detail_profile"
+            is Route.ShowScreen -> "detail_show"
             else -> null
         }
 
@@ -254,8 +255,8 @@ class MainActivity : ComponentActivity() {
             .interfaceSettings
             .collectAsState(initial = InterfaceSettings())
 
-        val swipeSettings by viewModel.swipeSettings.collectAsState(initial = interfaceSettings.gestureSettings)
-        val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+        val trackSwipeSettings by viewModel.swipeSettings.collectAsState(initial = interfaceSettings.gestureSettings)
+        val currentAudio by viewModel.currentAudio.collectAsState(initial = null)
 
         val density = LocalDensity.current
         val fixedDensity = Density(density.density, fontScale = interfaceSettings.fontScale)
@@ -270,7 +271,8 @@ class MainActivity : ComponentActivity() {
                 is Route.AlbumScreen,
                 is Route.PlaylistScreen,
                 is Route.TrackScreen,
-                is Route.ProfileScreen -> lastDetailRoute = currentRoute
+                is Route.ProfileScreen,
+                is Route.ShowScreen -> lastDetailRoute = currentRoute
                 else -> {}
             }
         }
@@ -283,6 +285,7 @@ class MainActivity : ComponentActivity() {
                     is Route.TrackScreen -> Triple("detail_album", "Album", Icons.Default.Album)
                     is Route.PlaylistScreen -> Triple("detail_playlist", "Playlist", Icons.AutoMirrored.Filled.QueueMusic)
                     is Route.ProfileScreen -> Triple("detail_profile", "Profile", Icons.Default.AccountCircle)
+                    is Route.ShowScreen -> Triple("detail_show", "Show", Icons.Default.Podcasts)
                     else -> return@let null
                 }
                 NavDestination(id, label, route) { Icon(icon, contentDescription = null) }
@@ -303,7 +306,7 @@ class MainActivity : ComponentActivity() {
         }
 
         OutifyTheme(
-            track = currentTrack,
+            audio = currentAudio,
             themeMode = themeMode,
             staticAccentColor = interfaceSettings.accentColor,
             pureBlack = interfaceSettings.pureBlack,
@@ -315,7 +318,8 @@ class MainActivity : ComponentActivity() {
                     SharedTransitionLayout {
                         CompositionLocalProvider(
                             LocalSharedTransitionScope provides this,
-                            LocalSwipeGestureSettings provides swipeSettings,
+                            LocalSwipeGestureSettings provides trackSwipeSettings,
+                            LocalEpisodeSwipeActionHandler provides viewModel.episodeSwipeActionHandler,
                             LocalSwipeActionHandler provides viewModel.swipeActionHandler,
                             LocalUiSettings provides interfaceSettings,
                         ) {
@@ -327,7 +331,7 @@ class MainActivity : ComponentActivity() {
                                         .consumeWindowInsets(WindowInsets(bottom = innerPadding.calculateBottomPadding()))
                                 ) {
                                     val notificationPaddingBottom by animateDpAsState(
-                                        targetValue = if (currentTrack != null) 168.dp
+                                        targetValue = if (currentAudio != null) 168.dp
                                         else if (interfaceSettings.experimentalFloatingNav) 80.dp
                                         else 68.dp,
                                         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
@@ -337,7 +341,7 @@ class MainActivity : ComponentActivity() {
                                     NavigationRoot(
                                         backStack,
                                         modifier = Modifier.matchParentSize(),
-                                        bottomPadding = if (currentTrack != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+                                        bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                     )
 
                                     InAppNotificationHost(
@@ -405,7 +409,7 @@ class MainActivity : ComponentActivity() {
                                                     FloatingOutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                         showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                         modifier = Modifier.align(Alignment.BottomCenter)
                                                     )
@@ -413,7 +417,7 @@ class MainActivity : ComponentActivity() {
                                                     OutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> backStack.add(item.route) },
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                         modifier = Modifier.align(Alignment.BottomCenter)
                                                     )
                                                 }
@@ -422,7 +426,7 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         // Portrait mode
                                         AnimatedVisibility(
-                                            visible = currentTrack != null,
+                                            visible = currentAudio != null,
                                             enter = slideInVertically(
                                                 initialOffsetY = { fullHeight -> fullHeight }
                                             ) + fadeIn(),
@@ -441,7 +445,7 @@ class MainActivity : ComponentActivity() {
                                                     MiniPlayer(
                                                         viewModel = miniPlayerViewModel,
                                                         onDismiss = {
-                                                            miniPlayerViewModel.setTrack(null)
+                                                            miniPlayerViewModel.setAudio(null)
                                                         },
                                                         modifier = Modifier.padding(
                                                             horizontal = 12.dp,
@@ -471,7 +475,7 @@ class MainActivity : ComponentActivity() {
 
                                         if (interfaceSettings.experimentalFloatingNav) {
                                             AnimatedVisibility(
-                                                visible = currentTrack == null || !playerSheetState.isExpanded,
+                                                visible = currentAudio == null || !playerSheetState.isExpanded,
                                                 enter = slideInVertically(
                                                     initialOffsetY = { fullHeight -> fullHeight }
                                                 ) + fadeIn(),
@@ -483,7 +487,7 @@ class MainActivity : ComponentActivity() {
                                                 FloatingOutifyBottomNav(
                                                     items = allRoutes,
                                                     selectedId = selectedId,
-                                                    onItemSelected = { item -> backStack.add(item.route) },
+                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                     showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                 )
                                             }
@@ -492,7 +496,7 @@ class MainActivity : ComponentActivity() {
                                                 OutifyBottomNav(
                                                     items = allRoutes,
                                                     selectedId = selectedId,
-                                                    onItemSelected = { item -> backStack.add(item.route) }
+                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) }
                                                 )
                                             }
                                         }

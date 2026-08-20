@@ -53,7 +53,7 @@ import cc.tomko.outify.MainActivity
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.OutifyUri
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.components.GlanceSmartImage
@@ -104,12 +104,12 @@ class PlaybackWidget : GlanceAppWidget() {
             }
 
             val playbackState by playbackStateHolder.state.collectAsState()
-            val currentTrack = playbackState.currentTrack
+            val currentAudio = playbackState.currentAudio
             var currentTrackBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-            LaunchedEffect(currentTrack) {
+            LaunchedEffect(currentAudio) {
                 val request = ImageRequest.Builder(context)
-                    .data(currentTrack?.album?.getCover(CoverSize.SMALL)?.uri?.let { ALBUM_COVER_URL + it })
+                    .data(currentAudio?.getCover(CoverSize.SMALL)?.uri?.let { ALBUM_COVER_URL + it })
                     .allowHardware(false)
                     .size(300)
                     .build()
@@ -127,8 +127,8 @@ class PlaybackWidget : GlanceAppWidget() {
                 ) {
                     Content(
                         itemsList = mediaItems,
-                        currentTrack = currentTrack,
-                        currentTrackBitmap = currentTrackBitmap,
+                        currentAudio = currentAudio,
+                        currentAudioBitmap = currentTrackBitmap,
                         isPlaying = playbackState.isPlaying,
                         spirc = spircWrapper
                     )
@@ -142,8 +142,8 @@ class PlaybackWidget : GlanceAppWidget() {
     @Composable
     private fun Content(
         itemsList: List<MediaItem>,
-        currentTrack: Track?,
-        currentTrackBitmap: Bitmap?,
+        currentAudio: PlayableAudio?,
+        currentAudioBitmap: Bitmap?,
         isPlaying: Boolean,
         spirc: SpircWrapper
     ) {
@@ -195,8 +195,8 @@ class PlaybackWidget : GlanceAppWidget() {
             Spacer(GlanceModifier.height(outerPadding))
 
 
-            if (currentTrack != null) {
-                val accentColor = currentTrackBitmap?.extractThemeColor()
+            if (currentAudio != null) {
+                val accentColor = currentAudioBitmap?.extractThemeColor()
                 val context = LocalContext.current
 
                 Row(
@@ -217,7 +217,7 @@ class PlaybackWidget : GlanceAppWidget() {
                 ) {
                     // Track thumbnail
                     GlanceSmartImage(
-                        bitmap = currentTrackBitmap,
+                        bitmap = currentAudioBitmap,
                         modifier = GlanceModifier
                             .cornerRadius(8.dp),
                     )
@@ -226,7 +226,7 @@ class PlaybackWidget : GlanceAppWidget() {
 
                     Column(modifier = GlanceModifier.defaultWeight()) {
                         Text(
-                            text = currentTrack.name,
+                            text = currentAudio.name,
                             maxLines = 1,
                             style = TextStyle(
                                 color = GlanceTheme.colors.onTertiaryContainer,
@@ -234,8 +234,13 @@ class PlaybackWidget : GlanceAppWidget() {
                                 fontWeight = FontWeight.Bold
                             )
                         )
+
+                        val subtitle = currentAudio.artists?.joinToString { it.name }
+                            ?: currentAudio.showName
+                            ?: "Unknown source"
+
                         Text(
-                            text = currentTrack.artists.joinToString { it.name },
+                            text = subtitle,
                             maxLines = 1,
                             style = TextStyle(
                                 color = GlanceTheme.colors.onTertiaryContainer,

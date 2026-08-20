@@ -2,9 +2,11 @@ use std::str::FromStr;
 
 use reqwest::StatusCode;
 
+use serde::{Deserialize, Serialize};
+
 use crate::{
     spotify::error::SpotifyApiError,
-    types::responses::library::{SavedItemsResponse, Uri},
+    types::responses::library::{EpisodeUri, SavedItemsResponse, Uri},
 };
 
 use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient};
@@ -66,7 +68,7 @@ impl SpotifyClient {
         Ok(res.status())
     }
 
-    /// Get tracks/albums saved in library
+    /// Get tracks/albums/episodes saved in library
     pub async fn get_saved(
         &self,
         item: SavedItemType,
@@ -94,11 +96,105 @@ impl SpotifyClient {
             }
         }
     }
+
+    pub async fn get_saved_episode_items(
+        &self,
+    ) -> Result<SavedItemsResponse<EpisodeUri>, SpotifyApiError> {
+        let token = self.load_token().await?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
+
+        let res = self
+            .client
+            .get(format!("{}/v1/me/episodes", SPOTIFY_API_URL))
+            .bearer_auth(token.access_token)
+            .timeout(REQUEST_TIMEOUT)
+            .send()
+            .await?
+            .json::<SavedItemsResponse<EpisodeUri>>()
+            .await;
+
+        match res {
+            Ok(items) => Ok(items),
+            Err(e) => {
+                return Err(SpotifyApiError::Generic(format!(
+                    "get_saved_episode_items failed with error: {e}"
+                )));
+            }
+        }
+    }
+
+    /// Get episode details (show URI, resume point, etc.) via the Spotify Web API
+    pub async fn get_episode_details(
+        &self,
+        episode_id: &str,
+    ) -> Result<EpisodeDetails, SpotifyApiError> {
+        let token = self.load_token().await?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
+
+        #[derive(Deserialize)]
+        struct EpisodeResponse {
+            show: ShowRef,
+            resume_point: Option<ResumePoint>,
+        }
+
+        #[derive(Deserialize)]
+        struct ShowRef {
+            uri: String,
+        }
+
+        #[derive(Deserialize)]
+        struct ResumePoint {
+            fully_played: bool,
+            resume_position_ms: i64,
+        }
+
+        let resp = self
+            .client
+            .get(format!("{}/v1/episodes/{}", SPOTIFY_API_URL, episode_id))
+            .bearer_auth(token.access_token)
+            .timeout(REQUEST_TIMEOUT)
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if !status.is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            error!("get_episode_details status {status}: {body}");
+            return Err(SpotifyApiError::Http(status.as_u16(), body));
+        }
+
+        let res = resp.json::<EpisodeResponse>().await;
+
+        match res {
+            Ok(ep) => Ok(EpisodeDetails {
+                show_uri: ep.show.uri,
+                fully_played: ep.resume_point.as_ref().map(|r| r.fully_played).unwrap_or(false),
+                resume_position_ms: ep.resume_point.as_ref().map(|r| r.resume_position_ms).unwrap_or(0),
+            }),
+            Err(e) => {
+                error!("get_episode_details deserialization failed: {e}");
+                Err(SpotifyApiError::Generic(format!(
+                    "get_episode_details failed: {e}"
+                )))
+            }
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct EpisodeDetails {
+    pub show_uri: String,
+    pub fully_played: bool,
+    pub resume_position_ms: i64,
 }
 
 pub enum SavedItemType {
     Tracks,
     Albums,
+    Episodes,
+    Shows,
 }
 
 impl SavedItemType {
@@ -106,6 +202,8 @@ impl SavedItemType {
         match self {
             SavedItemType::Tracks => "tracks",
             SavedItemType::Albums => "albums",
+            SavedItemType::Episodes => "episodes",
+            SavedItemType::Shows => "shows",
         }
     }
 }
@@ -117,6 +215,8 @@ impl FromStr for SavedItemType {
         match s {
             "tracks" => Ok(Self::Tracks),
             "albums" => Ok(Self::Albums),
+            "episodes" => Ok(Self::Episodes),
+            "shows" => Ok(Self::Shows),
             other => Err(SpotifyApiError::Generic(format!(
                 "Invalid SavedItemType: {other}"
             ))),

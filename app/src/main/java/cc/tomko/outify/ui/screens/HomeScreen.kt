@@ -58,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.components.navigation.Route
@@ -79,7 +80,7 @@ fun SharedTransitionScope.HomeScreen(
     val userAvatarUrl by viewModel.userImageUrl.collectAsState(initial = null)
     val selectedDuration by viewModel.selectedDuration.collectAsState(initial = TopItemsDuration.SHORT_TERM)
     val isPlaybackLoggedIn by viewModel.isPlaybackLoggedIn.collectAsState(initial = false)
-    val currentTrack by viewModel.currentTrack.collectAsState(initial = null)
+    val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     var durationExpanded by remember { mutableStateOf(false) }
@@ -208,10 +209,10 @@ fun SharedTransitionScope.HomeScreen(
                                 items(state.topTracks.take(10)) { track ->
                                     SwipeableTrackRowConfigured(
                                         track,
-                                        currentTrack = currentTrack,
+                                        currentAudio = currentTrack,
                                         isPlaybackPlaying = isPlaybackPlaying,
                                         onRowClick = remember(track.uri) {
-                                            { viewModel.loadTrack(track) }
+                                            { viewModel.loadTrack(track.toPlayableAudio()) }
                                         },
                                         onArtworkClick = {
                                             backStack.add(Route.AlbumScreen(track.album!!.uri))

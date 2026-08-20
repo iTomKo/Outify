@@ -9,9 +9,14 @@ import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
+import cc.tomko.outify.core.model.Episode
+import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
+import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.SearchRepository
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -23,12 +28,14 @@ import cc.tomko.outify.ui.model.search.SearchResultType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -46,6 +53,7 @@ class SearchViewModel @Inject constructor(
     private val playbackStateHolder: PlaybackStateHolder,
     private val settingsRepository: SettingsRepository,
     private val recommendations: Recommendations,
+    private val likedDao: LikedDao,
 ) : ViewModel() {
     private val queryFlow = MutableStateFlow("")
 
@@ -61,8 +69,8 @@ class SearchViewModel @Inject constructor(
     private val _isRecommendationMode = MutableStateFlow(false)
     val isRecommendationMode: StateFlow<Boolean> = _isRecommendationMode
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -112,6 +120,10 @@ class SearchViewModel @Inject constructor(
                         SearchUiModel.SkeletonItem(2),
                         SearchUiModel.SectionHeader(R.string.search_section_playlists),
                         SearchUiModel.SkeletonItem(3),
+                        SearchUiModel.SectionHeader(R.string.search_section_shows),
+                        SearchUiModel.SkeletonItem(4),
+                        SearchUiModel.SectionHeader(R.string.search_section_episodes),
+                        SearchUiModel.SkeletonItem(5),
                     )
 
                     launch {
@@ -165,6 +177,36 @@ class SearchViewModel @Inject constructor(
                             }
                         }
                     }
+
+                    launch {
+                        searchSection("show", R.string.search_section_shows) { uris ->
+                            withContext(Dispatchers.IO) {
+                                uris.mapNotNull { uri ->
+                                    runCatching {
+                                        metadata.getShowMetadata(uri)
+                                    }.getOrNull()?.let { show ->
+                                        println(show)
+                                        SearchUiModel.ShowItem(uri, show)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    launch {
+                        searchSection("episode", R.string.search_section_episodes) { uris ->
+                            withContext(Dispatchers.IO) {
+                                runCatching {
+                                    metadata.getEpisodeMetadata(uris)
+                                }.getOrNull()
+                                    ?.mapIndexed { index, episode ->
+                                        println(episode)
+                                        SearchUiModel.EpisodeItem(uris[index], episode)
+                                    }
+                                    ?: emptyList()
+                            }
+                        }
+                    }
                 }
         }
 
@@ -200,7 +242,15 @@ class SearchViewModel @Inject constructor(
                                     playlist?.let { SearchUiModel.PlaylistItem(item.uri, it) }
                                 }
 
-                                else -> null
+                                SearchResultType.SHOW -> {
+                                    val show = metadata.getShowMetadata(item.uri)
+                                    show?.let { SearchUiModel.ShowItem(item.uri, it) }
+                                }
+
+                                SearchResultType.EPISODE -> {
+                                    val episode = metadata.getEpisodeMetadata(item.uri)
+                                    episode?.let { SearchUiModel.EpisodeItem(item.uri, it) }
+                                }
                             }
                         } catch (e: Exception) {
                             Log.w(
@@ -292,8 +342,17 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun setTrack(track: Track) {
-        playbackStateHolder.setTrack(track)
+    fun isLiked(uri: OutifyUri): Flow<Boolean> {
+        val id = uri.id
+        return if (uri.isTrack) {
+            likedDao.observeIsTrackLiked(id)
+        } else {
+            likedDao.observeIsEpisodeLiked(id)
+        }
+    }
+
+    fun setAudio(audio: PlayableAudio) {
+        playbackStateHolder.setAudio(audio)
     }
 
     fun addToHistory(item: SearchUiModel) {
@@ -302,6 +361,8 @@ class SearchViewModel @Inject constructor(
             is SearchUiModel.ArtistItem -> SearchHistoryItem(item.uri, SearchResultType.ARTIST)
             is SearchUiModel.AlbumItem -> SearchHistoryItem(item.uri, SearchResultType.ALBUM)
             is SearchUiModel.PlaylistItem -> SearchHistoryItem(item.uri, SearchResultType.PLAYLIST)
+            is SearchUiModel.ShowItem -> SearchHistoryItem(item.uri, SearchResultType.SHOW)
+            is SearchUiModel.EpisodeItem -> SearchHistoryItem(item.uri, SearchResultType.EPISODE)
             else -> return
         }
         viewModelScope.launch {
@@ -357,13 +418,13 @@ sealed class SearchUiModel {
         val playlist: Playlist
     ) : SearchUiModel()
 
-//    data class ShowItem(
-//        override val uri: String,
-//        val show: Show
-//    ) : SearchUiModel()
-//
-//    data class EpisodeItem(
-//        override val uri: String,
-//        val episode: Episode
-//    ) : SearchUiModel()
+    data class ShowItem(
+        override val uri: String,
+        val show: Show
+    ) : SearchUiModel()
+
+    data class EpisodeItem(
+        override val uri: String,
+        val episode: Episode
+    ) : SearchUiModel()
 }

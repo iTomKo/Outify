@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
@@ -40,8 +41,8 @@ class PlaylistViewModel @Inject constructor(
 ) : ViewModel() {
     val json = Json { ignoreUnknownKeys = true }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -161,8 +162,8 @@ class PlaylistViewModel @Inject constructor(
             .filterNotNull()
     }
 
-    fun setTrack(track: Track) {
-        playbackStateHolder.setTrack(track)
+    fun setAudio(audio: PlayableAudio) {
+        playbackStateHolder.setAudio(audio)
     }
 }
 

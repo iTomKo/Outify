@@ -52,7 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.data.queue.SavedQueue
 import cc.tomko.outify.ui.viewmodel.player.MultiQueueViewModel
 import java.text.SimpleDateFormat
@@ -63,7 +63,7 @@ import java.util.Locale
 @Composable
 fun QueueSwitcherBottomSheet(
     viewModel: MultiQueueViewModel,
-    currentTrack: Track?,
+    currentAudio: PlayableAudio?,
     onDismiss: () -> Unit,
 ) {
     val queues by viewModel.queues.collectAsState()
@@ -179,7 +179,7 @@ fun QueueSwitcherBottomSheet(
             title = "Save queue",
             confirmLabel = "Save",
             onConfirm = { name ->
-                viewModel.saveCurrentQueue(name, currentTrack)
+                viewModel.saveCurrentQueue(name, currentAudio)
                 showSaveDialog = false
             },
             onDismiss = { showSaveDialog = false },

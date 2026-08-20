@@ -1,7 +1,6 @@
 package cc.tomko.outify.playback
 
 import android.app.Application
-import android.media.AudioFocusRequest
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
 import androidx.media3.common.C
@@ -16,8 +15,10 @@ import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.services.PlaybackService
@@ -66,15 +67,30 @@ class Player @Inject constructor(
 
             override fun onTrackChange(spotify_uri: String, json_str: String) {
                 scope.launch {
-                    val track: Track = try {
-                        json.decodeFromString(json_str)
-                    } catch (e: Exception) {
-                        Log.w("Player", "Failed to decode track JSON", e)
-                        return@launch
+                    val audio = if (spotify_uri.startsWith("spotify:episode:")) {
+                        val episode: Episode = try {
+                            json.decodeFromString(json_str)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode episode JSON", e)
+                            return@launch
+                        }
+                        episode.toPlayableAudio()
+                    } else {
+                        val track: Track = try {
+                            json.decodeFromString(json_str)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode track JSON", e)
+                            return@launch
+                        }
+                        track.toPlayableAudio()
                     }
-                    stateHolder.setTrack(track)
+                    stateHolder.setAudio(audio)
 
-                    val cover = track.album?.getCover(CoverSize.LARGE)
+                    val cover = if (audio.isEpisode()) {
+                        audio.covers.firstOrNull()
+                    } else {
+                        audio.sourceTrack?.album?.getCover(CoverSize.LARGE)
+                    }
                     val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
                     currentArtworkUri = artworkUrl
 
@@ -131,8 +147,8 @@ class Player @Inject constructor(
 
                         val (loadedBitmap, loadedBytes) = loadResult
 
-                        val currentTrackId = stateHolder.state.value.currentTrack?.id
-                        if (currentTrackId != track.id) {
+                        val currentTrackId = stateHolder.state.value.currentAudio?.id
+                        if (currentTrackId != audio.id) {
                             return@launch
                         }
 
@@ -151,11 +167,28 @@ class Player @Inject constructor(
                 position_ms: Long,
                 json_raw: String
             ) {
-                if (stateHolder.state.value.currentTrack?.id != spotify_uri) {
-                    onTrackChange(spotify_uri, json_raw)
-                }
                 scope.launch {
                     stateHolder.seekTo(position_ms.toDuration(DurationUnit.MILLISECONDS))
+
+                    val currentAudio = stateHolder.state.value.currentAudio
+                    if (spotify_uri.startsWith("spotify:episode:") && currentAudio?.isEpisode() != true) {
+                        val episode: Episode? = try {
+                            json.decodeFromString(json_raw)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode episode JSON in position update", e)
+                            null
+                        }
+                        episode?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+                    } else if (spotify_uri.startsWith("spotify:track:") && currentAudio?.isTrack() != true) {
+                        val track: Track? = try {
+                            json.decodeFromString(json_raw)
+                        } catch (e: Exception) {
+                            Log.w("Player", "Failed to decode track JSON in position update", e)
+                            null
+                        }
+                        track?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+                    }
+
                     invalidateState()
                 }
             }
@@ -210,19 +243,22 @@ class Player @Inject constructor(
 
     override fun getState(): State {
         val ps = stateHolder.state.value
-        val track = ps.currentTrack ?: return State.Builder()
+        val audio = ps.currentAudio ?: return State.Builder()
             .setPlaybackState(STATE_IDLE)
             .setAvailableCommands(determineCommands())
             .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaylist(emptyList())
             .build()
 
+        val subtitle = audio.artists?.joinToString { it.name }
+            ?: audio.showName
+            ?: "Unknown source"
+
         val mediaMetadata = MediaMetadata.Builder()
-            .setTitle(track.name)
-            .setDisplayTitle(track.name)
-            .setArtist(track.artists.joinToString { it.name })
-            .setAlbumTitle(track.album?.name)
-            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+            .setTitle(audio.name)
+            .setDisplayTitle(audio.name)
+            .setArtist(subtitle)
+            .setMediaType(if (audio.isEpisode()) MediaMetadata.MEDIA_TYPE_PODCAST else MediaMetadata.MEDIA_TYPE_MUSIC)
             .apply {
                 currentArtworkUri?.let { setArtworkUri(it.toUri()) }
                 currentArtworkBytes?.let { bytes ->
@@ -232,15 +268,15 @@ class Player @Inject constructor(
             .build()
 
         val mediaItem = MediaItem.Builder()
-            .setMediaId(track.id)
-            .setUri(track.uri)
+            .setMediaId(audio.id)
+            .setUri(audio.uri)
             .setMediaMetadata(mediaMetadata)
             .build()
 
         val playlist = listOf(
-            MediaItemData.Builder(track.id)
+            MediaItemData.Builder(audio.id)
                 .setMediaItem(mediaItem)
-                .setDurationUs(track.duration * 1000L)
+                .setDurationUs(audio.duration * 1000L)
                 .setDefaultPositionUs(0)
                 .setIsSeekable(true)
                 .setMediaMetadata(mediaItem.mediaMetadata)
@@ -268,7 +304,7 @@ class Player @Inject constructor(
     }
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
-        val currentMedia3State = if (stateHolder.state.value.currentTrack == null) STATE_IDLE else STATE_READY
+        val currentMedia3State = if (stateHolder.state.value.currentAudio == null) STATE_IDLE else STATE_READY
 
         val playerCommand = audioFocusManager.updateAudioFocus(playWhenReady, currentMedia3State)
 

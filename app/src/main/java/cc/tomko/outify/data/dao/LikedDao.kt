@@ -5,8 +5,12 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import cc.tomko.outify.data.database.EpisodeEntity
 import cc.tomko.outify.data.database.LikedTrackWithTrack
+import cc.tomko.outify.data.database.ShowEntity
 import cc.tomko.outify.data.database.TrackWithArtists
+import cc.tomko.outify.data.database.track.LikedEpisodeEntity
+import cc.tomko.outify.data.database.track.LikedShowEntity
 import cc.tomko.outify.data.database.track.LikedTrackEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Singleton
@@ -111,4 +115,122 @@ interface LikedDao {
     """
     )
     fun observeLikedIdsByArtist(artistId: String): Flow<List<String>>
+
+    // ── Episodes ──────────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM liked_episodes ORDER BY position ASC")
+    fun observeLikedEpisodes(): Flow<List<LikedEpisodeEntity>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_episodes WHERE episodeId = :id)")
+    suspend fun containsEpisode(id: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_episodes WHERE episodeId = :id)")
+    fun observeIsEpisodeLiked(id: String): Flow<Boolean>
+
+    @Query(
+        """
+        SELECT e.* FROM episodes e
+        INNER JOIN liked_episodes le ON e.episodeId = le.episodeId
+        ORDER BY le.position ASC
+    """
+    )
+    fun observeLikedEpisodesWithDetails(): Flow<List<EpisodeEntity>>
+
+    @Query(
+        """
+        SELECT e.* FROM episodes e
+        INNER JOIN liked_episodes le ON e.episodeId = le.episodeId
+        WHERE e.name LIKE '%' || :query || '%'
+           OR e.showName LIKE '%' || :query || '%'
+        ORDER BY le.position ASC
+    """
+    )
+    fun observeSearchLikedEpisodes(query: String): Flow<List<EpisodeEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEpisode(episode: LikedEpisodeEntity)
+
+    @Query("DELETE FROM liked_episodes WHERE episodeId = :id")
+    suspend fun deleteEpisode(id: String)
+
+    @Query("UPDATE liked_episodes SET position = position + 1 WHERE position >= :fromPosition")
+    suspend fun shiftEpisodePositions(fromPosition: Double)
+
+    @Query("UPDATE liked_episodes SET position = position - 1 WHERE position > :fromPosition")
+    suspend fun shiftEpisodePositionsDown(fromPosition: Double)
+
+    @Query("UPDATE liked_episodes SET position = :newPosition WHERE episodeId = :id")
+    suspend fun updateEpisodePosition(id: String, newPosition: Double)
+
+    @Query("SELECT episodeId FROM liked_episodes ORDER BY position ASC")
+    suspend fun getLikedEpisodeIds(): List<String>
+
+    @Query("SELECT COUNT(*) FROM liked_episodes")
+    fun observeEpisodeCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM liked_episodes")
+    suspend fun getEpisodeCount(): Int
+
+    @Query("DELETE FROM liked_episodes")
+    suspend fun clearAllEpisodes()
+
+    @Query("SELECT episodeId FROM liked_episodes ORDER BY position ASC LIMIT :limit OFFSET :offset")
+    suspend fun getEpisodeIdsWindow(limit: Int, offset: Int): List<String>
+
+    @Query("SELECT episodeId FROM liked_episodes")
+    fun observeLikedEpisodeIds(): Flow<List<String>>
+
+    // ── Shows ──────────────────────────────────────────────────────────
+
+    @Query("SELECT * FROM liked_shows ORDER BY position ASC")
+    fun observeLikedShows(): Flow<List<LikedShowEntity>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_shows WHERE showId = :id)")
+    suspend fun containsShow(id: String): Boolean
+
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_shows WHERE showId = :id)")
+    fun observeIsShowLiked(id: String): Flow<Boolean>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertShow(show: LikedShowEntity)
+
+    @Query("DELETE FROM liked_shows WHERE showId = :id")
+    suspend fun deleteShow(id: String)
+
+    @Query("SELECT showId FROM liked_shows ORDER BY position ASC")
+    suspend fun getLikedShowIds(): List<String>
+
+    @Query("SELECT COUNT(*) FROM liked_shows")
+    fun observeShowCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM liked_shows")
+    suspend fun getShowCount(): Int
+
+    @Query("DELETE FROM liked_shows")
+    suspend fun clearAllShows()
+
+    @Query("SELECT showId FROM liked_shows ORDER BY position ASC LIMIT :limit OFFSET :offset")
+    suspend fun getShowIdsWindow(limit: Int, offset: Int): List<String>
+
+    @Query("SELECT showId FROM liked_shows")
+    fun observeLikedShowIds(): Flow<List<String>>
+
+    @Query(
+        """
+        SELECT s.* FROM shows s
+        INNER JOIN liked_shows ls ON s.showId = ls.showId
+        ORDER BY ls.position ASC
+    """
+    )
+    fun observeLikedShowsWithDetails(): Flow<List<ShowEntity>>
+
+    @Query(
+        """
+        SELECT s.* FROM shows s
+        INNER JOIN liked_shows ls ON s.showId = ls.showId
+        WHERE s.name LIKE '%' || :query || '%'
+        ORDER BY ls.position ASC
+    """
+    )
+    fun observeSearchLikedShows(query: String): Flow<List<ShowEntity>>
 }

@@ -6,9 +6,12 @@ import cc.tomko.outify.data.dao.AlbumArtistDao
 import cc.tomko.outify.data.dao.AlbumDao
 import cc.tomko.outify.data.dao.AlbumTrackDao
 import cc.tomko.outify.data.dao.ArtistDao
+import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.dao.LikedItemsDao
 import cc.tomko.outify.data.dao.PlaylistDao
+import cc.tomko.outify.data.dao.ShowDao
+import cc.tomko.outify.data.dao.ShowEpisodeDao
 import cc.tomko.outify.data.dao.TrackArtistDao
 import cc.tomko.outify.data.dao.TrackDao
 import cc.tomko.outify.data.dao.TrackFileDao
@@ -140,5 +143,23 @@ object AppModule {
     @Singleton
     fun provideLikedItemsDao(database: AppDatabase): LikedItemsDao {
         return database.likedItemsDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideShowDao(database: AppDatabase): ShowDao {
+        return database.showDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideEpisodeDao(database: AppDatabase): EpisodeDao {
+        return database.episodeDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideShowEpisodeDao(database: AppDatabase): ShowEpisodeDao {
+        return database.showEpisodeDao()
     }
 }

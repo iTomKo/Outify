@@ -6,7 +6,9 @@ import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Cover
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Playlist
+import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.dao.LikedItemsDao
 import cc.tomko.outify.data.database.LikedItemsEntity
@@ -21,6 +23,8 @@ class Metadata @Inject constructor(
     private val trackMetadataHelper: TrackMetadataHelper,
     private val albumMetadataHelper: AlbumMetadataHelper,
     private val playlistMetadataHelper: PlaylistMetadataHelper,
+    private val showMetadataHelper: ShowMetadataHelper,
+    private val episodeMetadataHelper: EpisodeMetadataHelper,
     private val nativeMetadata: NativeMetadata,
     private val spClient: SpClient,
     private val likedItemsDao: LikedItemsDao,
@@ -70,6 +74,34 @@ class Metadata @Inject constructor(
         return albumMetadataHelper.getCoverByTrackId(trackId, size)
     }
 
+    fun observeShows(uris: List<String>): Flow<List<Show>> {
+        return showMetadataHelper.observeShows(uris)
+    }
+
+    suspend fun getShowMetadata(uri: String): Show? {
+        return showMetadataHelper.getShowMetadata(uri)
+    }
+
+    suspend fun getShowCover(showId: String, size: CoverSize): Cover? {
+        return showMetadataHelper.getCoverByShowId(showId, size)
+    }
+
+    fun observeEpisodes(uris: List<String>): Flow<List<Episode>> {
+        return episodeMetadataHelper.observeEpisodes(uris)
+    }
+
+    suspend fun getEpisodeMetadata(uris: List<String>): List<Episode> {
+        return episodeMetadataHelper.getEpisodeMetadata(uris)
+    }
+
+    suspend fun getEpisodeMetadata(uri: String): Episode? {
+        return episodeMetadataHelper.getEpisodeMetadata(uri)
+    }
+
+    suspend fun getEpisodeCover(episodeId: String, size: CoverSize): Cover? {
+        return episodeMetadataHelper.getCoverByEpisodeId(episodeId, size)
+    }
+
     suspend fun getArtistMetadata(uri: String): Artist? {
         try {
             val raw = nativeMetadata.getNativeMetadata(uri)
@@ -108,6 +140,56 @@ class Metadata @Inject constructor(
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get liked URIs"),
                 "getLikedUris"
+            )
+            return emptyList()
+        }
+    }
+
+    suspend fun getSavedEpisodeUris(): List<String> {
+        try {
+            val raw = spClient.getSavedEpisodeItems()
+            val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeUris")
+            return checked.split(";")
+                .map { it.substringBefore(",") }
+                .filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode URIs"),
+                "getSavedEpisodeUris"
+            )
+            return emptyList()
+        }
+    }
+
+    suspend fun getSavedEpisodeInfo(): List<Pair<String, String>> {
+        try {
+            val raw = spClient.getSavedEpisodeItems()
+            val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeInfo")
+            return checked.split(";")
+                .filter { it.isNotBlank() }
+                .map { pair ->
+                    val parts = pair.split(",", limit = 2)
+                    parts[0] to (parts.getOrElse(1) { "" })
+                }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode info"),
+                "getSavedEpisodeInfo"
+            )
+            return emptyList()
+        }
+    }
+
+    suspend fun getSavedShowUris(): List<String> {
+        try {
+            val raw = spClient.getSavedItems(SpClient.SHOWS)
+            val checked = spClient.checkAndHandleError(raw, "getSavedShowUris")
+            return checked.split(",")
+                .filter { it.isNotBlank() }
+        } catch (e: Exception) {
+            NativeErrorHandler.handleError(
+                NativeError.fromJson("unknown", e.message ?: "Failed to get saved show URIs"),
+                "getSavedShowUris"
             )
             return emptyList()
         }

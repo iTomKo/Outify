@@ -29,6 +29,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.palette.graphics.Palette
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import coil3.imageLoader
@@ -46,7 +47,7 @@ val DefaultThemeColor = Color(0xFF465D69)
 @SuppressLint("RestrictedApi")
 @Composable
 fun OutifyTheme(
-    track: Track?,
+    audio: PlayableAudio?,
     themeMode: ThemeMode = ThemeMode.DYNAMIC_ALBUM,
     staticAccentColor: Color = DefaultThemeColor,
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -62,10 +63,10 @@ fun OutifyTheme(
 
     val contrastLevel = if (highContrastCompat) 1.0 else 0.0
 
-    LaunchedEffect(track?.id, themeMode) {
+    LaunchedEffect(audio?.id, themeMode) {
         if (themeMode != ThemeMode.DYNAMIC_ALBUM) return@LaunchedEffect
 
-        val coverUrl = track?.album?.getCover(CoverSize.SMALL)?.let {
+        val coverUrl = audio?.getCover(CoverSize.SMALL)?.let {
             ALBUM_COVER_URL + it.uri
         } ?: return@LaunchedEffect
 

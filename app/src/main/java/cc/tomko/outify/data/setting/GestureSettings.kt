@@ -16,6 +16,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import cc.tomko.outify.MyIcons
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.ui.components.rows.SwipeGesture
 import kotlinx.serialization.Serializable
@@ -302,3 +303,147 @@ private fun colorForAction(
     GestureAction.SHOW_TRACK_INFO -> colorScheme.secondary
     GestureAction.NONE -> Color.Unspecified
 }
+
+//region Episode support
+val EPISODE_SUPPORTED_GESTURE_ACTIONS = setOf(
+    GestureAction.ADD_TO_QUEUE,
+    GestureAction.PLAY_NEXT,
+    GestureAction.ADD_TO_FAVORITE,
+)
+
+interface EpisodeSwipeActionHandler {
+    fun addToQueue(uri: String)
+    fun playNext(uri: String)
+    fun favorite(episodeUri: String)
+}
+
+val LocalEpisodeSwipeActionHandler = compositionLocalOf<EpisodeSwipeActionHandler> {
+    object : EpisodeSwipeActionHandler {
+        override fun addToQueue(uri: String) {}
+        override fun playNext(uri: String) {}
+        override fun favorite(episodeUri: String) {}
+    }
+}
+
+fun buildSwipeGesturesForEpisode(
+    gestureSettings: List<GestureSetting>,
+    actionHandler: EpisodeSwipeActionHandler,
+    episode: Episode,
+    colorScheme: ColorScheme,
+    isFavorited: Boolean = false,
+): Pair<List<SwipeGesture>, List<SwipeGesture>> {
+    val start = mutableListOf<SwipeGesture>()
+    val end = mutableListOf<SwipeGesture>()
+
+    gestureSettings
+        .filter {
+            it.enabled &&
+                    it.side != null &&
+                    it.action in EPISODE_SUPPORTED_GESTURE_ACTIONS
+        }
+        .forEach { s ->
+            val threshold = (s.thresholdFraction ?: 0.25f).coerceIn(0f, 1f)
+            val bgColor = s.backgroundHex?.let { Color(it) }
+                ?: colorForEpisodeAction(s.action, colorScheme, isFavorited)
+
+            val onTrigger: (() -> Unit)? = when (s.action) {
+                GestureAction.ADD_TO_QUEUE -> {
+                    { actionHandler.addToQueue(episode.uri) }
+                }
+
+                GestureAction.PLAY_NEXT -> {
+                    { actionHandler.playNext(episode.uri) }
+                }
+
+                GestureAction.ADD_TO_FAVORITE -> {
+                    { actionHandler.favorite(episode.uri) }
+                }
+
+                else -> null // unreachable given the filter above, but keeps `when` exhaustive-safe
+            }
+            if (onTrigger == null) return@forEach
+
+            val icon: @Composable BoxScope.() -> Unit = {
+                when (s.action) {
+                    GestureAction.ADD_TO_QUEUE -> Icon(
+                        Icons.Default.Queue,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    GestureAction.PLAY_NEXT -> Icon(
+                        Icons.Default.MoveUp,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    GestureAction.ADD_TO_FAVORITE -> Icon(
+                        imageVector = if (isFavorited) MyIcons.BrokenHeart else Icons.Default.Favorite,
+                        contentDescription = if (isFavorited) "Remove from favorites" else "Add to favorites",
+                        modifier = Modifier.fillMaxSize(),
+                        tint = Color.White,
+                    )
+
+                    else -> Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            val gesture = SwipeGesture(
+                thresholdFraction = threshold,
+                icon = icon,
+                onTrigger = onTrigger,
+                backgroundColor = bgColor
+            )
+
+            when (s.side ?: Side.End) {
+                Side.Start -> start += gesture
+                Side.End -> end += gesture
+            }
+        }
+
+    return start to end
+}
+
+fun buildLongPressActionForEpisode(
+    settings: List<GestureSetting>,
+    handler: EpisodeSwipeActionHandler,
+    episode: Episode
+): (() -> Unit)? {
+    val setting = settings.firstOrNull {
+        it.enabled &&
+                it.trigger == GestureTrigger.LongPress &&
+                it.action in EPISODE_SUPPORTED_GESTURE_ACTIONS
+    } ?: return null
+
+    return when (setting.action) {
+        GestureAction.ADD_TO_QUEUE -> {
+            { handler.addToQueue(episode.uri) }
+        }
+
+        GestureAction.PLAY_NEXT -> {
+            { handler.playNext(episode.uri) }
+        }
+
+        GestureAction.ADD_TO_FAVORITE -> {
+            { handler.favorite(episode.uri) }
+        }
+
+        else -> null
+    }
+}
+
+private fun colorForEpisodeAction(
+    action: GestureAction,
+    colorScheme: ColorScheme,
+    isFavorited: Boolean = false
+): Color = when (action) {
+    GestureAction.ADD_TO_QUEUE -> colorScheme.primaryContainer
+    GestureAction.PLAY_NEXT -> colorScheme.secondaryContainer
+    GestureAction.ADD_TO_FAVORITE -> if (isFavorited) Color(0xC4E53935) else colorScheme.error
+    else -> Color.Unspecified
+}
+//endregion

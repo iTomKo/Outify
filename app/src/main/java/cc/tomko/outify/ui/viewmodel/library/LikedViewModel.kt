@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.database.toDomain
@@ -153,6 +154,24 @@ class LikedViewModel @Inject constructor(
 
                     isRefreshing.value = false
                 }
+
+                // Sync liked episodes in the background (no progress UI)
+                launch {
+                    runCatching {
+                        likedRepository.syncLikedEpisodes()
+                    }.onFailure {
+                        Log.w("LikedViewModel", "syncLikedEpisodes failed", it)
+                    }
+                }
+
+                // Sync liked shows in the background (no progress UI)
+                launch {
+                    runCatching {
+                        likedRepository.syncLikedShows()
+                    }.onFailure {
+                        Log.w("LikedViewModel", "syncLikedShows failed", it)
+                    }
+                }
             }
             // Kick off the first page
             triggerLoad(offset = 0)
@@ -276,12 +295,12 @@ class LikedViewModel @Inject constructor(
                 ?.uri
         }
 
-    fun setTrack(track: Track) {
-        playbackStateHolder.setTrack(track)
+    fun setAudio(audio: PlayableAudio) {
+        playbackStateHolder.setAudio(audio)
     }
 
-    val currentTrack: StateFlow<Track?> = playbackStateHolder.state
-        .map { it.currentTrack }
+    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
+        .map { it.currentAudio }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,

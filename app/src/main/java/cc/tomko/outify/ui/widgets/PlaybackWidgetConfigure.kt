@@ -46,12 +46,12 @@ class PlaybackWidgetConfigure : ComponentActivity() {
                 .interfaceSettings
                 .collectAsState(initial = InterfaceSettings())
 
-            val currentTrack by viewModel.currentTrack.collectAsState()
+            val currentTrack by viewModel.currentAudio.collectAsState()
             val themeMode =
                 if (interfaceSettings.dynamicTheme) ThemeMode.DYNAMIC_ALBUM else if (interfaceSettings.dynamicSystem) ThemeMode.DYNAMIC_SYSTEM else ThemeMode.STATIC
 
             OutifyTheme(
-                track = currentTrack,
+                audio = currentTrack,
                 themeMode = themeMode,
                 staticAccentColor = interfaceSettings.accentColor,
                 pureBlack = interfaceSettings.pureBlack,

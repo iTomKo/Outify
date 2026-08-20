@@ -4,6 +4,7 @@ import androidx.annotation.StringDef
 import cc.tomko.outify.core.model.DevicesResponse
 import cc.tomko.outify.data.metadata.NativeError
 import cc.tomko.outify.data.metadata.NativeErrorHandler
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -16,8 +17,10 @@ class SpClient @Inject constructor() {
 
         const val TRACKS = "tracks"
         const val ALBUMS = "albums"
+        const val EPISODES = "episodes"
+        const val SHOWS = "shows"
 
-        @StringDef(TRACKS, ALBUMS)
+        @StringDef(TRACKS, ALBUMS, EPISODES, SHOWS)
         @Retention(AnnotationRetention.SOURCE)
         annotation class SavedItemType
     }
@@ -57,6 +60,18 @@ class SpClient @Inject constructor() {
      * Get uris of items saved in users library
      */
     external fun getSavedItems(@SavedItemType itemType: String = TRACKS): String
+
+    /**
+     * Get episode URIs and their show URIs saved in users library.
+     * Returns semicolon-separated pairs of "episodeUri,showUri"
+     */
+    external fun getSavedEpisodeItems(): String
+
+    /**
+     * Get episode details (show URI, resume point, etc.) via the Spotify Web API.
+     * Returns JSON with showUri, fullyPlayed, resumePositionMs.
+     */
+    external fun getEpisodeDetails(episodeId: String): String
 
     /**
      * Get the current user's top artists or tracks based on calculated affinity.
@@ -192,3 +207,18 @@ data class RadioResult(
 data class RadioMediaItem(
     val uri: String
 )
+
+@Serializable
+data class EpisodeDetails(
+    @SerialName("show_uri")
+    val showUri: String,
+    @SerialName("fully_played")
+    val fullyPlayed: Boolean = false,
+    @SerialName("resume_position_ms")
+    val resumePositionMs: Long = 0,
+) {
+    companion object {
+        fun fromJson(json: String): EpisodeDetails =
+            Json.decodeFromString(json)
+    }
+}
