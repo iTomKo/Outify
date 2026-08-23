@@ -28,7 +28,7 @@ data class Episode(
     @SerialName("show_name")
     val showName: String,
     @SerialName("show_id")
-    val showUri: String = "",
+    val showUri: String = "", // Needs to be filled in from details endpoint, otherwise empty!
     val keywords: List<String>,
     @SerialName("allow_background_playback")
     val allowBackgroundPlayback: Boolean,

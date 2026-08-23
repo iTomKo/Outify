@@ -67,6 +67,8 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import cc.tomko.outify.MainActivity.MainActivity.LocalSharedTransitionScope
 import cc.tomko.outify.core.AuthManager
+import cc.tomko.outify.core.EpisodeDetails
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.spirc.VolumeController
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.PendingBackupImport
@@ -101,8 +103,10 @@ import cc.tomko.outify.ui.viewmodel.player.MultiQueueViewModel
 import cc.tomko.outify.ui.viewmodel.player.PlayerViewModel
 import cc.tomko.outify.ui.viewmodel.player.QueueViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -370,6 +374,28 @@ class MainActivity : ComponentActivity() {
                                     )
 
                                     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                                    val onShowClick: (Episode?) -> Unit = onShowClick@{
+                                        if(it == null) return@onShowClick
+                                        val showUri = it.showUri
+                                        if (showUri.isNotBlank()) {
+                                            backStack.add(Route.ShowScreen(showUri))
+                                        } else {
+                                            scope.launch {
+                                                val details = withContext(Dispatchers.IO) {
+                                                    runCatching {
+                                                        viewModel.getEpisodeDetails(it.id)
+                                                    }.getOrNull()
+                                                }
+                                                if (details != null && details.showUri.isNotBlank()) {
+                                                    backStack.add(Route.ShowScreen(details.showUri))
+                                                }
+                                            }
+                                        }
+
+                                        scope.launch {
+                                            playerSheetState.collapse()
+                                        }
+                                    }
 
                                     if (isLandscape) {
                                         Row(modifier = Modifier.fillMaxSize()) {
@@ -384,6 +410,13 @@ class MainActivity : ComponentActivity() {
                                                     listState = playerListState,
                                                     paddingValues = innerPadding,
                                                     onShowQueue = { sheetState.show() },
+                                                    onArtistClick = {
+                                                        backStack.add(Route.ArtistScreen(it.uri))
+                                                        scope.launch {
+                                                            playerSheetState.collapse()
+                                                        }
+                                                    },
+                                                    onShowClick = onShowClick,
                                                     modifier = Modifier.fillMaxSize()
                                                 )
                                             }
@@ -466,6 +499,13 @@ class MainActivity : ComponentActivity() {
                                                         onShowQueue = {
                                                             sheetState.show()
                                                         },
+                                                        onArtistClick = {
+                                                            backStack.add(Route.ArtistScreen(it.uri))
+                                                            scope.launch {
+                                                                playerSheetState.collapse()
+                                                            }
+                                                        },
+                                                        onShowClick = onShowClick,
                                                         modifier = Modifier
                                                             .fillMaxSize()
                                                     )

@@ -13,6 +13,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -82,7 +83,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
+import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
@@ -104,6 +107,8 @@ fun PlayerContent(
    viewModel: PlayerViewModel,
    expansionFractionProvider: () -> Float,
    onShowQueue: () -> Unit,
+   onArtistClick: (Artist) -> Unit,
+   onShowClick: (Episode?) -> Unit,
    listState: LazyListState,
    paddingValues: PaddingValues,
    modifier: Modifier = Modifier,
@@ -186,6 +191,8 @@ fun PlayerContent(
             audio = audio,
             textColor = textColor,
             artistTextColor = artistTextColor,
+            onArtistClick = onArtistClick,
+            onShowClick = onShowClick,
             gradientEdgeColor = gradientEdgeColor,
             expansionFractionProvider = expansionFractionProvider,
             isPlaying = isPlaying,
@@ -752,6 +759,8 @@ private fun AudioMetadataSection(
     audio: PlayableAudio?,
     textColor: Color,
     artistTextColor: Color,
+    onArtistClick: (Artist) -> Unit,
+    onShowClick: (Episode?) -> Unit,
     gradientEdgeColor: Color,
     expansionFractionProvider: () -> Float,
     isPlaying: Boolean,
@@ -795,15 +804,34 @@ private fun AudioMetadataSection(
             ?: audio?.showName
             ?: "Unknown source"
 
-        AutoScrollingTextOnDemand(
-            text = subtitle,
-            style = artistStyle,
-            gradientEdgeColor = gradientEdgeColor,
-            expansionFractionProvider = expansionFractionProvider,
-            canScroll = isPlaying,
-            modifier = Modifier
-                .fillMaxWidth(),
-        )
+        if(audio?.isEpisode() ?: true) {
+            AutoScrollingTextOnDemand(
+                text = subtitle,
+                style = artistStyle,
+                gradientEdgeColor = gradientEdgeColor,
+                expansionFractionProvider = expansionFractionProvider,
+                canScroll = isPlaying,
+                modifier = Modifier
+                    .clickable {
+                        onShowClick(audio?.sourceEpisode)
+                    }
+                    .fillMaxWidth(),
+            )
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                audio.artists?.forEachIndexed { index, artist ->
+                    Text(
+                        text = artist.name + if (index < (audio.artists.size - 1)) ", " else "",
+                        style = artistStyle,
+                        modifier = Modifier.clickable {
+                            onArtistClick(artist)
+                        },
+                    )
+                }
+            }
+        }
     }
 }
 

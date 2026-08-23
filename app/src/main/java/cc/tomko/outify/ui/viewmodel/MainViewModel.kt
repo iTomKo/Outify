@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Icon
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
@@ -202,5 +203,10 @@ class MainViewModel @Inject constructor(
                 )
             )
         }
+    }
+
+    fun getEpisodeDetails(episodeId: String): EpisodeDetails {
+        val raw = spClient.getEpisodeDetails(episodeId)
+        return json.decodeFromString<EpisodeDetails>(raw)
     }
 }
