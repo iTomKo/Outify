@@ -410,7 +410,7 @@ private fun LyricsList(
         modifier = Modifier.fillMaxWidth()
     ) {
         itemsIndexed(lyrics) { index, line ->
-            val isActive = index == activeIndex || !isSynced
+            val isActive = index <= activeIndex || !isSynced
 
             val textColor by animateColorAsState(
                 targetValue = if (isActive) activeLineColor else inactiveTextColor.copy(alpha = 0.45f),
