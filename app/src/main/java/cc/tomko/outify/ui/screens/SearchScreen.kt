@@ -100,6 +100,7 @@ import cc.tomko.outify.ui.components.rows.PlaylistRow
 import cc.tomko.outify.ui.components.rows.ShowRow
 import cc.tomko.outify.ui.components.rows.SwipeableEpisodeRowConfigured
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
+import cc.tomko.outify.ui.components.user.UserChipAvatar
 import cc.tomko.outify.ui.viewmodel.SearchUiModel
 import cc.tomko.outify.ui.viewmodel.SearchViewModel
 import kotlinx.coroutines.Dispatchers
@@ -413,6 +414,12 @@ fun SharedTransitionScope.SearchScreen(
                         is SearchUiModel.PlaylistItem -> {
                             val playlist = item.playlist
                             var artworkUrl by remember(playlist.uri) { mutableStateOf<String?>(null) }
+
+														val authors by produceState<List<cc.tomko.outify.core.model.Profile>>(
+															emptyList(),
+															playlist.uri
+														) { value = viewModel.getAuthors(playlist).take(2) }
+
                             LaunchedEffect(playlist.uri) {
                                 artworkUrl = viewModel.getArtworkUrl(playlist)
                             }
@@ -430,12 +437,26 @@ fun SharedTransitionScope.SearchScreen(
                                         )
                                     )
                                 },
-                                onArtistClick = {
-                                    // TODO: Add author page
-                                },
                                 contentDescription = playlist.attributes.description,
                                 sharedTransitionScope = this@SearchScreen,
-                                trailingContent = removeButton,
+                                trailingContent = {
+																	Row(
+																		horizontalArrangement = Arrangement.spacedBy((-4).dp),
+																		verticalAlignment = Alignment.CenterVertically,
+																	) {
+																		authors.forEach { author ->
+																			UserChipAvatar(
+																				artworkUrl = author.imageUrl,
+																				modifier = Modifier
+																				.size(24.dp)
+																				.clickable { backStack.add(Route.ProfileScreen(author.uri)) },
+																			)
+																		}
+
+																		removeButton()
+																	}
+
+																},
                                 modifier = Modifier.animateItem()
                             )
                         }
@@ -673,6 +694,11 @@ fun SharedTransitionScope.SearchScreen(
                             val playlist = item.playlist
                             var artworkUrl by remember(playlist.uri) { mutableStateOf<String?>(null) }
 
+														val authors by produceState<List<cc.tomko.outify.core.model.Profile>>(
+															emptyList(),
+															playlist.uri
+														) { value = viewModel.getAuthors(playlist).take(2) }
+
                             LaunchedEffect(playlist.uri) {
                                 artworkUrl = viewModel.getArtworkUrl(playlist)
                             }
@@ -692,9 +718,22 @@ fun SharedTransitionScope.SearchScreen(
                                         )
                                     )
                                 },
-                                onArtistClick = {
-                                    // TODO: Add author page
-                                },
+                                trailingContent = {
+																	Row(
+																		horizontalArrangement = Arrangement.spacedBy((-4).dp),
+																		verticalAlignment = Alignment.CenterVertically,
+																	) {
+																		authors.forEach { author ->
+																			UserChipAvatar(
+																				artworkUrl = author.imageUrl,
+																				modifier = Modifier
+																				.size(24.dp)
+																				.clickable { backStack.add(Route.ProfileScreen(author.uri)) },
+																			)
+																		}
+																	}
+
+																},
                                 contentDescription = playlist.attributes.description,
                                 sharedTransitionScope = this@SearchScreen,
                                 modifier = Modifier.animateItem()

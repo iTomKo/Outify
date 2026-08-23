@@ -7,15 +7,8 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.R
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
-import cc.tomko.outify.core.model.Album
-import cc.tomko.outify.core.model.Artist
-import cc.tomko.outify.core.model.Episode
-import cc.tomko.outify.core.model.OutifyUri
-import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Playlist
-import cc.tomko.outify.core.model.Show
-import cc.tomko.outify.core.model.Track
-import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.UserProfile
+import cc.tomko.outify.core.model.*
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.SearchRepository
@@ -28,6 +21,9 @@ import cc.tomko.outify.ui.model.search.SearchResultType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,13 +31,32 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import kotlin.collections.List
+import kotlin.collections.distinct
+import kotlin.collections.drop
+import kotlin.collections.emptyList
+import kotlin.collections.filterNotNull
+import kotlin.collections.first
+import kotlin.collections.firstOrNull
+import kotlin.collections.indexOfLast
+import kotlin.collections.isNotEmpty
+import kotlin.collections.listOf
+import kotlin.collections.map
+import kotlin.collections.mapIndexed
+import kotlin.collections.mapNotNull
+import kotlin.collections.toMutableList
+import kotlin.collections.toTypedArray
+import kotlin.sequences.filterNotNull
+import kotlin.text.get
+import kotlin.text.isBlank
+import kotlin.text.set
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
@@ -54,6 +69,8 @@ class SearchViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val recommendations: Recommendations,
     private val likedDao: LikedDao,
+    private val json: Json,
+    private val userProfile: UserProfile,
 ) : ViewModel() {
     private val queryFlow = MutableStateFlow("")
 
@@ -96,6 +113,10 @@ class SearchViewModel @Inject constructor(
 
     private val _historyResults = MutableStateFlow<List<SearchUiModel>>(emptyList())
     val historyResults: StateFlow<List<SearchUiModel>> = _historyResults
+
+    private val authorsCache = mutableMapOf<String, List<Profile>>()
+    private val _authors = MutableStateFlow<Map<String, Profile>>(emptyMap())
+    val authors: StateFlow<Map<String, Profile>> = _authors
 
     init {
         _isLoggedIn.value = spClient.isOAuthAuthenticated()
@@ -330,6 +351,41 @@ class SearchViewModel @Inject constructor(
 
     suspend fun getArtworkUrl(playlist: Playlist): String? {
         return playlist.getCover(metadata)
+    }
+
+    suspend fun getAuthors(playlist: Playlist): List<Profile> = coroutineScope {
+        authorsCache[playlist.uri]?.let { return@coroutineScope it }
+
+        val ids = playlist.contents
+            .map { it.attributes.addedBy }
+            .distinct()
+
+        val profiles = ids.map { id ->
+            async(Dispatchers.IO) {
+                _authors.value[id]?.let { return@async it }
+
+                val jsonRaw = try {
+                    userProfile.getUserProfile(id)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                } ?: return@async null
+
+                val profile = try {
+                    json.decodeFromString<Profile>(jsonRaw)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    return@async null
+                }
+
+                _authors.update { current -> current + (id to profile) }
+                profile
+            }
+        }.awaitAll()
+            .filterNotNull()
+
+        authorsCache[playlist.uri] = profiles
+        profiles
     }
 
     fun saveItem(uri: String) {
