@@ -1,6 +1,6 @@
 use std::sync::{
     Arc, Mutex, RwLock,
-    atomic::{AtomicBool, AtomicU32},
+    atomic::{AtomicBool, AtomicU8, AtomicU32},
 };
 
 use jni::objects::JValue;
@@ -45,7 +45,7 @@ pub static GAPLESS: AtomicBool = AtomicBool::new(false);
 static CURRENT_CONTEXT: OnceCell<Mutex<Option<CurrentContext>>> = OnceCell::new();
 static IS_PLAYING: AtomicBool = AtomicBool::new(false);
 static IS_SHUFFLING: AtomicBool = AtomicBool::new(false);
-static IS_REPEATING: AtomicBool = AtomicBool::new(false);
+static REPEAT_MODE: AtomicU8 = AtomicU8::new(RepeatMode::Off as u8);
 static LAST_POSITION: AtomicU32 = AtomicU32::new(0);
 static IS_DEVICE_ACTIVE: AtomicBool = AtomicBool::new(false);
 
@@ -53,6 +53,32 @@ static IS_DEVICE_ACTIVE: AtomicBool = AtomicBool::new(false);
 struct CurrentContext {
     uri: String, // Context uri
     options: LoadRequestOptions,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+enum RepeatMode {
+    Off = 0,
+    All = 1,
+    Track = 2,
+}
+
+impl RepeatMode {
+    fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::All,
+            2 => Self::Track,
+            _ => Self::Off,
+        }
+    }
+
+    fn from_states(repeat: bool, repeat_track: bool) -> Self {
+        match (repeat, repeat_track) {
+            (_, true) => Self::Track,
+            (true, false) => Self::All,
+            (false, false) => Self::Off,
+        }
+    }
 }
 
 pub fn init_spirc_container() {
@@ -173,12 +199,16 @@ impl SpircRuntime {
         options: LoadRequestOptions,
     ) -> Result<(), librespot_core::Error> {
         let shuffle = IS_SHUFFLING.load(std::sync::atomic::Ordering::Relaxed);
-        let repeat = IS_REPEATING.load(std::sync::atomic::Ordering::Relaxed);
+        let repeat_mode =
+            RepeatMode::from_u8(REPEAT_MODE.load(std::sync::atomic::Ordering::Relaxed));
+
+        let repeat = repeat_mode.eq(&RepeatMode::All);
+        let repeat_track = repeat_mode.eq(&RepeatMode::Track);
 
         let context_options = LoadContextOptions::Options(Options {
             shuffle,
             repeat,
-            repeat_track: false,
+            repeat_track,
         });
 
         let modified_options = LoadRequestOptions {
@@ -248,9 +278,15 @@ impl SpircRuntime {
         self.spirc.shuffle(enabled)
     }
 
-    pub fn repeat(&self, enabled: bool) -> Result<(), librespot_core::Error> {
-        IS_REPEATING.store(enabled, std::sync::atomic::Ordering::Relaxed);
-        self.spirc.repeat(enabled)
+    /// Skipping to the next track disables the repeating.
+    pub fn repeat(&self, repeat: bool, repeat_track: bool) -> Result<(), librespot_core::Error> {
+        REPEAT_MODE.store(
+            RepeatMode::from_states(repeat, repeat_track) as u8,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        self.spirc
+            .repeat(repeat)
+            .and_then(|_| self.spirc.repeat_track(repeat_track))
     }
 
     pub async fn prev_tracks(
@@ -296,13 +332,18 @@ impl SpircRuntime {
             IS_PLAYING.load(std::sync::atomic::Ordering::Relaxed) && context.options.start_playing;
         let seek_to = LAST_POSITION.load(std::sync::atomic::Ordering::Relaxed);
         let shuffle = IS_SHUFFLING.load(std::sync::atomic::Ordering::Relaxed);
-        let repeat = IS_REPEATING.load(std::sync::atomic::Ordering::Relaxed);
+        let repeat_mode =
+            RepeatMode::from_u8(REPEAT_MODE.load(std::sync::atomic::Ordering::Relaxed));
+
+        let repeat = repeat_mode.eq(&RepeatMode::All);
+        let repeat_track = repeat_mode.eq(&RepeatMode::Track);
 
         let context_options = LoadContextOptions::Options(Options {
             shuffle,
             repeat,
-            repeat_track: false,
+            repeat_track,
         });
+
         let options = LoadRequestOptions {
             context_options: Some(context_options),
             playing_track: Some(librespot_connect::PlayingTrack::Uri(last_uri)),
@@ -428,10 +469,16 @@ fn handle_event(event: PlayerEvent) {
             notify_device_state(is_now_active);
         }
 
-        PlayerEvent::SessionConnected { connection_id: _, user_name: _ } => {
+        PlayerEvent::SessionConnected {
+            connection_id: _,
+            user_name: _,
+        } => {
             notify_device_state(true);
         }
-        PlayerEvent::SessionDisconnected { connection_id: _, user_name: _ } => {
+        PlayerEvent::SessionDisconnected {
+            connection_id: _,
+            user_name: _,
+        } => {
             notify_device_state(false);
         }
         PlayerEvent::VolumeChanged { volume } => {
@@ -495,9 +542,7 @@ pub async fn initialize_spirc(
     let cache = session.cache().unwrap();
     let credentials = cache.credentials().ok_or_else(|| {
         error!("cached credentials missing for spirc init");
-        SpircError::Other(
-            "cached credentials missing for spirc init".to_string(),
-        )
+        SpircError::Other("cached credentials missing for spirc init".to_string())
     })?;
 
     if let Some(name_mutex) = DEVICE_NAME.get() {
@@ -615,7 +660,12 @@ pub fn notify_device_volume(volume: u16) {
                 }
             };
 
-            if let Err(e) = env.call_method(callback.as_obj(), "volumeChanged", "(I)V", &[JValue::Int(volume as i32)]) {
+            if let Err(e) = env.call_method(
+                callback.as_obj(),
+                "volumeChanged",
+                "(I)V",
+                &[JValue::Int(volume as i32)],
+            ) {
                 log::error!("volume callback invocation failed: {e}");
             }
         });

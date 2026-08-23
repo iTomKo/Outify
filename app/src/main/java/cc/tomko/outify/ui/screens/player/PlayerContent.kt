@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.Pause
@@ -78,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
@@ -85,6 +87,7 @@ import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
+import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.AutoScrollingTextOnDemand
@@ -108,7 +111,7 @@ fun PlayerContent(
     val audio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffling by viewModel.isShuffling.collectAsState()
-    val isRepeating by viewModel.isRepeating.collectAsState()
+    val repeatMode by viewModel.repeatMode.collectAsStateWithLifecycle(initialValue = RepeatMode.NONE)
     val isFavorite by viewModel.isLiked.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val elapsedMs by viewModel.positionMs.collectAsState()
@@ -141,7 +144,7 @@ fun PlayerContent(
     val controlsSection: @Composable (height: Dp) -> Unit = { height ->
         PlayerControlsContent(
             isShuffleEnabled = isShuffling,
-            isRepeatEnabled = isRepeating,
+            repeatMode = repeatMode,
             isFavorite = isFavorite,
             onShuffleToggle = { viewModel.onAction(PlayerAction.ShuffleToggle) },
             onRepeatToggle = { viewModel.onAction(PlayerAction.RepeatToggle) },
@@ -338,7 +341,7 @@ private enum class PlaybackButtonType { NONE, REWIND, PREVIOUS, PLAY_PAUSE, NEXT
 @Composable
 private fun PlayerControlsContent(
     isShuffleEnabled: Boolean,
-    isRepeatEnabled: Boolean,
+    repeatMode: RepeatMode,
     isFavorite: Boolean,
     height: Dp,
     onShuffleToggle: () -> Unit,
@@ -412,14 +415,14 @@ private fun PlayerControlsContent(
                             cornerRadiusTL = 0.dp,
                             cornerRadiusTR = 0.dp,
                         )),
-                    active = isRepeatEnabled,
+                    active = repeatMode != RepeatMode.NONE,
                     activeColor = activeColorMain,
                     activeCornerRadius = rowCorners,
                     activeContentColor = onActiveColorMain,
                     inactiveColor = inactiveColor,
                     inactiveContentColor = inactiveContentColor,
                     onClick = onRepeatToggle,
-                    imageVector = Icons.Default.Repeat,
+                    imageVector = if(!repeatMode.repeatTrack) Icons.Default.Repeat else Icons.Default.RepeatOne,
                     contentDesc = "Repeat"
                 )
 

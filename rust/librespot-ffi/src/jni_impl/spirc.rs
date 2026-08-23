@@ -428,9 +428,8 @@ pub extern "system" fn shuffle_spirc(_env: JNIEnv, _this: JClass, enabled: jbool
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_repeat")]
-pub extern "system" fn repeat_spirc(_env: JNIEnv, _this: JClass, enabled: jboolean) -> jboolean {
-    let enabled = enabled != 0;
-    match with_spirc(|runtime| runtime.repeat(enabled)) {
+pub extern "system" fn repeat_spirc(_env: JNIEnv, _this: JClass, repeat: jboolean, repeat_track: jboolean) -> jboolean {
+    match with_spirc(|runtime| runtime.repeat(repeat != 0, repeat_track != 0)) {
         Ok(Ok(_)) => 1,
         Ok(Err(e)) => {
             warn!("with_spirc repeat failed: {e:?}");

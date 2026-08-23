@@ -147,9 +147,10 @@ class SpircController @Inject constructor(
         spirc.scope.launch {
             val shuffle = settingsRepository.shuffleEnabled.first()
             val repeat = settingsRepository.repeatEnabled.first()
+            val repeatTrack = settingsRepository.repeatTrackEnabled.first()
 
             spirc.shuffle(shuffle)
-            spirc.repeat(repeat)
+            spirc.repeat(repeat, repeatTrack)
         }
     }
 

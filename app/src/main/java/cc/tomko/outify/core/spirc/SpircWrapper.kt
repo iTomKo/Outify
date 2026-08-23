@@ -156,13 +156,16 @@ class SpircWrapper @Inject constructor(
 
     /**
      * Repeats the playback
+		 * @param repeat whether to even repeat
+		 * @param repeatTrack whether to repeat current track
      * @return <code>true</code> if success
      */
-    override fun repeat(enabled: Boolean): Boolean {
+    override fun repeat(repeat: Boolean, repeatTrack: Boolean): Boolean {
         scope.launch {
-            settingsRepository.setRepeat(enabled)
+            settingsRepository.setRepeat(repeat)
+            settingsRepository.setRepeatTrack(repeatTrack)
         }
-        return Spirc.repeat(enabled)
+        return Spirc.repeat(repeat, repeatTrack)
     }
 
     /**

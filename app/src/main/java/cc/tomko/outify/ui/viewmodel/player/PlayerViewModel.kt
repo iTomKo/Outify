@@ -2,6 +2,7 @@ package cc.tomko.outify.ui.viewmodel.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
@@ -15,6 +16,7 @@ import cc.tomko.outify.data.repository.PlayerRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.model.PlaybackState
+import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.ui.model.player.PlayerAction
 import cc.tomko.outify.ui.model.player.PlayerUIState
 import coil3.ImageLoader
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -66,8 +69,7 @@ class PlayerViewModel @Inject constructor(
     val romanizeLyrics: StateFlow<Boolean> = settingsRepository.romanizeLyrics
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val isRepeating = settingsRepository.repeatEnabled
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    val repeatMode: Flow<RepeatMode> = settingsRepository.repeatMode
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val isLiked: StateFlow<Boolean> =
@@ -127,42 +129,46 @@ class PlayerViewModel @Inject constructor(
      * On Player UI action - like play/pause/..
      */
     fun onAction(action: PlayerAction) {
-        when (action) {
-            PlayerAction.PlayPause -> {
-                spirc.playerPlayPause()
-                viewModelScope.launch {
-                    playbackStateHolder.setPlaying(!playbackStateHolder.state.value.isPlaying)
+        viewModelScope.launch {
+            when (action) {
+                PlayerAction.PlayPause -> {
+                    spirc.playerPlayPause()
+                    viewModelScope.launch {
+                        playbackStateHolder.setPlaying(!playbackStateHolder.state.value.isPlaying)
+                    }
                 }
-            }
 
-            PlayerAction.Next -> spirc.playerNext()
-            PlayerAction.Previous -> {
-                spirc.playerPrevious()
-                viewModelScope.launch {
-                    playbackStateHolder.seekTo(Duration.ZERO)
+                PlayerAction.Next -> spirc.playerNext()
+                PlayerAction.Previous -> {
+                    spirc.playerPrevious()
+                    viewModelScope.launch {
+                        playbackStateHolder.seekTo(Duration.ZERO)
+                    }
                 }
-            }
 
-            is PlayerAction.SeekTo -> {
-                viewModelScope.launch {
-                    playbackStateHolder.seekTo(action.position.toDuration(DurationUnit.MILLISECONDS))
-                    spirc.seekTo(action.position)
+                is PlayerAction.SeekTo -> {
+                    viewModelScope.launch {
+                        playbackStateHolder.seekTo(action.position.toDuration(DurationUnit.MILLISECONDS))
+                        spirc.seekTo(action.position)
+                    }
                 }
-            }
 
-            PlayerAction.RepeatToggle -> {
-                val newValue = !isRepeating.value
-                viewModelScope.launch {
-                    settingsRepository.setRepeat(newValue)
-                    spirc.repeat(newValue)
+                PlayerAction.RepeatToggle -> {
+                    val current = settingsRepository.repeatMode.first()
+                    val next = current.next()
+                    viewModelScope.launch {
+                        settingsRepository.setRepeat(next.repeat)
+                        settingsRepository.setRepeatTrack(next.repeatTrack)
+                        spirc.repeat(next.repeat, next.repeatTrack)
+                    }
                 }
-            }
 
-            PlayerAction.ShuffleToggle -> {
-                val newValue = !isShuffling.value
-                viewModelScope.launch {
-                    settingsRepository.setShuffle(newValue)
-                    spirc.shuffle(newValue)
+                PlayerAction.ShuffleToggle -> {
+                    val newValue = !isShuffling.value
+                    viewModelScope.launch {
+                        settingsRepository.setShuffle(newValue)
+                        spirc.shuffle(newValue)
+                    }
                 }
             }
         }

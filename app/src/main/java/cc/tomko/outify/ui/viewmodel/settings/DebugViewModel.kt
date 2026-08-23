@@ -94,6 +94,7 @@ class DebugViewModel @Inject constructor(
                 "Device name" to settingsRepository.deviceName.first(),
                 "Shuffle" to settingsRepository.shuffleEnabled.first().toString(),
                 "Repeat" to settingsRepository.repeatEnabled.first().toString(),
+                "Repeat track" to settingsRepository.repeatTrackEnabled.first().toString(),
                 "Romanize lyrics" to settingsRepository.romanizeLyrics.first().toString(),
                 "Show lyrics by default" to settingsRepository.showLyricsByDefault.first()
                     .toString(),

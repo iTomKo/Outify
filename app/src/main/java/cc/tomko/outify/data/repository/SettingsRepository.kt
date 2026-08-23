@@ -16,10 +16,12 @@ import cc.tomko.outify.data.setting.GestureSetting
 import cc.tomko.outify.data.setting.GestureTrigger
 import cc.tomko.outify.data.setting.Side
 import cc.tomko.outify.playback.model.Bitrate
+import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.ui.model.search.SearchHistoryItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -33,6 +35,7 @@ class SettingsRepository @Inject constructor(
     object Keys {
         val SHUFFLE = booleanPreferencesKey("shuffle")
         val REPEAT = booleanPreferencesKey("repeat")
+        val REPEAT_TRACK = booleanPreferencesKey("repeat_track")
         val GAPLESS = booleanPreferencesKey("gapless")
         val NORMALIZE_AUDIO = booleanPreferencesKey("normalized_audio")
 
@@ -229,6 +232,18 @@ class SettingsRepository @Inject constructor(
         it[Keys.REPEAT] ?: false
     }
 
+    val repeatTrackEnabled = dataStore.data.map {
+        it[Keys.REPEAT_TRACK] ?: false
+    }
+
+    val repeatMode: Flow<RepeatMode> =
+        combine(
+            repeatEnabled,
+            repeatTrackEnabled,
+        ) { repeat, repeatTrack ->
+            RepeatMode.fromSettings(repeat, repeatTrack)
+        }
+
     val gaplessPlayback = dataStore.data.map {
         it[Keys.GAPLESS] ?: true
     }
@@ -276,6 +291,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setRepeat(enabled: Boolean) {
         dataStore.edit { it[Keys.REPEAT] = enabled }
+    }
+
+    suspend fun setRepeatTrack(enabled: Boolean) {
+        dataStore.edit { it[Keys.REPEAT_TRACK] = enabled }
     }
 
     suspend fun setGaplessPlayback(enabled: Boolean) {

@@ -159,10 +159,12 @@ object Spirc {
 
     /**
      * Repeats the playback
+		 * @param repeat whether to even repeat
+		 * @param repeatTrack whether to repeat current track
      * @return <code>true</code> if success
      */
     @JvmStatic
-    external fun repeat(enabled: Boolean): Boolean
+    external fun repeat(repeat: Boolean, repeatTrack: Boolean): Boolean
 
     /**
      * Tells the player to start playing

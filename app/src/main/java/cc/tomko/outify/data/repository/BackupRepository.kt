@@ -42,6 +42,7 @@ data class OutifyBackup(
 data class BackupPreferences(
     val shuffle: Boolean? = null,
     val repeat: Boolean? = null,
+    val repeatTrack: Boolean? = null,
     val gapless: Boolean? = null,
     val normalizeAudio: Boolean? = null,
     val keepalive: Boolean? = null,
@@ -88,6 +89,7 @@ class BackupRepository @Inject constructor(
             preferences = BackupPreferences(
                 shuffle = prefs[SettingsRepository.Keys.SHUFFLE],
                 repeat = prefs[SettingsRepository.Keys.REPEAT],
+								repeatTrack = prefs[SettingsRepository.Keys.REPEAT_TRACK],
                 gapless = prefs[SettingsRepository.Keys.GAPLESS],
                 normalizeAudio = prefs[SettingsRepository.Keys.NORMALIZE_AUDIO],
                 keepalive = prefs[SettingsRepository.Keys.KEEPALIVE],
@@ -144,6 +146,7 @@ class BackupRepository @Inject constructor(
         settingsRepository.dataStore.edit { data ->
             prefs.shuffle?.let { data[SettingsRepository.Keys.SHUFFLE] = it }
             prefs.repeat?.let { data[SettingsRepository.Keys.REPEAT] = it }
+            prefs.repeatTrack?.let { data[SettingsRepository.Keys.REPEAT_TRACK] = it }
             prefs.gapless?.let { data[SettingsRepository.Keys.GAPLESS] = it }
             prefs.normalizeAudio?.let { data[SettingsRepository.Keys.NORMALIZE_AUDIO] = it }
             prefs.keepalive?.let { data[SettingsRepository.Keys.KEEPALIVE] = it }
