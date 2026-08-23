@@ -125,8 +125,8 @@ class PlaybackService : MediaLibraryService(),
 
     private val becomingNoisyListener = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if(intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
-            if(player.playWhenReady) player.pause()
+            if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
+            if (player.playWhenReady) player.pause()
         }
     }
 
@@ -238,8 +238,11 @@ class PlaybackService : MediaLibraryService(),
         val hasAudio = audio != null
 
         scope.launch {
-            // TODO: Add isLiked support for episodes
-            val isLiked = if (hasAudio && audio.isTrack()) likedDao.containsTrack(audio.id) else false
+            val isLiked = hasAudio && if (audio.isTrack()) {
+                likedDao.containsTrack(audio.id)
+            } else {
+                likedDao.containsEpisode(audio.id)
+            }
             val buttons = listOf(
                 CommandButton.Builder(
                     when (player.repeatMode) {
