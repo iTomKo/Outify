@@ -81,7 +81,8 @@ Contact us through Github:
 
 ### Screenshots
 <p>
-    <img src="docs/images/player_1.png" alt="Player interface" width="200" hspace="10"/>
+    <img src="docs/images/playerscreen.png" alt="Player interface" width="200" hspace="10"/>
+    <img src="docs/images/lyrics.png" alt="Player interface" width="200" hspace="10"/>
     <img src="docs/images/artist.png" alt="Artist view" width="200" hspace="10"/>
     <img src="docs/images/liked.png" alt="Liked view" width="200" hspace="10"/>
 </p>
