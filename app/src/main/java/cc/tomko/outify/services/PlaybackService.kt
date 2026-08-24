@@ -8,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Binder
 import android.util.Log
@@ -56,7 +57,8 @@ import javax.inject.Singleton
 @Singleton
 @AndroidEntryPoint
 class PlaybackService : MediaLibraryService(),
-    androidx.media3.common.Player.Listener {
+    androidx.media3.common.Player.Listener,
+    AudioManager.OnAudioFocusChangeListener {
     companion object {
         const val ROOT = "root"
         const val TRACK = "track"
@@ -119,6 +121,8 @@ class PlaybackService : MediaLibraryService(),
     @Inject
     lateinit var likedDao: LikedDao
 
+    private lateinit var audioManager: AudioManager
+    private var hasAudioFocus = false
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var keepAlive: Boolean = true
     private val binder = MusicBinder()
@@ -137,6 +141,9 @@ class PlaybackService : MediaLibraryService(),
     override fun onCreate() {
         Log.i(TAG, "Starting PlaybackService")
         super.onCreate()
+
+        Log.i(TAG, "Creating audio focus manager")
+        audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
 
         player.setAudioAttributes(AUDIO_ATTRIBUTES, true)
 
@@ -177,6 +184,12 @@ class PlaybackService : MediaLibraryService(),
         val sessionToken = SessionToken(this, ComponentName(this, PlaybackService::class.java))
         val browserFuture = MediaBrowser.Builder(this, sessionToken).buildAsync()
         browserFuture.addListener({ browserFuture.get() }, MoreExecutors.directExecutor())
+
+        if(requestAudioFocus()) {
+            Log.i(TAG, "Focus requested :)")
+        } else {
+            Log.i(TAG, "Focus failed to request :(")
+        }
 
         scope.launch {
             playbackStateHolder.state
@@ -340,6 +353,7 @@ class PlaybackService : MediaLibraryService(),
         scope.cancel()
         offloadScope.cancel()
         unregisterReceiver(becomingNoisyListener)
+        abandonAudioFocus()
 
         super.onDestroy()
 
@@ -347,6 +361,52 @@ class PlaybackService : MediaLibraryService(),
     }
 
     override fun onBind(intent: Intent?) = super.onBind(intent) ?: binder
+    override fun onAudioFocusChange(focusChange: Int) {
+        when (focusChange) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                hasAudioFocus = true
+                Log.i(TAG, "Resuming playback")
+//                resumePlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                hasAudioFocus = false
+                Log.i(TAG, "Stopping playback")
+//                stopPlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                hasAudioFocus = false
+                Log.i(TAG, "Pausing playback")
+//                pausePlayback()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                Log.i(TAG, "Ducking playback")
+//                mediaPlayer?.setVolume(0.2f, 0.2f)
+            }
+        }
+    }
+
+    private var audioFocusRequest: AudioFocusRequest? = null
+
+    private fun requestAudioFocus(): Boolean {
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                    .build())
+            .build()
+
+        val result = audioManager.requestAudioFocus(audioFocusRequest!!)
+        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return hasAudioFocus
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let {
+            audioManager.abandonAudioFocusRequest(it)
+        }
+        hasAudioFocus = false
+    }
 
     inner class MusicBinder : Binder() {
         val service: PlaybackService

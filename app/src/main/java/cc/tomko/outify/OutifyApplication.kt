@@ -1,16 +1,14 @@
 package cc.tomko.outify
 
 import android.app.Application
-import android.content.Intent
+import android.util.Log
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.data.database.AppDatabase
-import cc.tomko.outify.services.PlaybackService
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
 import cc.tomko.outify.ui.viewmodel.detail.setDetailViewModelStore
 import cc.tomko.outify.utils.ExceptionCollector
@@ -50,21 +48,28 @@ class OutifyApplication : Application() {
 
         setDetailViewModelStore(detailViewModelStore)
 
-        System.loadLibrary("librespot_ffi")
+        val libraryLoaded = try {
+            System.loadLibrary("librespot_ffi")
+            true
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e("OutifyApplication", "Failed to load librespot_ffi", e)
+            false
+        }
+
+				if(!libraryLoaded) {
+					Toast.makeText(this, "Failed to load librespot!", Toast.LENGTH_LONG).show()
+				}
 
         val spotifySecret = BuildConfig.SPOTIFY_CLIENT_SECRET
         val spotifyId = BuildConfig.SPOTIFY_CLIENT_ID
 
-        if(spotifySecret.isEmpty() || spotifyId.isEmpty()) {
+        if (spotifySecret.isEmpty() || spotifyId.isEmpty()) {
             Toast.makeText(this, "No Spotify credentials were supplied during build", Toast.LENGTH_LONG).show()
-            throw Exception("No Spotify credentials were supplied during build! spotify.playback.clientId is${if(spotifyId.isEmpty()) "" else " not"} empty; spotify.playback.clientSecret is${if(spotifySecret.isEmpty()) "" else " not"} empty")
+            throw Exception("No Spotify credentials were supplied during build! spotify.playback.clientId is${if (spotifyId.isEmpty()) "" else " not"} empty; spotify.playback.clientSecret is${if (spotifySecret.isEmpty()) "" else " not"} empty")
         }
 
         appScope.launch {
             LibrespotFfi.libInit(applicationContext, spotifyId, spotifySecret)
-
-            val intent = Intent(this@OutifyApplication, PlaybackService::class.java)
-            ContextCompat.startForegroundService(this@OutifyApplication, intent)
 
             spircController.start()
             spircWrapper.setRestartCallback { spircController.restart() }

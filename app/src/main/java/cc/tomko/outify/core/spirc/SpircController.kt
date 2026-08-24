@@ -72,6 +72,7 @@ class SpircController @Inject constructor(
 
                 Spirc.deviceCallback(object : SpircDeviceCallback {
                     override fun becameActive() {
+                        spirc.startPlaybackService()
                         playbackStateHolder.setActiveDevice(true)
                     }
 
@@ -125,6 +126,8 @@ class SpircController @Inject constructor(
     }
 
     private suspend fun activateAndTransfer() {
+        spirc.startPlaybackService()
+
         if (!spirc.activate()) {
             Log.e("SpircController", "Failed to activate Spirc session!")
             return
