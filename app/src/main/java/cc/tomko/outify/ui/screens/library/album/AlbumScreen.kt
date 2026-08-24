@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
@@ -55,6 +56,7 @@ import cc.tomko.outify.core.model.sharedTransitionKey
 import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.components.AlbumDetailSkeleton
 import cc.tomko.outify.ui.components.ArtworkBackground
+import cc.tomko.outify.ui.components.AutoScrollingText
 import cc.tomko.outify.ui.components.CollapsingHeader
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.rememberCollapsingHeaderState
@@ -213,10 +215,10 @@ fun SharedTransitionScope.AlbumDetailScreen(
                         )
                     },
                     titleContent = {
-                        Text(
+                        AutoScrollingText(
                             text = album.name,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            gradientEdgeColor = MaterialTheme.colorScheme.surface,
                         )
 
                         Text(

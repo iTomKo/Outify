@@ -70,6 +70,7 @@ import cc.tomko.outify.core.model.toSpotifyUri
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.ArtworkBackground
+import cc.tomko.outify.ui.components.AutoScrollingText
 import cc.tomko.outify.ui.components.CollapsingHeader
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.PlaylistDetailSkeleton
@@ -307,11 +308,10 @@ fun SharedTransitionScope.PlaylistScreen(
                         )
                     },
                     titleContent = {
-                        Text(
+                        AutoScrollingText(
                             text = playlist.attributes.name,
-                            style = MaterialTheme.typography.headlineMedium,
-                            overflow = TextOverflow.Ellipsis,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                            gradientEdgeColor = MaterialTheme.colorScheme.surface,
                         )
 
                         Row {
