@@ -41,7 +41,7 @@ interface LikedDao {
     suspend fun insert(track: LikedTrackEntity)
 
     @Query("DELETE FROM liked_songs WHERE trackId = :id")
-    suspend fun delete(id: String)
+    suspend fun delete(id: String): Int
 
     @Query("UPDATE liked_songs SET position = position + 1 WHERE position >= :fromPosition")
     suspend fun shiftPositions(fromPosition: Double)

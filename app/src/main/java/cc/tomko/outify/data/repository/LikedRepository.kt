@@ -198,10 +198,10 @@ class LikedRepository @Inject constructor(
 
     /**
      * Removes a track from the liked list (optimistic UI update)
+     * @return whether a row was actually removed
      */
-    suspend fun removeLiked(trackId: String) {
-        likedDao.delete(trackId)
-    }
+    suspend fun removeLiked(trackId: String): Boolean =
+        likedDao.delete(trackId) > 0
 
     /**
      * Fetches (or confirms cached) metadata for a window of liked tracks.

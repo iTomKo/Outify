@@ -37,6 +37,7 @@ import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.SpotifyUri
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
+import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.Player
@@ -121,6 +122,9 @@ class PlaybackService : MediaLibraryService(),
 
     @Inject
     lateinit var likedDao: LikedDao
+
+    @Inject
+    lateinit var likedRepository: LikedRepository
 
     private lateinit var audioManager: AudioManager
     private var hasAudioFocus = false
@@ -226,13 +230,41 @@ class PlaybackService : MediaLibraryService(),
     private fun toggleLike() {
         val item = player.currentMediaItem ?: return
         val id = item.mediaId
+        val audio = playbackStateHolder.state.value.currentAudio ?: return
         Log.i(TAG, "Toggling like for $id")
 
         scope.launch {
-            if (likedDao.containsTrack(id)) {
-                spClient.deleteItems(arrayOf("spotify:track:$id"))
+            val isTrack = audio.isTrack()
+            val uri = if (isTrack) "spotify:track:$id" else "spotify:episode:$id"
+
+            val wasLiked = if (isTrack) {
+                likedRepository.isLiked(id)
             } else {
-                spClient.saveItems(arrayOf("spotify:track:$id"))
+                likedRepository.isLikedEpisode(id)
+            }
+
+            if (isTrack) {
+                if (wasLiked) likedRepository.removeLiked(id) else likedRepository.addLiked(id)
+            } else {
+                if (wasLiked) likedRepository.removeLikedEpisode(id) else likedRepository.addLikedEpisode(id)
+            }
+            updateNotification()
+
+            val success = try {
+                if (wasLiked) spClient.deleteItems(arrayOf(uri)) else spClient.saveItems(arrayOf(uri))
+            } catch (e: Exception) {
+                Log.w(TAG, "spClient failed to ${if (wasLiked) "delete" else "save"} $uri", e)
+                false
+            }
+
+            if (!success) {
+                Log.w(TAG, "Rolling back like state for $uri")
+                if (isTrack) {
+                    if (wasLiked) likedRepository.addLiked(id) else likedRepository.removeLiked(id)
+                } else {
+                    if (wasLiked) likedRepository.addLikedEpisode(id) else likedRepository.removeLikedEpisode(id)
+                }
+                updateNotification()
             }
         }
     }
