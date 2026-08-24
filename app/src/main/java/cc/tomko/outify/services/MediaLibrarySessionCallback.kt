@@ -42,6 +42,7 @@ class MediaLibrarySessionCallback @Inject constructor(
     lateinit var service: PlaybackService
     var toggleLike: () -> Unit = {}
     var toggleStartRadio: () -> Unit = {}
+    var toggleRepeatMode: () -> Unit = {}
 
     override fun onConnect(
         session: MediaSession,
@@ -80,6 +81,7 @@ class MediaLibrarySessionCallback @Inject constructor(
         when (customCommand.customAction) {
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
             MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
+						MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> toggleRepeatMode()
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }

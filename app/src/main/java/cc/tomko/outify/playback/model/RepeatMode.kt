@@ -1,5 +1,10 @@
 package cc.tomko.outify.playback.model
 
+import androidx.media3.common.Player
+import androidx.media3.common.Player.REPEAT_MODE_ALL
+import androidx.media3.common.Player.REPEAT_MODE_OFF
+import androidx.media3.common.Player.REPEAT_MODE_ONE
+
 enum class RepeatMode(
     val repeat: Boolean,
     val repeatTrack: Boolean,
@@ -13,6 +18,13 @@ enum class RepeatMode(
             NONE -> ALL
             ALL -> ONE
             ONE -> NONE
+        }
+
+    fun toMediaRepeatMode(): Int =
+        when (this) {
+            NONE -> REPEAT_MODE_OFF
+            ALL -> REPEAT_MODE_ALL
+            ONE -> REPEAT_MODE_ONE
         }
 
     companion object {

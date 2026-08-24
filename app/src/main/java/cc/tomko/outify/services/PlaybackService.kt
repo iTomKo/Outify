@@ -40,6 +40,7 @@ import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.Player
+import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.utils.CoilBitmapLoader
 import com.google.common.util.concurrent.MoreExecutors
 import dagger.hilt.android.AndroidEntryPoint
@@ -162,6 +163,7 @@ class PlaybackService : MediaLibraryService(),
             service = this@PlaybackService
             toggleLike = ::toggleLike
             toggleStartRadio = ::toggleStartRadio
+            toggleRepeatMode = ::toggleRepeatMode
         }
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, mediaLibrarySessionCallback)
@@ -193,7 +195,7 @@ class PlaybackService : MediaLibraryService(),
 
         scope.launch {
             playbackStateHolder.state
-                .map { it.currentAudio }
+                .map { it.currentAudio to it.repeatMode }
                 .distinctUntilChanged()
                 .collect { _ ->
                     updateNotification()
@@ -221,7 +223,7 @@ class PlaybackService : MediaLibraryService(),
         )
     }
 
-    fun toggleLike() {
+    private fun toggleLike() {
         val item = player.currentMediaItem ?: return
         val id = item.mediaId
         Log.i(TAG, "Toggling like for $id")
@@ -235,7 +237,7 @@ class PlaybackService : MediaLibraryService(),
         }
     }
 
-    fun toggleStartRadio() {
+    private fun toggleStartRadio() {
         val item = player.currentMediaItem ?: return
         val id = item.mediaId
         Log.i(TAG, "Starting radio for $id")
@@ -245,10 +247,27 @@ class PlaybackService : MediaLibraryService(),
         }
     }
 
+    private fun toggleRepeatMode() {
+        val state = playbackStateHolder.state.value
+        val repeatMode = state.repeatMode.next()
+
+        player.repeatMode = repeatMode.toMediaRepeatMode()
+
+        scope.launch {
+            settings.setRepeat(repeatMode.repeat)
+            settings.setRepeatTrack(repeatMode.repeatTrack)
+            playbackStateHolder.setRepeatMode(repeatMode)
+            spirc.repeat(repeatMode.repeat, repeatMode.repeatTrack)
+        }
+    }
+
     fun updateNotification() {
         mediaLibrarySession ?: return
-        val audio = playbackStateHolder.state.value.currentAudio
+        val state = playbackStateHolder.state.value
+        val audio = state.currentAudio
         val hasAudio = audio != null
+
+        val repeatMode = state.repeatMode
 
         scope.launch {
             val isLiked = hasAudio && if (audio.isTrack()) {
@@ -258,14 +277,10 @@ class PlaybackService : MediaLibraryService(),
             }
             val buttons = listOf(
                 CommandButton.Builder(
-                    when (player.repeatMode) {
-                        REPEAT_MODE_OFF -> CommandButton.ICON_SHUFFLE_OFF
-                        REPEAT_MODE_ONE -> CommandButton.ICON_SHUFFLE_ON
-                        REPEAT_MODE_ALL -> CommandButton.ICON_SHUFFLE_STAR
-                        else -> {
-                            Log.w(TAG, "Unknown repeat mode: ${player.repeatMode}")
-                            CommandButton.ICON_SHUFFLE_OFF
-                        }
+                    when (repeatMode) {
+                        RepeatMode.NONE -> CommandButton.ICON_REPEAT_OFF
+                        RepeatMode.ONE  -> CommandButton.ICON_REPEAT_ONE
+                        RepeatMode.ALL  -> CommandButton.ICON_REPEAT_ALL
                     }
                 )
                     .setDisplayName(
