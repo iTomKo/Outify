@@ -1,10 +1,9 @@
 import com.android.build.api.dsl.ApplicationExtension
-import java.time.LocalDate
 import java.util.Properties
 
 plugins {
     id("eclipse")
-    id("com.google.devtools.ksp") version "2.3.5"
+    id("com.google.devtools.ksp") version "2.3.6"
     id("com.google.dagger.hilt.android") version "2.59.2"
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
