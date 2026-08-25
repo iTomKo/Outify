@@ -26,7 +26,7 @@ ksp {
 
 val majorVersion = 1
 val minorVersion = 9
-val patchVersion = 0
+val patchVersion = 1
 
 extensions.configure<ApplicationExtension>("android") {
     compileSdk = 36
