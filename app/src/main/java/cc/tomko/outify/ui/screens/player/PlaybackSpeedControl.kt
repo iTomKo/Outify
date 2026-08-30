@@ -135,16 +135,14 @@ fun PlaybackSpeedControl(
         }
     }
 
-    if (showCustomSheet) {
-        CustomSpeedBottomSheet(
-            currentSpeed = currentSpeed,
-            onDismiss = { showCustomSheet = false },
-            onConfirm = { speed ->
-                onSpeedChange(speed)
-                showCustomSheet = false
-            },
-        )
-    }
+    CustomSpeedBottomSheet(
+        currentSpeed = currentSpeed,
+        onDismiss = { showCustomSheet = false },
+        onConfirm = { speed ->
+            onSpeedChange(speed)
+            showCustomSheet = false
+        },
+    )
 }
 
 @Composable
