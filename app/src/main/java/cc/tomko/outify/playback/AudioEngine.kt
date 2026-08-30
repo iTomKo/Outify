@@ -31,6 +31,7 @@ enum class PcmFormat {
 class AudioEngine(
     val context: Context,
     eventCallback: PlayerEventCallback,
+    private val stateHolder: PlaybackStateHolder,
 ) {
     @Volatile
     private var audioTrack: AudioTrack? = null
@@ -41,8 +42,6 @@ class AudioEngine(
     private val pcmBuffer = ByteBuffer.allocateDirect(4 * 8192)
 
     private val sonic = SonicAudioProcessor()
-    @Volatile
-    private var playbackSpeed = 1.5f
     private var sonicSampleRate = -1
     private var sonicChannels = -1
     private var sonicCommittedSpeed = 1f
@@ -204,12 +203,6 @@ class AudioEngine(
         )
     }
 
-    fun setSpeed(speed: Float) {
-        writeLock.withLock {
-            playbackSpeed = speed.coerceAtLeast(0.1f)
-        }
-    }
-
     fun flush() {
         writeLock.withLock {
             drainSonic()
@@ -255,7 +248,7 @@ class AudioEngine(
                     return
                 }
 
-                val speed = playbackSpeed
+                val speed = stateHolder.state.value.playbackSpeed.coerceAtLeast(0.1f)
                 if (speed == 1f) {
                     writeToTrack(pcmBuffer, size, track)
                 } else {

@@ -63,9 +63,10 @@ class Player @Inject constructor(
     private var artworkJob: Job? = null
 
     var engine: AudioEngine =
-        AudioEngine(application.applicationContext, object : PlayerEventCallback {
-
-            override fun onTrackChange(spotify_uri: String, json_str: String) {
+        AudioEngine(
+            application.applicationContext,
+            object : PlayerEventCallback {
+                override fun onTrackChange(spotify_uri: String, json_str: String) {
                 scope.launch {
                     val audio = if (spotify_uri.startsWith("spotify:episode:")) {
                         val episode: Episode = try {
@@ -199,7 +200,7 @@ class Player @Inject constructor(
                     invalidateState()
                 }
             }
-        })
+        }, stateHolder)
 
     private val audioFocusManager = AudioFocusManager(
         application.applicationContext,
@@ -376,7 +377,6 @@ class Player @Inject constructor(
     fun setSpeed(speed: Float) {
         scope.launch {
             stateHolder.setSpeed(speed)
-            engine.setSpeed(speed)
             invalidateState()
         }
     }

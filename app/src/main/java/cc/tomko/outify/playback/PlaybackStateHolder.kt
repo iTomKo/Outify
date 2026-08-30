@@ -103,6 +103,10 @@ class PlaybackStateHolder @Inject constructor() {
         }
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        _state.update { it.copy(playbackSpeed = speed) }
+    }
+
     fun setBuffering(buffering: Boolean) {
         _state.update { it.copy(isBuffering = buffering) }
     }

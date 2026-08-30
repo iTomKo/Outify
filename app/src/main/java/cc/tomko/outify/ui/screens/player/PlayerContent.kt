@@ -2,6 +2,7 @@ package cc.tomko.outify.ui.screens.player
 
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -131,6 +132,8 @@ fun PlayerContent(
         AlbumCoverContent(
             audio = audio,
             isPlaying = isPlaying,
+            playbackSpeed = uiState.playbackSpeed,
+            setPlaybackSpeed = viewModel::setPlaybackSpeed,
             modifier = modifier,
         )
     }
@@ -244,6 +247,8 @@ fun PlayerContent(
 private fun AlbumCoverContent(
     audio: PlayableAudio?,
     isPlaying: Boolean,
+    playbackSpeed: Float,
+    setPlaybackSpeed: (Float) -> Unit,
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surfaceVariant
 ) {
@@ -255,10 +260,16 @@ private fun AlbumCoverContent(
         label = "albumArtScale"
     )
 
+    var showExtraSettings by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(containerColor)
+            .clickable {
+                showExtraSettings = !showExtraSettings
+            },
+        contentAlignment = Alignment.Center,
     ) {
         SmartImage(
             url = artworkUrl,
@@ -271,6 +282,13 @@ private fun AlbumCoverContent(
                     scaleY = imageScale
                 }
         )
+
+        AnimatedVisibility(visible = showExtraSettings) {
+            PlaybackSpeedControl(
+                currentSpeed = playbackSpeed,
+                onSpeedChange = setPlaybackSpeed,
+            )
+        }
     }
 }
 

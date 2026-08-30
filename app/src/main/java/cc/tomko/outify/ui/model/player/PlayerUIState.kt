@@ -12,6 +12,7 @@ data class PlayerUIState(
     val isBuffering: Boolean = true,
     val isPlaying: Boolean = false,
     var isExplicit: Boolean = false,
+    var playbackSpeed: Float = 1f,
 
     /**
      * The total track length

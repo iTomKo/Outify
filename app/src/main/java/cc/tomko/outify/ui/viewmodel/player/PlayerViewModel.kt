@@ -118,6 +118,7 @@ class PlayerViewModel @Inject constructor(
                     albumArt = audio?.getCover(CoverSize.LARGE)?.uri,
                     isPlaying = state.isPlaying,
                     isExplicit = audio?.explicit ?: false,
+                    playbackSpeed = state.playbackSpeed,
                     totalLengthMs = audio?.duration ?: 0L,
                     positionMs = position.active.inWholeMilliseconds,
                     lastUpdateTime = position.lastSync,
@@ -218,4 +219,8 @@ class PlayerViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = false
         )
+
+    fun setPlaybackSpeed(speed: Float) {
+        playbackStateHolder.setPlaybackSpeed(speed)
+    }
 }
