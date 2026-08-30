@@ -6,6 +6,10 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
+import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.SonicAudioProcessor
+import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.spirc.VolumeController.Companion.SPOTIFY_MAX_VOLUME
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import java.nio.ByteBuffer
@@ -23,6 +27,7 @@ enum class PcmFormat {
 /**
  * Plays the received PCM audio using modern AudioAttributes/AudioFormat API.
  */
+@UnstableApi
 class AudioEngine(
     val context: Context,
     eventCallback: PlayerEventCallback,
@@ -34,6 +39,13 @@ class AudioEngine(
     private var currentFormat: PcmFormat? = null
 
     private val pcmBuffer = ByteBuffer.allocateDirect(4 * 8192)
+
+    private val sonic = SonicAudioProcessor()
+    @Volatile
+    private var playbackSpeed = 1.5f
+    private var sonicSampleRate = -1
+    private var sonicChannels = -1
+    private var sonicCommittedSpeed = 1f
 
     private val writeLock = ReentrantLock()
 
@@ -136,6 +148,7 @@ class AudioEngine(
 
     fun releaseAudioTrack() {
         writeLock.withLock {
+            drainSonic()
             val t = audioTrack ?: return
             try {
                 if (t.playState == AudioTrack.PLAYSTATE_PLAYING) {
@@ -191,8 +204,15 @@ class AudioEngine(
         )
     }
 
+    fun setSpeed(speed: Float) {
+        writeLock.withLock {
+            playbackSpeed = speed.coerceAtLeast(0.1f)
+        }
+    }
+
     fun flush() {
         writeLock.withLock {
+            drainSonic()
             audioTrack?.let {
                 try {
                     it.flush()
@@ -235,12 +255,13 @@ class AudioEngine(
                     return
                 }
 
-                val written = track.write(pcmBuffer, size, AudioTrack.WRITE_BLOCKING)
-
-                if (written < 0) {
-                    Log.e(TAG, "AudioTrack.write returned error: $written")
-                } else if (written < size) {
-                    Log.w(TAG, "AudioTrack wrote $written / $size bytes (partial write)")
+                val speed = playbackSpeed
+                if (speed == 1f) {
+                    writeToTrack(pcmBuffer, size, track)
+                } else {
+                    prepareSonic(sampleRate, channels, speed)
+                    sonic.queueInput(pcmBuffer)
+                    drainSonicTo(track)
                 }
             } catch (ise: IllegalStateException) {
                 Log.e(TAG, "AudioTrack write failed", ise)
@@ -248,6 +269,66 @@ class AudioEngine(
                 pcmBuffer.position(0)
                 pcmBuffer.limit(pcmBuffer.capacity())
             }
+        }
+    }
+
+    private fun prepareSonic(sampleRate: Int, channels: Int, speed: Float) {
+        val formatChanged = sampleRate != sonicSampleRate || channels != sonicChannels
+        val speedChanged = speed != sonicCommittedSpeed
+        if (!formatChanged && !speedChanged) return
+
+        drainSonic()
+
+        if (formatChanged) {
+            try {
+                sonic.reset()
+                val inputFormat = AudioProcessor.AudioFormat(
+                    sampleRate, channels, C.ENCODING_PCM_16BIT
+                )
+                sonic.configure(inputFormat)
+                sonicSampleRate = sampleRate
+                sonicChannels = channels
+            } catch (e: AudioProcessor.UnhandledAudioFormatException) {
+                Log.e(TAG, "Sonic configure failed", e)
+                sonicSampleRate = -1
+                sonicChannels = -1
+                sonicCommittedSpeed = 1f
+                return
+            }
+        }
+
+        sonic.setSpeed(speed)
+        sonicCommittedSpeed = speed
+        sonic.flush(AudioProcessor.StreamMetadata.DEFAULT)
+    }
+
+    private fun drainSonicTo(track: AudioTrack) {
+        var output = sonic.getOutput()
+        while (output.hasRemaining()) {
+            writeToTrack(output, output.remaining(), track)
+            output = sonic.getOutput()
+        }
+    }
+
+    private fun drainSonic() {
+        if (sonicSampleRate < 0) return
+        sonic.queueEndOfStream()
+        val track = audioTrack
+        var output = sonic.getOutput()
+        while (track != null && output.hasRemaining()) {
+            writeToTrack(output, output.remaining(), track)
+            output = sonic.getOutput()
+        }
+        sonic.flush(AudioProcessor.StreamMetadata.DEFAULT)
+        sonicCommittedSpeed = 1f
+    }
+
+    private fun writeToTrack(buffer: ByteBuffer, size: Int, track: AudioTrack) {
+        val written = track.write(buffer, size, AudioTrack.WRITE_BLOCKING)
+        if (written < 0) {
+            Log.e(TAG, "AudioTrack.write returned error: $written")
+        } else if (written < size) {
+            Log.w(TAG, "AudioTrack wrote $written / $size bytes (partial write)")
         }
     }
 

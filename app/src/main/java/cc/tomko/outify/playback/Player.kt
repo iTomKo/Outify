@@ -369,8 +369,16 @@ class Player @Inject constructor(
     }
 
     override fun handleSetPlaybackParameters(playbackParameters: PlaybackParameters): ListenableFuture<*> {
-//        spirc.setPlaybackSpeed(playbackParameters.speed)
+        setSpeed(playbackParameters.speed)
         return Futures.immediateVoidFuture()
+    }
+
+    fun setSpeed(speed: Float) {
+        scope.launch {
+            stateHolder.setSpeed(speed)
+            engine.setSpeed(speed)
+            invalidateState()
+        }
     }
 
     override fun handlePrepare(): ListenableFuture<*> {

@@ -116,6 +116,10 @@ class PlaybackStateHolder @Inject constructor() {
         _state.update { it.copy(volume = volume) }
     }
 
+    fun setSpeed(speed: Float) {
+        _state.update { it.copy(playbackSpeed = speed) }
+    }
+
     fun reset() {
         _state.update { PlaybackState() }
     }
