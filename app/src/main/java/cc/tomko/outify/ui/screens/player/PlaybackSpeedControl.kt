@@ -10,6 +10,7 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -121,28 +123,28 @@ fun PlaybackSpeedControl(
                         },
                     )
                 }
-                if(currentSpeed !in SPEED_PRESETS) {
-                    CustomPill(
-                        // Highlighted when current speed isn't one of the presets.
-                        selected = currentSpeed !in SPEED_PRESETS,
-                        onClick = {
-                            showCustomSheet = true
-                            expanded = false
-                        },
-                    )
-                }
+                CustomPill(
+                    // Highlighted when current speed isn't one of the presets.
+                    selected = currentSpeed !in SPEED_PRESETS,
+                    onClick = {
+                        showCustomSheet = true
+                        expanded = false
+                    },
+                )
             }
         }
     }
 
-    CustomSpeedBottomSheet(
-        currentSpeed = currentSpeed,
-        onDismiss = { showCustomSheet = false },
-        onConfirm = { speed ->
-            onSpeedChange(speed)
-            showCustomSheet = false
-        },
-    )
+    if (showCustomSheet) {
+        CustomSpeedBottomSheet(
+            currentSpeed = currentSpeed,
+            onDismiss = { showCustomSheet = false },
+            onConfirm = { speed ->
+                onSpeedChange(speed)
+                showCustomSheet = false
+            },
+        )
+    }
 }
 
 @Composable
@@ -280,7 +282,7 @@ fun CustomSpeedBottomSheet(
         onDismissRequest = ::dismiss,
         sheetState = sheetState,
     ) {
-        androidx.compose.foundation.layout.Column(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars)
@@ -313,7 +315,7 @@ fun CustomSpeedBottomSheet(
                         Text("Enter a value between ${MIN_SPEED}x and ${MAX_SPEED.roundToInt()}x")
                     }
                 },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Decimal,
                 ),
                 modifier = Modifier.fillMaxWidth(),
