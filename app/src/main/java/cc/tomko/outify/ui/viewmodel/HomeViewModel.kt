@@ -6,7 +6,7 @@ import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.AuthStateEvent
 import cc.tomko.outify.core.AuthStateEventBus
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Profile
