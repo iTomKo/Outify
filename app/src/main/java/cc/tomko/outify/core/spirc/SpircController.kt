@@ -3,7 +3,6 @@ package cc.tomko.outify.core.spirc
 import android.util.Log
 import cc.tomko.outify.core.Session
 import cc.tomko.outify.core.SessionCallback
-import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder

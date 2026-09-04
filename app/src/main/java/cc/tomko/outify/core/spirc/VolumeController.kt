@@ -2,7 +2,6 @@ package cc.tomko.outify.core.spirc
 
 import android.content.Context
 import android.media.AudioManager
-import cc.tomko.outify.core.Spirc.SpircWrapper
 import cc.tomko.outify.playback.PlaybackStateHolder
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope

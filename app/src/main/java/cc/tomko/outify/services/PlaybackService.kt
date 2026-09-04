@@ -33,7 +33,7 @@ import cc.tomko.outify.MainActivity
 import cc.tomko.outify.MediaSessionConstants
 import cc.tomko.outify.R
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.SpotifyUri
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
