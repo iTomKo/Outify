@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.LyricLine

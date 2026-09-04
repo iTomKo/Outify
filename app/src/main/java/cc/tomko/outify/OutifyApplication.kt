@@ -6,7 +6,7 @@ import android.widget.Toast
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.media3.common.util.UnstableApi
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore

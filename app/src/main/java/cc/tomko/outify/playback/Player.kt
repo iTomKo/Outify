@@ -13,7 +13,7 @@ import androidx.media3.common.audio.AudioFocusManager
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.ALBUM_COVER_URL
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track

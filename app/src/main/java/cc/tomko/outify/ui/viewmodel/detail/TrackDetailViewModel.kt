@@ -3,7 +3,7 @@ package cc.tomko.outify.ui.viewmodel.detail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toPlayableAudio

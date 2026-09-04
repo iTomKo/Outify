@@ -5,7 +5,7 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
 import cc.tomko.outify.core.AuthManager
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.data.repository.LikedRepository
 import dagger.hilt.android.AndroidEntryPoint

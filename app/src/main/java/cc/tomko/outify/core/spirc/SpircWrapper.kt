@@ -1,4 +1,4 @@
-package cc.tomko.outify.core.Spirc
+package cc.tomko.outify.core.spirc
 
 import android.content.Context
 import android.content.Intent

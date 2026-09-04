@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.Spirc.SpircWrapper
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
