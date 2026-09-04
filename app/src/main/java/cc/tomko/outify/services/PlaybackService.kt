@@ -48,6 +48,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -96,7 +97,7 @@ class PlaybackService : MediaLibraryService(),
         notificationManager.createNotificationChannel(channel)
     }
 
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private val offloadScope = CoroutineScope(Dispatchers.IO)
 
     @Inject
@@ -144,8 +145,20 @@ class PlaybackService : MediaLibraryService(),
     }
 
     override fun onCreate() {
+        androidx.media3.common.util.Log.setLogLevel(androidx.media3.common.util.Log.LOG_LEVEL_ALL)
         Log.i(TAG, "Starting PlaybackService")
         super.onCreate()
+
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider.Builder(this)
+                .setChannelId(CHANNEL_ID)
+                .setChannelName(R.string.app_name)
+                .setNotificationId(NOTIFICATION_ID)
+                .build()
+                .apply {
+                    setSmallIcon(R.drawable.ic_launcher_foreground)
+                }
+        )
 
         Log.i(TAG, "Creating audio focus manager")
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -153,15 +166,6 @@ class PlaybackService : MediaLibraryService(),
         player.setAudioAttributes(AUDIO_ATTRIBUTES, true)
 
         createNotificationChannel()
-
-        startForeground(
-            NOTIFICATION_ID,
-            NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Outify")
-                .setContentText("Loading...")
-                .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .build()
-        )
 
         mediaLibrarySessionCallback.apply {
             service = this@PlaybackService
@@ -209,17 +213,6 @@ class PlaybackService : MediaLibraryService(),
                 keepAlive = it
             }
         }
-
-        setMediaNotificationProvider(
-            DefaultMediaNotificationProvider(
-                this@PlaybackService,
-                { NOTIFICATION_ID },
-                CHANNEL_ID,
-                R.string.app_name
-            ).apply {
-                setSmallIcon(R.drawable.ic_launcher_foreground)
-            }
-        )
 
         registerReceiver(
             becomingNoisyListener,
@@ -379,13 +372,6 @@ class PlaybackService : MediaLibraryService(),
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
         player.shuffleModeEnabled = shuffleModeEnabled
-    }
-
-    override fun onUpdateNotification(session: MediaSession, startInForegroundRequired: Boolean) {
-        if (!keepAlive)
-            return
-
-        super.onUpdateNotification(session, startInForegroundRequired)
     }
 
     override fun onDestroy() {
