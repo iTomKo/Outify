@@ -17,6 +17,10 @@ data class AlbumEntity(
     val artistNames: String,
     val popularity: Int,
 
+    val releaseYear: Int?,
+    val releaseMonth: Int?,
+    val releaseDay: Int?,
+
     val lastUpdated: Long,
 
     // Covers

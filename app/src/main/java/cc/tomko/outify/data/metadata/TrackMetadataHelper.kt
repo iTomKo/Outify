@@ -218,6 +218,9 @@ class TrackMetadataHelper @Inject constructor(
                     artistNames = album.artists.joinToString(", ") { it.name },
                     popularity = album.popularity,
                     lastUpdated = now,
+                    releaseYear = album.date.year,
+                    releaseMonth = album.date.month,
+                    releaseDay = album.date.day,
                     smallCoverUri = small?.uri,
                     mediumCoverUri = medium?.uri,
                     largeCoverUri = large?.uri

@@ -50,7 +50,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         EpisodeEntity::class,
         ShowEpisodeCrossRef::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

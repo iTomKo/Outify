@@ -6,6 +6,7 @@ import androidx.room.Relation
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Cover
 import cc.tomko.outify.core.model.CoverSize
+import cc.tomko.outify.core.model.ReleaseDate
 import cc.tomko.outify.core.model.asInt
 import cc.tomko.outify.data.database.AlbumEntity
 import cc.tomko.outify.data.database.ArtistEntity
@@ -54,6 +55,11 @@ fun AlbumWithArtists.toDomain(): Album {
         name = album.name,
         artists = domainArtists,
         popularity = album.popularity,
-        covers = covers
+        covers = covers,
+        date = ReleaseDate(
+            year = album.releaseYear,
+            month = album.releaseMonth,
+            day = album.releaseDay,
+        )
     )
 }

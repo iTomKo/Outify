@@ -60,7 +60,8 @@ data class Track(
                             "ab67616d000048518c03cf97818d390d723ef1a9", CoverSize.LARGE.asSize(),
                             CoverSize.LARGE.asSize(), CoverSize.LARGE.asInt()
                         ),
-                    )
+                    ),
+                    date = ReleaseDate(2024, 4, 20)
                 ),
                 artists = artists,
                 popularity = 0,
