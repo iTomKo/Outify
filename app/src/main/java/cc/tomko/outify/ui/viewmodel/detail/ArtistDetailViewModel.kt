@@ -39,6 +39,7 @@ import javax.inject.Inject
 
 private const val POPULAR_TRACKS_KEY = "popular_tracks"
 private const val ALBUMS_KEY = "albums"
+private const val SINGLES_KEY = "singles"
 
 sealed class ArtistUiState {
     object Loading : ArtistUiState()
@@ -79,11 +80,15 @@ class ArtistDetailViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptySet()
         )
-    private val popularTrackUris = MutableStateFlow<List<String>>(
+    private val popularTrackUris = MutableStateFlow(
         savedStateHandle.get<List<String>>(POPULAR_TRACKS_KEY) ?: emptyList()
     )
-    private val albumUris = MutableStateFlow<List<String>>(
+    private val albumUris = MutableStateFlow(
         savedStateHandle.get<List<String>>(ALBUMS_KEY) ?: emptyList()
+    )
+
+    private val singleUris = MutableStateFlow(
+        savedStateHandle.get<List<String>>(SINGLES_KEY) ?: emptyList()
     )
 
     val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
@@ -164,6 +169,18 @@ class ArtistDetailViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val singles: StateFlow<List<Album>> = singleUris
+        .flatMapLatest { uris ->
+            if (uris.isEmpty()) flowOf(emptyList())
+            else metadata.observeAlbums(uris)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
+
     val isContentLoading: StateFlow<Boolean> = combine(
         popularTracks,
         albums
@@ -207,6 +224,7 @@ class ArtistDetailViewModel @Inject constructor(
             currentArtistId.value = artist.id
             popularTrackUris.value = artist.tracks
             albumUris.value = artist.albums
+            singleUris.value = artist.singles
             _uiState.value = ArtistUiState.Success(artist)
             _isSaved.value = false
             saveState()
@@ -220,7 +238,7 @@ class ArtistDetailViewModel @Inject constructor(
     }
 
     fun loadAlbums() {
-        val uris = albumUris.value
+        val uris = albumUris.value + singleUris.value
         if (uris.isEmpty()) return
 
         viewModelScope.launch {
