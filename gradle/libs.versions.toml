@@ -24,8 +24,7 @@ lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 composeBom = "2026.08.00"
 animationCore = "1.12.0"
-media3Session = "1.11.0"
-media3Common = "1.11.0"
+media3 = "1.10.1"
 nanohttpd = "2.3.1"
 navigationCompose = "2.10.0"
 reorderable = "3.1.0"
@@ -44,9 +43,9 @@ androidx-lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-view
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-material3 = { module = "androidx.compose.material3:material3" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
-androidx-media3-common = { module = "androidx.media3:media3-common", version.ref = "media3Common" }
-androidx-media3-session = { module = "androidx.media3:media3-session", version.ref = "media3Session" }
-androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3Session" }
+androidx-media3-common = { module = "androidx.media3:media3-common", version.ref = "media3" }
+androidx-media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
+androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilNetworkOkhttp" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
 google-material = { module = "com.google.android.material:material", version.ref = "material" }
