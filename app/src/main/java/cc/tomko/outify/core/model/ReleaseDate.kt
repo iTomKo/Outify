@@ -18,6 +18,13 @@ data class ReleaseDate(
         year != null
 }
 
+fun ReleaseDate.displayText(): String =
+    when (precision()) {
+        ReleaseDatePrecision.Day -> "%04d-%02d-%02d".format(year, month, day)
+        ReleaseDatePrecision.Month -> "%04d-%02d".format(year, month)
+        ReleaseDatePrecision.Year -> year.toString()
+    }
+
 fun ReleaseDate.precision(): ReleaseDatePrecision =
     when {
         day != null -> ReleaseDatePrecision.Day

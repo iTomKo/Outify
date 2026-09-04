@@ -17,6 +17,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -208,9 +211,28 @@ class ArtistDetailViewModel @Inject constructor(
             _isSaved.value = false
             saveState()
         }
+
+        loadAlbums()
     }
 
     fun setTrack(track: Track) {
         playbackStateHolder.setAudio(track.toPlayableAudio())
+    }
+
+    fun loadAlbums() {
+        val uris = albumUris.value
+        if (uris.isEmpty()) return
+
+        viewModelScope.launch {
+            coroutineScope {
+                uris.map { uri ->
+                    async(Dispatchers.IO) {
+                        runCatching {
+                            metadata.getAlbumMetadata(uri)
+                        }
+                    }
+                }.awaitAll()
+            }
+        }
     }
 }

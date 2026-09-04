@@ -66,6 +66,7 @@ import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.displayText
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.sharedTransitionKey
 import cc.tomko.outify.core.model.toSpotifyUri
@@ -558,11 +559,21 @@ fun SharedTransitionScope.AlbumCard(
         Text(
             text = album.name,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = Int.MAX_VALUE,
-            overflow = TextOverflow.Clip,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
-
+        album.date.takeIf { it.isSet() }?.let { releaseDate ->
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = releaseDate.displayText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
     }
 }
