@@ -345,6 +345,7 @@ class MainActivity : ComponentActivity() {
                                     NavigationRoot(
                                         backStack,
                                         modifier = Modifier.matchParentSize(),
+                                        bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                     )
 
                                     InAppNotificationHost(
@@ -428,6 +429,7 @@ class MainActivity : ComponentActivity() {
                                                 NavigationRoot(
                                                     backStack = backStack,
                                                     modifier = Modifier.fillMaxSize(),
+                                                    bottomPadding = if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                                 )
 
                                                 InAppNotificationHost(

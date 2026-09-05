@@ -68,11 +68,13 @@ import cc.tomko.outify.ui.viewmodel.settings.SettingsViewModel
 fun SharedTransitionScope.NavigationRoot(
     backStack: NavBackStack<NavKey>,
     modifier: Modifier = Modifier,
+    bottomPadding: Dp = 0.dp
 ) {
     val context = LocalContext.current
 
     NavDisplay(
         backStack = backStack,
+        modifier = modifier.padding(bottom = bottomPadding),
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
         ),
