@@ -1204,3 +1204,9 @@ pub extern "system" fn logout(_env: JNIEnv, _class: JClass) -> jboolean {
         Err(_) => 0,
     }
 }
+
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_reset")]
+pub extern "system" fn reset(_env: JNIEnv, _class: JClass) -> jboolean {
+    crate::spotify::client::reset_client();
+    1
+}
