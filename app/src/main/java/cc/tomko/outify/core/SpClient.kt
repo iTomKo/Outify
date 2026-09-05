@@ -182,6 +182,13 @@ class SpClient @Inject constructor() {
      */
     external fun logout(): Boolean
 
+    /**
+     * Resets the Spotify Client's transient OAuth state.
+     * Call after logging in so the client reloads the fresh credentials on the
+     * next request.
+     */
+    external fun reset(): Boolean
+
     fun checkAndHandleError(result: String, context: String = ""): String {
         if (result.startsWith("{")) {
             NativeErrorHandler.handleErrorJson(result, context)?.let {

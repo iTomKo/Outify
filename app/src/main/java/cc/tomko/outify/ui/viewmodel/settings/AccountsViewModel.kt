@@ -120,6 +120,8 @@ class AccountsViewModel @Inject constructor(
             }
             GlobalPopupController.show(PopupSpec.AuthResult(isSuccess, errorDetails = errorDetails))
             if (isSuccess) {
+                // Restart the Web API client so it picks up the fresh credentials
+                spClient.reset()
                 viewModelScope.launch {
                     delay(100)
                     var authenticated = spClient.isOAuthAuthenticated()

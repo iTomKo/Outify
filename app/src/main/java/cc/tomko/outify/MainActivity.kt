@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import cc.tomko.outify.MainActivity.MainActivity.LocalSharedTransitionScope
@@ -92,8 +93,10 @@ import cc.tomko.outify.ui.components.player.QueueBottomSheet
 import cc.tomko.outify.ui.components.player.rememberPlayerSheetState
 import cc.tomko.outify.ui.components.player.rememberQueueBottomSheetState
 import cc.tomko.outify.ui.notifications.InAppNotificationHost
+import cc.tomko.outify.ui.screens.OnboardingScreen
 import cc.tomko.outify.ui.screens.player.PlayerContent
 import cc.tomko.outify.ui.viewmodel.MainViewModel
+import cc.tomko.outify.ui.viewmodel.OnboardingViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.CreatePlaylistViewModel
@@ -309,6 +312,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        val onboardingViewModel: OnboardingViewModel = hiltViewModel()
+        val onboardingComplete by onboardingViewModel.isComplete.collectAsStateWithLifecycle()
+
         OutifyTheme(
             audio = currentAudio,
             themeMode = themeMode,
@@ -316,189 +322,103 @@ class MainActivity : ComponentActivity() {
             pureBlack = interfaceSettings.pureBlack,
             highContrastCompat = interfaceSettings.highContrastCompat,
             content = {
-                CompositionLocalProvider(
-                    LocalDensity provides fixedDensity
-                ) {
-                    SharedTransitionLayout {
-                        CompositionLocalProvider(
-                            LocalSharedTransitionScope provides this,
-                            LocalSwipeGestureSettings provides trackSwipeSettings,
-                            LocalEpisodeSwipeActionHandler provides viewModel.episodeSwipeActionHandler,
-                            LocalSwipeActionHandler provides viewModel.swipeActionHandler,
-                            LocalUiSettings provides interfaceSettings,
-                        ) {
-                            Scaffold { innerPadding ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(bottom = innerPadding.calculateBottomPadding())
-                                        .consumeWindowInsets(WindowInsets(bottom = innerPadding.calculateBottomPadding()))
-                                ) {
-                                    val notificationPaddingBottom by animateDpAsState(
-                                        targetValue = if (currentAudio != null) 168.dp
-                                        else if (interfaceSettings.experimentalFloatingNav) 80.dp
-                                        else 68.dp,
-                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                        label = "notificationPaddingBottom"
-                                    )
+                if (!onboardingComplete) {
+                    OnboardingScreen(viewModel = onboardingViewModel)
+                } else {
+                    CompositionLocalProvider(
+                        LocalDensity provides fixedDensity
+                    ) {
+                        SharedTransitionLayout {
+                            CompositionLocalProvider(
+                                LocalSharedTransitionScope provides this,
+                                LocalSwipeGestureSettings provides trackSwipeSettings,
+                                LocalEpisodeSwipeActionHandler provides viewModel.episodeSwipeActionHandler,
+                                LocalSwipeActionHandler provides viewModel.swipeActionHandler,
+                                LocalUiSettings provides interfaceSettings,
+                            ) {
+                                Scaffold { innerPadding ->
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(bottom = innerPadding.calculateBottomPadding())
+                                            .consumeWindowInsets(WindowInsets(bottom = innerPadding.calculateBottomPadding()))
+                                    ) {
+                                        val notificationPaddingBottom by animateDpAsState(
+                                            targetValue = if (currentAudio != null) 168.dp
+                                            else if (interfaceSettings.experimentalFloatingNav) 80.dp
+                                            else 68.dp,
+                                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                            label = "notificationPaddingBottom"
+                                        )
 
-                                    NavigationRoot(
-                                        backStack,
-                                        modifier = Modifier.matchParentSize(),
-                                        bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
-                                    )
+                                        NavigationRoot(
+                                            backStack,
+                                            modifier = Modifier.matchParentSize(),
+                                            bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+                                        )
 
-                                    InAppNotificationHost(
-                                        modifier = Modifier.matchParentSize(),
-                                        maxWidthFraction = 0.92f,
-                                        hostPaddingBottom = notificationPaddingBottom
-                                    )
+                                        InAppNotificationHost(
+                                            modifier = Modifier.matchParentSize(),
+                                            maxWidthFraction = 0.92f,
+                                            hostPaddingBottom = notificationPaddingBottom
+                                        )
 
-                                    GlobalPopupHost(
-                                        backStack = backStack,
-                                        addToQueue = { viewModel.addToQueue(it.toUriString()) },
-                                        playNext = { viewModel.playNext(it.toUriString()) },
-                                        startRadio = { viewModel.startRadio(it) },
-                                        openRadio = {
-                                            val uri =
-                                                viewModel.getRadioUri(it) ?: return@GlobalPopupHost
-                                            backStack.add(Route.PlaylistScreen(uri))
-                                        },
-                                        addToPlaylist = { viewModel.addToPlaylist(it) },
-                                        toggleLike = { viewModel.favorite(it.toUriString()) },
+                                        GlobalPopupHost(
+                                            backStack = backStack,
+                                            addToQueue = { viewModel.addToQueue(it.toUriString()) },
+                                            playNext = { viewModel.playNext(it.toUriString()) },
+                                            startRadio = { viewModel.startRadio(it) },
+                                            openRadio = {
+                                                val uri =
+                                                    viewModel.getRadioUri(it) ?: return@GlobalPopupHost
+                                                backStack.add(Route.PlaylistScreen(uri))
+                                            },
+                                            addToPlaylist = { viewModel.addToPlaylist(it) },
+                                            toggleLike = { viewModel.favorite(it.toUriString()) },
 
-                                        addToPlaylistViewModel = addToPlaylistViewModel,
-                                        createPlaylistViewModel = createPlaylistViewModel,
-                                        playbackDevicesViewModel = playbackDevicesViewModel,
-                                        addToWidgetViewModel = addToWidgetViewModel,
-                                    )
+                                            addToPlaylistViewModel = addToPlaylistViewModel,
+                                            createPlaylistViewModel = createPlaylistViewModel,
+                                            playbackDevicesViewModel = playbackDevicesViewModel,
+                                            addToWidgetViewModel = addToWidgetViewModel,
+                                        )
 
-                                    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-                                    val onShowClick: (Episode?) -> Unit = onShowClick@{
-                                        if(it == null) return@onShowClick
-                                        val showUri = it.showUri
-                                        if (showUri.isNotBlank()) {
-                                            backStack.add(Route.ShowScreen(showUri))
-                                        } else {
+                                        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                                        val onShowClick: (Episode?) -> Unit = onShowClick@{
+                                            if(it == null) return@onShowClick
+                                            val showUri = it.showUri
+                                            if (showUri.isNotBlank()) {
+                                                backStack.add(Route.ShowScreen(showUri))
+                                            } else {
+                                                scope.launch {
+                                                    val details = withContext(Dispatchers.IO) {
+                                                        runCatching {
+                                                            viewModel.getEpisodeDetails(it.id)
+                                                        }.getOrNull()
+                                                    }
+                                                    if (details != null && details.showUri.isNotBlank()) {
+                                                        backStack.add(Route.ShowScreen(details.showUri))
+                                                    }
+                                                }
+                                            }
+
                                             scope.launch {
-                                                val details = withContext(Dispatchers.IO) {
-                                                    runCatching {
-                                                        viewModel.getEpisodeDetails(it.id)
-                                                    }.getOrNull()
-                                                }
-                                                if (details != null && details.showUri.isNotBlank()) {
-                                                    backStack.add(Route.ShowScreen(details.showUri))
-                                                }
+                                                playerSheetState.collapse()
                                             }
                                         }
 
-                                        scope.launch {
-                                            playerSheetState.collapse()
-                                        }
-                                    }
-
-                                    if (isLandscape) {
-                                        Row(modifier = Modifier.fillMaxSize()) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(3f)
-                                                    .fillMaxHeight()
-                                            ) {
-                                                PlayerContent(
-                                                    viewModel = playerViewModel,
-                                                    expansionFractionProvider = { 1f },
-                                                    listState = playerListState,
-                                                    paddingValues = innerPadding,
-                                                    onShowQueue = { sheetState.show() },
-                                                    onArtistClick = {
-                                                        backStack.add(Route.ArtistScreen(it.uri))
-                                                        scope.launch {
-                                                            playerSheetState.collapse()
-                                                        }
-                                                    },
-                                                    onShowClick = onShowClick,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
-                                            }
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(7f)
-                                                    .fillMaxHeight()
-                                            ) {
-                                                NavigationRoot(
-                                                    backStack = backStack,
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    bottomPadding = if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
-                                                )
-
-                                                InAppNotificationHost(
-                                                    modifier = Modifier.fillMaxSize(),
-                                                    maxWidthFraction = 0.92f,
-                                                    hostPaddingBottom = notificationPaddingBottom
-                                                )
-
-                                                if (interfaceSettings.experimentalFloatingNav) {
-                                                    FloatingOutifyBottomNav(
-                                                        items = allRoutes,
-                                                        selectedId = selectedId,
-                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
-                                                        showSelectedLabel = interfaceSettings.navbarShowLabel,
-                                                        modifier = Modifier.align(Alignment.BottomCenter)
-                                                    )
-                                                } else {
-                                                    OutifyBottomNav(
-                                                        items = allRoutes,
-                                                        selectedId = selectedId,
-                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
-                                                        modifier = Modifier.align(Alignment.BottomCenter)
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        // Portrait mode
-                                        AnimatedVisibility(
-                                            visible = currentAudio != null,
-                                            enter = slideInVertically(
-                                                initialOffsetY = { fullHeight -> fullHeight }
-                                            ) + fadeIn(),
-                                            exit = slideOutVertically(
-                                                targetOffsetY = { fullHeight -> fullHeight }
-                                            ) + fadeOut(),
-                                            modifier = Modifier
-                                                .align(Alignment.BottomCenter)
-                                                .padding(bottom = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp)
-                                        ) {
-                                            PlayerSheet(
-                                                sheetState = playerSheetState,
-                                                listState = playerListState,
-                                                miniPlayerHeight = 88.dp,
-                                                miniContent = { progress ->
-                                                    MiniPlayer(
-                                                        viewModel = miniPlayerViewModel,
-                                                        onDismiss = {
-                                                            miniPlayerViewModel.setAudio(null)
-                                                        },
-                                                        modifier = Modifier.padding(
-                                                            horizontal = 12.dp,
-                                                            vertical = 12.dp
-                                                        ),
-                                                        showQueue = { sheetState.show() },
-                                                        onClick = {
-                                                            scope.launch { playerSheetState.expand() }
-                                                        }
-                                                    )
-                                                },
-                                                fullContent = { progress ->
+                                        if (isLandscape) {
+                                            Row(modifier = Modifier.fillMaxSize()) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(3f)
+                                                        .fillMaxHeight()
+                                                ) {
                                                     PlayerContent(
                                                         viewModel = playerViewModel,
-                                                        expansionFractionProvider = { progress },
+                                                        expansionFractionProvider = { 1f },
                                                         listState = playerListState,
                                                         paddingValues = innerPadding,
-                                                        onShowQueue = {
-                                                            sheetState.show()
-                                                        },
+                                                        onShowQueue = { sheetState.show() },
                                                         onArtistClick = {
                                                             backStack.add(Route.ArtistScreen(it.uri))
                                                             scope.launch {
@@ -506,64 +426,154 @@ class MainActivity : ComponentActivity() {
                                                             }
                                                         },
                                                         onShowClick = onShowClick,
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
+                                                        modifier = Modifier.fillMaxSize()
                                                     )
                                                 }
-                                            )
-                                        }
 
-                                        if (interfaceSettings.experimentalFloatingNav) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(7f)
+                                                        .fillMaxHeight()
+                                                ) {
+                                                    NavigationRoot(
+                                                        backStack = backStack,
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        bottomPadding = if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+                                                    )
+
+                                                    InAppNotificationHost(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        maxWidthFraction = 0.92f,
+                                                        hostPaddingBottom = notificationPaddingBottom
+                                                    )
+
+                                                    if (interfaceSettings.experimentalFloatingNav) {
+                                                        FloatingOutifyBottomNav(
+                                                            items = allRoutes,
+                                                            selectedId = selectedId,
+                                                            onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                            showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                                            modifier = Modifier.align(Alignment.BottomCenter)
+                                                        )
+                                                    } else {
+                                                        OutifyBottomNav(
+                                                            items = allRoutes,
+                                                            selectedId = selectedId,
+                                                            onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                            modifier = Modifier.align(Alignment.BottomCenter)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            // Portrait mode
                                             AnimatedVisibility(
-                                                visible = currentAudio == null || !playerSheetState.isExpanded,
+                                                visible = currentAudio != null,
                                                 enter = slideInVertically(
                                                     initialOffsetY = { fullHeight -> fullHeight }
                                                 ) + fadeIn(),
                                                 exit = slideOutVertically(
                                                     targetOffsetY = { fullHeight -> fullHeight }
                                                 ) + fadeOut(),
-                                                modifier = Modifier.align(Alignment.BottomCenter),
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .padding(bottom = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp)
                                             ) {
-                                                FloatingOutifyBottomNav(
-                                                    items = allRoutes,
-                                                    selectedId = selectedId,
-                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
-                                                    showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                                PlayerSheet(
+                                                    sheetState = playerSheetState,
+                                                    listState = playerListState,
+                                                    miniPlayerHeight = 88.dp,
+                                                    miniContent = { progress ->
+                                                        MiniPlayer(
+                                                            viewModel = miniPlayerViewModel,
+                                                            onDismiss = {
+                                                                miniPlayerViewModel.setAudio(null)
+                                                            },
+                                                            modifier = Modifier.padding(
+                                                                horizontal = 12.dp,
+                                                                vertical = 12.dp
+                                                            ),
+                                                            showQueue = { sheetState.show() },
+                                                            onClick = {
+                                                                scope.launch { playerSheetState.expand() }
+                                                            }
+                                                        )
+                                                    },
+                                                    fullContent = { progress ->
+                                                        PlayerContent(
+                                                            viewModel = playerViewModel,
+                                                            expansionFractionProvider = { progress },
+                                                            listState = playerListState,
+                                                            paddingValues = innerPadding,
+                                                            onShowQueue = {
+                                                                sheetState.show()
+                                                            },
+                                                            onArtistClick = {
+                                                                backStack.add(Route.ArtistScreen(it.uri))
+                                                                scope.launch {
+                                                                    playerSheetState.collapse()
+                                                                }
+                                                            },
+                                                            onShowClick = onShowClick,
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                        )
+                                                    }
                                                 )
                                             }
-                                        } else {
-                                            Box(modifier = Modifier.align(Alignment.BottomCenter)) {
-                                                OutifyBottomNav(
-                                                    items = allRoutes,
-                                                    selectedId = selectedId,
-                                                    onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) }
-                                                )
+
+                                            if (interfaceSettings.experimentalFloatingNav) {
+                                                AnimatedVisibility(
+                                                    visible = currentAudio == null || !playerSheetState.isExpanded,
+                                                    enter = slideInVertically(
+                                                        initialOffsetY = { fullHeight -> fullHeight }
+                                                    ) + fadeIn(),
+                                                    exit = slideOutVertically(
+                                                        targetOffsetY = { fullHeight -> fullHeight }
+                                                    ) + fadeOut(),
+                                                    modifier = Modifier.align(Alignment.BottomCenter),
+                                                ) {
+                                                    FloatingOutifyBottomNav(
+                                                        items = allRoutes,
+                                                        selectedId = selectedId,
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                        showSelectedLabel = interfaceSettings.navbarShowLabel,
+                                                    )
+                                                }
+                                            } else {
+                                                Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                                                    OutifyBottomNav(
+                                                        items = allRoutes,
+                                                        selectedId = selectedId,
+                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) }
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            if (sheetState.visible.value) {
-                                QueueBottomSheet(
-                                    sheetState = sheetState.sheetState,
-                                    viewModel = queueViewModel,
-                                    multiQueueViewModel = multiQueueViewModel,
-                                    onArtistClick = {
-                                        backStack.add(Route.ArtistScreen(it.uri))
-                                    },
-                                    onArtworkClick = {
-                                        val albumUri = it.album?.uri
-                                        if (albumUri != null) {
-                                            backStack.add(Route.AlbumScreen(albumUri))
-                                        } else {
-                                            backStack.add(Route.TrackScreen(it.uri))
+                                if (sheetState.visible.value) {
+                                    QueueBottomSheet(
+                                        sheetState = sheetState.sheetState,
+                                        viewModel = queueViewModel,
+                                        multiQueueViewModel = multiQueueViewModel,
+                                        onArtistClick = {
+                                            backStack.add(Route.ArtistScreen(it.uri))
+                                        },
+                                        onArtworkClick = {
+                                            val albumUri = it.album?.uri
+                                            if (albumUri != null) {
+                                                backStack.add(Route.AlbumScreen(albumUri))
+                                            } else {
+                                                backStack.add(Route.TrackScreen(it.uri))
+                                            }
+                                        },
+                                        onDismissRequest = {
+                                            sheetState.hide()
                                         }
-                                    },
-                                    onDismissRequest = {
-                                        sheetState.hide()
-                                    }
-                                )
+                                    )
+                                }
                             }
                         }
                     }

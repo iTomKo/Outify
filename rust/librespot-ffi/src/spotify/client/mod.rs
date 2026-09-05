@@ -102,3 +102,22 @@ pub fn update_client(client_id: String, client_secret: String) {
         info!("spotify client credentials updated");
     }
 }
+
+pub fn reset_client() {
+    if let Some(client) = SPOTIFY_CLIENT.get() {
+        let rt = match crate::TOKIO_RUNTIME.get() {
+            Some(r) => r,
+            None => {
+                warn!("tokio runtime not available for spclient reset");
+                return;
+            }
+        };
+
+        rt.block_on(async {
+            let mut oauth_state_guard = client.oauth_state.write().await;
+            *oauth_state_guard = None;
+        });
+
+        info!("spotify client oauth state reset");
+    }
+}
