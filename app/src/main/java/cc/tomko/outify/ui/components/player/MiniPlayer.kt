@@ -67,7 +67,6 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 private val TAB_HEIGHT = 20.dp
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MiniPlayer(
@@ -88,7 +87,7 @@ fun MiniPlayer(
 
     val totalTime = currentAudio?.duration ?: 0L
 
-    val imageSize = 40.dp
+    val imageSize = 44.dp
     val artworkUrl =
         currentAudio?.getCover(CoverSize.SMALL)?.uri?.let { ALBUM_COVER_URL + it }
 
@@ -98,6 +97,7 @@ fun MiniPlayer(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(horizontal = 12.dp)
             .pointerInput(Unit) {
                 var totalDragX = 0f
                 var totalDragY = 0f
@@ -163,7 +163,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .height(TAB_HEIGHT)
                     .clickable { onExpand?.invoke() },
-                shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
+                shape = RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp),
                 tonalElevation = 0.dp,
                 shadowElevation = 8.dp,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -182,13 +182,12 @@ fun MiniPlayer(
             }
         }
 
-        // Main card
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .clickable { onClick?.invoke() },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(32.dp),
             tonalElevation = 0.dp,
             shadowElevation = 16.dp,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -197,18 +196,17 @@ fun MiniPlayer(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 4.dp, end = 8.dp)
+                    .padding(start = 6.dp, end = 10.dp)
             ) {
                 // Album artwork
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .padding(start = 6.dp, top = 12.dp, bottom = 12.dp),
+                        .size(64.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .size(imageSize)
                     ) {
@@ -266,7 +264,7 @@ fun MiniPlayer(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -297,8 +295,8 @@ fun MiniPlayer(
                     }
 
                     Surface(
-                        tonalElevation = 10.dp,
-                        shape = MaterialShapes.Cookie4Sided.toShape()
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        shape = MaterialShapes.Cookie4Sided.toShape(),
                     ) {
                         IconButton(onClick = {
                             viewModel.setAudio(currentAudio)
@@ -309,12 +307,14 @@ fun MiniPlayer(
                                     imageVector = Icons.Default.Pause,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                             } else {
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = null,
                                     modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
                         }
