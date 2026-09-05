@@ -50,7 +50,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         EpisodeEntity::class,
         ShowEpisodeCrossRef::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -216,6 +216,24 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_23_24 = object : Migration(23, 24) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE albums ADD COLUMN releaseYear INTEGER"
+                )
+                database.execSQL(
+                    "ALTER TABLE albums ADD COLUMN releaseMonth INTEGER"
+                )
+                database.execSQL(
+                    "ALTER TABLE albums ADD COLUMN releaseDay INTEGER"
+                )
+
+                database.execSQL("DELETE FROM album_artists")
+                database.execSQL("DELETE FROM album_tracks")
+                database.execSQL("DELETE FROM albums")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -223,7 +241,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "outify_database"
                 )
-                    .addMigrations(MIGRATION_15_16, MIGRATION_16_17, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23)
+                    .addMigrations(MIGRATION_15_16, MIGRATION_16_17, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
                     .build()
                 INSTANCE = instance
                 instance

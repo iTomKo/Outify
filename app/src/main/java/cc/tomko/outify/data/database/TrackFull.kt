@@ -5,6 +5,7 @@ import androidx.room.Junction
 import androidx.room.Relation
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.FileId
+import cc.tomko.outify.core.model.ReleaseDate
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.database.album.AlbumWithArtists
 import cc.tomko.outify.data.database.album.toDomain
@@ -47,7 +48,8 @@ fun TrackFull.toDomain(): Track {
             name = track.albumName ?: "",
             artists = emptyList(),
             popularity = 0,
-            covers = emptyList()
+            covers = emptyList(),
+            date = ReleaseDate()
         )
     }
 

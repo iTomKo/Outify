@@ -274,6 +274,10 @@ class AlbumMetadataHelper @Inject constructor(
                 popularity = album.popularity,
                 lastUpdated = now,
 
+                releaseYear = album.date.year,
+                releaseMonth = album.date.month,
+                releaseDay = album.date.day,
+
                 smallCoverUri = small?.uri,
                 mediumCoverUri = medium?.uri,
                 largeCoverUri = large?.uri

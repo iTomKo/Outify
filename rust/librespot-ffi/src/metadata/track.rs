@@ -1,8 +1,8 @@
-use librespot_metadata::{
-    Album, Artist, Track,
-    image::Image,
-};
+use librespot_core::date::ReleaseDate;
+use librespot_metadata::{Album, Artist, Track, image::Image};
 use serde::{Deserialize, Serialize};
+
+use librespot_protocol::metadata::Date as DateMessage;
 
 // Serializable Track object
 #[derive(Serialize)]
@@ -112,6 +112,7 @@ pub struct AlbumJson {
     pub popularity: i32,
     pub tracks: Vec<String>, // Just Spotify URI
     pub covers: Vec<ImageJson>,
+    pub date: ReleaseDate,
 }
 
 impl From<&Album> for AlbumJson {
@@ -124,6 +125,7 @@ impl From<&Album> for AlbumJson {
             popularity: album.popularity,
             tracks: album.tracks().map(|uri| uri.to_uri()).collect(),
             covers: album.covers.iter().map(ImageJson::from).collect(),
+            date: album.release_date.clone(),
         }
     }
 }

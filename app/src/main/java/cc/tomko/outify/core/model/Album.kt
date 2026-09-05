@@ -19,6 +19,7 @@ data class Album(
      */
     val tracks: List<String> = emptyList(),
     val covers: List<Cover> = emptyList(),
+    val date: ReleaseDate,
 )
 
 fun Album.getCover(size: CoverSize): Cover? {

@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -57,6 +58,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,7 @@ import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.displayText
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.sharedTransitionKey
 import cc.tomko.outify.core.model.toSpotifyUri
@@ -103,6 +106,8 @@ fun SharedTransitionScope.ArtistDetailScreen(
 
     var showLikedSheet by remember { mutableStateOf(false) }
 
+    val albumImageSize = 84.dp
+
     when (uiState) {
         ArtistUiState.Loading -> {
             ArtistDetailSkeleton()
@@ -127,6 +132,7 @@ fun SharedTransitionScope.ArtistDetailScreen(
             val isSaved by viewModel.isSaved.collectAsState()
 
             val albums by viewModel.albums.collectAsState()
+            val singles by viewModel.singles.collectAsState()
 
             val popularTracks by viewModel.popularTracks.collectAsState()
 
@@ -179,7 +185,7 @@ fun SharedTransitionScope.ArtistDetailScreen(
                     contentPadding = PaddingValues(
                         top = topPadding,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxSize()
                 ) {
@@ -225,52 +231,86 @@ fun SharedTransitionScope.ArtistDetailScreen(
 
                     if (albums.isNotEmpty()) {
                         item {
-                            Spacer(modifier = Modifier.height(48.dp))
-
-                            Row(
+                            Text(
+                                text = "Albums",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Start,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Albums",
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                            )
+                        }
 
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "See all albums",
-                                    modifier = Modifier
-                                        .clickable {
-                                        }
-                                )
-                            }
-
-                            val albumImageSize = 84.dp
-
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        item {
+                            Surface(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                tonalElevation = 6.dp,
+                                shape = RoundedCornerShape(16.dp)
                             ) {
-                                items(
-                                    items = albums,
-                                    key = { album -> "artist_album_${album.uri}" }
-                                ) { album ->
-                                    AlbumCard(
-                                        album = album,
-                                        size = albumImageSize,
-                                        onClick = {
-                                            onAlbumClick(album)
-                                        },
-                                    )
+                                LazyRow(
+                                    modifier = Modifier
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(
+                                        items = albums,
+                                        key = { album -> "artist_album_${album.uri}" }
+                                    ) { album ->
+                                        AlbumCard(
+                                            album = album,
+                                            size = albumImageSize,
+                                            onClick = {
+                                                onAlbumClick(album)
+                                            },
+                                        )
+                                    }
                                 }
                             }
+                        }
+                    }
 
-                            Spacer(modifier = Modifier.height(48.dp))
+                    if (singles.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = "Singles",
+                                style = MaterialTheme.typography.bodyLarge,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+
+                        }
+
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                tonalElevation = 6.dp,
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    items(
+                                        items = singles,
+                                        key = { album -> "artist_single_${album.uri}" }
+                                    ) { album ->
+                                        AlbumCard(
+                                            album = album,
+                                            size = albumImageSize,
+                                            onClick = {
+                                                onAlbumClick(album)
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -558,11 +598,21 @@ fun SharedTransitionScope.AlbumCard(
         Text(
             text = album.name,
             style = MaterialTheme.typography.bodyMedium,
-            maxLines = Int.MAX_VALUE,
-            overflow = TextOverflow.Clip,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fillMaxWidth()
         )
-
+        album.date.takeIf { it.isSet() }?.let { releaseDate ->
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = releaseDate.displayText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
         Spacer(modifier = Modifier.height(4.dp))
     }
 }
