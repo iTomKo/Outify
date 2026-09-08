@@ -467,6 +467,18 @@ class MainActivity : ComponentActivity() {
                                             }
                                         } else {
                                             // Portrait mode
+                                            val showBottomNav =
+                                                currentAudio == null || !playerSheetState.isExpanded
+                                            val playerSheetBottomPadding by animateDpAsState(
+                                                targetValue = if (showBottomNav) {
+                                                    if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp
+                                                } else {
+                                                    0.dp
+                                                },
+                                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                                label = "playerSheetBottomPadding"
+                                            )
+
                                             AnimatedVisibility(
                                                 visible = currentAudio != null,
                                                 enter = slideInVertically(
@@ -477,7 +489,7 @@ class MainActivity : ComponentActivity() {
                                                 ) + fadeOut(),
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
-                                                    .padding(bottom = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp)
+                                                    .padding(bottom = playerSheetBottomPadding)
                                             ) {
                                                 PlayerSheet(
                                                     sheetState = playerSheetState,
@@ -522,26 +534,24 @@ class MainActivity : ComponentActivity() {
                                                 )
                                             }
 
-                                            if (interfaceSettings.experimentalFloatingNav) {
-                                                AnimatedVisibility(
-                                                    visible = currentAudio == null || !playerSheetState.isExpanded,
-                                                    enter = slideInVertically(
-                                                        initialOffsetY = { fullHeight -> fullHeight }
-                                                    ) + fadeIn(),
-                                                    exit = slideOutVertically(
-                                                        targetOffsetY = { fullHeight -> fullHeight }
-                                                    ) + fadeOut(),
-                                                    modifier = Modifier.align(Alignment.BottomCenter),
-                                                ) {
+                                            AnimatedVisibility(
+                                                visible = showBottomNav,
+                                                enter = slideInVertically(
+                                                    initialOffsetY = { fullHeight -> fullHeight }
+                                                ) + fadeIn(),
+                                                exit = slideOutVertically(
+                                                    targetOffsetY = { fullHeight -> fullHeight }
+                                                ) + fadeOut(),
+                                                modifier = Modifier.align(Alignment.BottomCenter),
+                                            ) {
+                                                if (interfaceSettings.experimentalFloatingNav) {
                                                     FloatingOutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
                                                         onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
                                                         showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                     )
-                                                }
-                                            } else {
-                                                Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                                                } else {
                                                     OutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
