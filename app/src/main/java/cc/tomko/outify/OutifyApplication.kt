@@ -1,6 +1,7 @@
 package cc.tomko.outify
 
 import android.app.Application
+import android.system.Os
 import android.util.Log
 import android.widget.Toast
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -44,6 +45,10 @@ class OutifyApplication : Application() {
     @UnstableApi
     override fun onCreate() {
         super.onCreate()
+
+        // Android <= 12: prevent Rust temp_dir() from using /data/local/tmp.
+        Os.setenv("TMPDIR", cacheDir.absolutePath, true)
+        Log.i("OutifyTMP", "TMPDIR=${System.getenv("TMPDIR")}")
         exceptionCollector.install()
 
         setDetailViewModelStore(detailViewModelStore)
