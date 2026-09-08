@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayDisabled
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
@@ -77,8 +78,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -138,7 +141,7 @@ fun PlayerContent(
         )
     }
 
-    val playerProgressSection: @Composable () -> Unit = {
+    val playerProgressSection: @Composable (landscape: Boolean) -> Unit = { landscape ->
         PlayerProgressContent(
             elapsed = elapsedMs,
             duration = audio?.duration ?: 0L,
@@ -146,6 +149,7 @@ fun PlayerContent(
             onSeek = {
                 viewModel.onAction(PlayerAction.SeekTo(it))
             },
+            textStyle = if (landscape) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
         )
     }
 
@@ -183,13 +187,14 @@ fun PlayerContent(
             },
             onPlayPause = { viewModel.onAction(PlayerAction.PlayPause) },
             canFastForward = forwardMilliseconds > 0,
+            isAudioSet = audio != null,
             isBuffering = uiState.isBuffering,
             isPlaying = isPlaying,
             height = height,
         )
     }
 
-    val trackMetadataSection: @Composable () -> Unit = {
+    val trackMetadataSection: @Composable (landscape: Boolean) -> Unit = { landscape ->
         AudioMetadataSection(
             audio = audio,
             textColor = textColor,
@@ -199,6 +204,16 @@ fun PlayerContent(
             gradientEdgeColor = gradientEdgeColor,
             expansionFractionProvider = expansionFractionProvider,
             isPlaying = isPlaying,
+            titleStyle = if (landscape) {
+                MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = textColor)
+            } else {
+                MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = textColor)
+            },
+            artistStyle = if (landscape) {
+                MaterialTheme.typography.bodySmall.copy(letterSpacing = 0.sp, color = artistTextColor)
+            } else {
+                MaterialTheme.typography.titleMedium.copy(letterSpacing = 0.sp, color = artistTextColor)
+            },
         )
     }
 
@@ -218,8 +233,8 @@ fun PlayerContent(
                         paddingValues,
                         modifier = itemModifier,
                         albumCoverSection = albumCoverSection,
-                        trackMetadataSection = trackMetadataSection,
-                        playerProgressSection = playerProgressSection,
+                        trackMetadataSection = { trackMetadataSection(true) },
+                        playerProgressSection = { playerProgressSection(true) },
                         playbackControlsSection = playbackControls,
                         controlsSection = controlsSection,
                         moreActions = moreActions,
@@ -230,8 +245,8 @@ fun PlayerContent(
                         paddingValues,
                         modifier = itemModifier,
                         albumCoverSection = albumCoverSection,
-                        trackMetadataSection = trackMetadataSection,
-                        playerProgressSection = playerProgressSection,
+                        trackMetadataSection = { trackMetadataSection(false) },
+                        playerProgressSection = { playerProgressSection(false) },
                         playbackControlsSection = playbackControls,
                         controlsSection = controlsSection,
                         moreActions = moreActions,
@@ -264,6 +279,7 @@ private fun AlbumCoverContent(
 
     Box(
         modifier = modifier
+            .aspectRatio(1f)
             .clip(RoundedCornerShape(18.dp))
             .background(containerColor)
             .clickable {
@@ -276,7 +292,7 @@ private fun AlbumCoverContent(
             monochrome = LocalUiSettings.current.monochromePlayer,
             shape = RoundedCornerShape(18.dp),
             modifier = Modifier
-                .aspectRatio(1f)
+                .fillMaxSize()
                 .graphicsLayer {
                     scaleX = imageScale
                     scaleY = imageScale
@@ -298,6 +314,7 @@ private fun PlayerProgressContent(
    duration: Long,
    isPlaying: Boolean,
    onSeek: (Long) -> Unit,
+   textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
     fun formatTime(ms: Long): String {
         val s = (ms / 1000).coerceAtLeast(0L)
@@ -335,12 +352,12 @@ private fun PlayerProgressContent(
         ) {
             Text(
                 text = formatTime(displayedMs),
-                style = MaterialTheme.typography.bodyMedium
+                style = textStyle,
             )
 
             Text(
                 text = formatTime(duration),
-                style = MaterialTheme.typography.bodyMedium
+                style = textStyle,
             )
         }
         WavyMusicSlider(
@@ -358,7 +375,7 @@ private fun PlayerProgressContent(
     }
 }
 
-private enum class PlaybackIconState { Buffering, Playing, Paused }
+private enum class PlaybackIconState { Buffering, Playing, Paused, NotPlaying }
 
 private enum class PlaybackButtonType { NONE, REWIND, PREVIOUS, PLAY_PAUSE, NEXT, FAST_FORWARD }
 
@@ -533,6 +550,7 @@ private fun PlaybackControls(
     onFastForward: () -> Unit,
     onPlayPause: () -> Unit,
     canFastForward: Boolean,
+    isAudioSet: Boolean,
     isBuffering: Boolean,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
@@ -546,6 +564,7 @@ private fun PlaybackControls(
     ),
 ) {
     val iconState = when {
+        !isAudioSet -> PlaybackIconState.NotPlaying
         isBuffering -> PlaybackIconState.Buffering
         isPlaying -> PlaybackIconState.Playing
         else -> PlaybackIconState.Paused
@@ -639,12 +658,6 @@ private fun PlaybackControls(
         }
 
         // Play / Pause
-        val playWeight by animateFloatAsState(
-            targetValue = weightFor(PlaybackButtonType.PLAY_PAUSE),
-            animationSpec = pressAnimationSpec,
-            label = "playWeight"
-        )
-
         FilledIconButton(
             onClick = {
                 lastClicked = PlaybackButtonType.PLAY_PAUSE
@@ -660,9 +673,12 @@ private fun PlaybackControls(
             modifier = Modifier
                 .size(height * playPauseScale)
                 .align(Alignment.CenterVertically),
+            enabled = iconState != PlaybackIconState.NotPlaying,
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContentColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                disabledContainerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f),
             )
         ) {
             AnimatedContent(
@@ -709,6 +725,16 @@ private fun PlaybackControls(
                             modifier = Modifier
                                 .padding(padding)
                                 .size(iconSize)
+                        )
+                    }
+
+                    PlaybackIconState.NotPlaying -> {
+                        Icon(
+                            Icons.Default.PlayDisabled,
+                            contentDescription = "Play not available",
+                            modifier = Modifier
+                                .padding(padding)
+                                .size(iconSize / 2)
                         )
                     }
                 }
@@ -783,17 +809,15 @@ private fun AudioMetadataSection(
     expansionFractionProvider: () -> Float,
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
-) {
-    val titleStyle = MaterialTheme.typography.headlineSmall.copy(
+    titleStyle: TextStyle = MaterialTheme.typography.headlineSmall.copy(
         fontWeight = FontWeight.Bold,
-        color = textColor
-    )
-
-    val artistStyle = MaterialTheme.typography.titleMedium.copy(
+        color = textColor,
+    ),
+    artistStyle: TextStyle = MaterialTheme.typography.titleMedium.copy(
         letterSpacing = 0.sp,
         color = artistTextColor
     )
-
+) {
     Column(
         horizontalAlignment = Alignment.Start,
         modifier = modifier
@@ -870,46 +894,46 @@ private fun FullPlayerLandscapeContent(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 6.dp
     ) {
-        Column(
-            modifier = modifier
+        BoxWithConstraints(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(end = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(end = 12.dp)
         ) {
-            Box(
+            val playbackControlsHeight = maxHeight * 0.17f
+            val segmentedControlsHeight = maxHeight * 0.05f
+            val artSize = minOf(maxWidth * 0.85f, maxHeight * 0.35f)
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                albumCoverSection(
-                    Modifier
-                        .fillMaxWidth(0.55f)
-                        .padding(top = 16.dp)
-                )
-            }
+                Box(
+                    modifier = Modifier.size(artSize),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    albumCoverSection(Modifier.fillMaxSize())
+                }
 
-            Spacer(Modifier.weight(0.25f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    trackMetadataSection()
+                    playerProgressSection()
+                }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                trackMetadataSection()
-                playerProgressSection()
-            }
+                playbackControlsSection(playbackControlsHeight)
+                controlsSection(segmentedControlsHeight)
 
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight(),
-            ) {
-                playbackControlsSection(50.dp)
-
-                Spacer(Modifier.weight(0.25f))
-
-                controlsSection(50.dp)
+                if (!isEpisode) {
+                    moreActions()
+                }
             }
         }
     }
@@ -928,54 +952,42 @@ private fun FullPlayerPortraitContent(
     isEpisode: Boolean,
 ) {
     BoxWithConstraints(
+        contentAlignment = Alignment.Center,
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(paddingValues)
     ) {
         val horizontalPadding = maxWidth * 0.06f
-        val outerVerticalPadding = maxHeight * 0.04f
-        val topPadding = maxHeight * 0.035f
-        val playbackControlsHeight = maxHeight * 0.105f
-        val segmentedControlsHeight = maxHeight * 0.09f
+        val playbackControlsHeight = maxHeight * 0.12f
+        val segmentedControlsHeight = maxHeight * 0.1f
+        val artSize = minOf(maxWidth * 0.88f, maxHeight * 0.4f)
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = horizontalPadding, vertical = outerVerticalPadding)
-                .padding(top = topPadding),
+                .fillMaxWidth()
+                .padding(horizontal = horizontalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.size(artSize),
+                contentAlignment = Alignment.Center,
             ) {
-                albumCoverSection(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = horizontalPadding * 0.65f)
-                        .padding(top = topPadding * 0.5f)
-                )
+                albumCoverSection(Modifier.fillMaxSize())
             }
-
-            Spacer(Modifier.weight(0.5f))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = horizontalPadding * 0.65f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 trackMetadataSection()
                 playerProgressSection()
             }
 
-            Spacer(Modifier.weight(0.05f))
-
             playbackControlsSection(playbackControlsHeight)
-
-            Spacer(Modifier.weight(1f))
-
             controlsSection(segmentedControlsHeight)
 
             if(!isEpisode) {
