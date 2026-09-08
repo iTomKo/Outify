@@ -96,16 +96,25 @@ class SpircWrapper @Inject constructor(
         return true
     }
 
-    @OptIn(UnstableApi::class)
     fun startPlaybackService() {
+        val intent = Intent(context, PlaybackService::class.java)
+        context.startService(intent)
+    }
+
+    @OptIn(UnstableApi::class)
+    fun startForegroundPlaybackService() {
         val intent = Intent(context, PlaybackService::class.java)
         ContextCompat.startForegroundService(context, intent)
     }
 
-    @OptIn(UnstableApi::class)
     private fun ensureServiceRunning() {
         ensureUsable()
         startPlaybackService()
+    }
+
+    private fun ensureForegroundServiceRunning() {
+        ensureUsable()
+        startForegroundPlaybackService()
     }
 
 
@@ -127,12 +136,12 @@ class SpircWrapper @Inject constructor(
             )
         }
 
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         return Spirc.load(context?.toUriString(), playingTrackUri?.toUriString())
     }
 
     override fun setQueue(uris: Array<String>, playingTrackUri: String?): Boolean {
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         return Spirc.setQueue(uris, playingTrackUri)
     }
 
@@ -141,7 +150,7 @@ class SpircWrapper @Inject constructor(
             savedQueueRepository.setActiveQueueId(null)
         }
 
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         return Spirc.localLoad(uri)
     }
 
@@ -185,7 +194,7 @@ class SpircWrapper @Inject constructor(
             )
         }
 
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         return Spirc.shuffleLoad(uri)
     }
 
@@ -281,7 +290,7 @@ class SpircWrapper @Inject constructor(
      * Tells the player to start playing
      */
     override fun playerPlay(): Boolean {
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         if (!isUsable) return false
         return Spirc.playerPlay()
     }
@@ -299,7 +308,7 @@ class SpircWrapper @Inject constructor(
      * Tells the player to toggle play status
      */
     override fun playerPlayPause(): Boolean {
-        ensureServiceRunning()
+        ensureForegroundServiceRunning()
         if (!isUsable) return false
         return Spirc.playerPlayPause()
     }
