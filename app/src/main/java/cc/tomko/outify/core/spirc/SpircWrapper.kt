@@ -20,12 +20,20 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.concurrent.Volatile
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+
+@Serializable
+data class QueueTrackDto(
+    val uri: String,
+    @SerialName("is_queue") val isQueue: Boolean
+)
 
 @Singleton
 class SpircWrapper @Inject constructor(
@@ -94,6 +102,7 @@ class SpircWrapper @Inject constructor(
         return true
     }
 
+    @OptIn(UnstableApi::class)
     fun startPlaybackService() {
         val intent = Intent(context, PlaybackService::class.java)
         context.startService(intent)
@@ -328,15 +337,31 @@ class SpircWrapper @Inject constructor(
     /**
      * Gets the previous tracks from queue
      */
-    override fun previousTracks(): String {
-        return Spirc.previousTracks()
+    override fun previousTracks(): List<QueueTrackDto> {
+        val previousTracksJson = Spirc.nextTracks()
+        if (previousTracksJson.isEmpty() || previousTracksJson == "[]") return emptyList()
+
+        return try {
+            json.decodeFromString<List<QueueTrackDto>>(previousTracksJson)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     /**
      * Gets the next tracks from queue
      */
-    override fun nextTracks(): String {
-        return Spirc.nextTracks()
+    override fun nextTracks(): List<QueueTrackDto> {
+        val nextTracksJson = Spirc.nextTracks()
+        if (nextTracksJson.isEmpty() || nextTracksJson == "[]") return emptyList()
+
+        return try {
+            json.decodeFromString<List<QueueTrackDto>>(nextTracksJson)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     /**
@@ -345,10 +370,12 @@ class SpircWrapper @Inject constructor(
      * @return `true` if successful
      */
     override fun playNext(trackUri: String): Boolean {
-        val nextTracksJson = nextTracks()
         return try {
-            val nextTracks: List<String> = json.decodeFromString(nextTracksJson)
-            val newQueue = arrayOf(trackUri) + nextTracks.toTypedArray()
+            val nextTracks: List<QueueTrackDto> = nextTracks()
+
+            val nextUris = nextTracks.map { it.uri }
+            val newQueue = arrayOf(trackUri) + nextUris.toTypedArray()
+
             setQueue(newQueue, trackUri)
         } catch (_: Exception) {
             false

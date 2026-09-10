@@ -8,6 +8,7 @@ use jni::{
 use librespot_connect::{LoadContextOptions, LoadRequestOptions, PlayingTrack};
 use librespot_core::SpotifyUri;
 use librespot_playback::config::Bitrate;
+use serde::Serialize;
 
 use crate::{
     outifyuri::OutifyUri,
@@ -542,6 +543,12 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_playerPrevious(
     }
 }
 
+#[derive(Serialize)]
+struct TrackDto {
+    uri: String,
+    is_queue: bool,
+}
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_previousTracks(
     env: JNIEnv,
@@ -567,9 +574,16 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_previousTracks(
                 return std::ptr::null_mut();
             }
         };
-    let uris: Vec<String> = tracks_raw.into_iter().map(|track| track.uri).collect();
 
-    let json = match serde_json::to_string(&uris) {
+    let tracks: Vec<TrackDto> = tracks_raw
+        .into_iter()
+        .map(|(track, is_queue)| TrackDto {
+            uri: track.uri,
+            is_queue,
+        })
+        .collect();
+
+    let json = match serde_json::to_string(&tracks) {
         Ok(j) => j,
         Err(e) => {
             error!("serde for prev_tracks failed: {e}");
@@ -612,9 +626,15 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_nextTracks(
             }
         };
 
-    let uris: Vec<String> = tracks_raw.into_iter().map(|track| track.uri).collect();
+    let tracks: Vec<TrackDto> = tracks_raw
+        .into_iter()
+        .map(|(track, is_queue)| TrackDto {
+            uri: track.uri,
+            is_queue,
+        })
+        .collect();
 
-    let json = match serde_json::to_string(&uris) {
+    let json = match serde_json::to_string(&tracks) {
         Ok(j) => j,
         Err(e) => {
             error!("serde for next_tracks failed: {e}");

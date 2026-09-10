@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.spirc.QueueTrackDto
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
@@ -31,7 +32,10 @@ import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
 
-data class QueueEntry(val id: Long, val audio: PlayableAudio)
+/**
+ * @param isQueue whether this entry was inserted by user manually (true) or if it's from context (false)
+ */
+data class QueueEntry(val id: Long, val audio: PlayableAudio, val isQueue: Boolean)
 
 @HiltViewModel
 class QueueViewModel @Inject constructor(
@@ -95,13 +99,12 @@ class QueueViewModel @Inject constructor(
     private val _queueState = MutableStateFlow(QueueState())
     val queueState: StateFlow<QueueState> = _queueState.asStateFlow()
 
-    // Full URI lists - kept in sync after every mutation
-    private var allPreviousUris: List<String> = emptyList()
-    private var allNextUris: List<String> = emptyList()
+    // 2. Updated to hold QueueTrackDto instead of plain String URIs
+    private var allPreviousUris: List<QueueTrackDto> = emptyList()
+    private var allNextUris: List<QueueTrackDto> = emptyList()
 
-    // Parts of the queue outside the loaded window.
-    private var unloadedPreviousHead: List<String> = emptyList()
-    private var unloadedNextTail: List<String> = emptyList()
+    private var unloadedPreviousHead: List<QueueTrackDto> = emptyList()
+    private var unloadedNextTail: List<QueueTrackDto> = emptyList()
 
     private var previousLoadJob: Job? = null
     private var nextLoadJob: Job? = null
@@ -243,7 +246,9 @@ class QueueViewModel @Inject constructor(
         endIndex: Int,
         currentAudio: PlayableAudio?
     ): List<QueueEntry> = withContext(Dispatchers.IO) {
-        val urisToLoad = mutableListOf<Pair<Int, String>>()
+
+        // 3. Keep track of the full DTO to preserve the isQueue value
+        val urisToLoad = mutableListOf<Pair<Int, QueueTrackDto>>()
         val currentTrackIndex = allPreviousUris.size
 
         for (i in startIndex until endIndex) {
@@ -266,13 +271,14 @@ class QueueViewModel @Inject constructor(
             }
         }
 
+        // 4. Extract the string URI from the DTO for metadata fetching
         val trackUris = urisToLoad
-            .filter { (_, uri) -> uri.startsWith("spotify:track:") }
-            .map { (_, uri) -> uri }
+            .filter { (_, dto) -> dto.uri.startsWith("spotify:track:") }
+            .map { (_, dto) -> dto.uri }
 
         val episodeUris = urisToLoad
-            .filter { (_, uri) -> !uri.startsWith("spotify:track:") }
-            .map { (_, uri) -> uri }
+            .filter { (_, dto) -> !dto.uri.startsWith("spotify:track:") }
+            .map { (_, dto) -> dto.uri }
 
         val tracks = runCatching {
             metadata.getTrackMetadata(trackUris)
@@ -296,20 +302,22 @@ class QueueViewModel @Inject constructor(
             for (i in startIndex until endIndex) {
                 when {
                     i < allPreviousUris.size -> {
-                        val uri = allPreviousUris[i]
+                        val dto = allPreviousUris[i]
 
-                        tracksByUri[uri]?.let {
-                            add(QueueEntry(nextId(), it.toPlayableAudio()))
+                        // 5. Pass dto.isQueue down to QueueEntry
+                        tracksByUri[dto.uri]?.let {
+                            add(QueueEntry(nextId(), it.toPlayableAudio(), dto.isQueue))
                         }
 
-                        episodesByUri[uri]?.let {
-                            add(QueueEntry(nextId(), it.toPlayableAudio()))
+                        episodesByUri[dto.uri]?.let {
+                            add(QueueEntry(nextId(), it.toPlayableAudio(), dto.isQueue))
                         }
                     }
 
                     i == currentTrackIndex -> {
                         currentAudio?.let {
-                            add(QueueEntry(nextId(), it))
+                            // Current playing track usually isn't marked as "in queue"
+                            add(QueueEntry(nextId(), it, false))
                         }
                     }
 
@@ -317,14 +325,14 @@ class QueueViewModel @Inject constructor(
                         val nextIndex = i - currentTrackIndex - 1
 
                         if (nextIndex < allNextUris.size) {
-                            val uri = allNextUris[nextIndex]
+                            val dto = allNextUris[nextIndex]
 
-                            tracksByUri[uri]?.let {
-                                add(QueueEntry(nextId(), it.toPlayableAudio()))
+                            tracksByUri[dto.uri]?.let {
+                                add(QueueEntry(nextId(), it.toPlayableAudio(), dto.isQueue))
                             }
 
-                            episodesByUri[uri]?.let {
-                                add(QueueEntry(nextId(), it.toPlayableAudio()))
+                            episodesByUri[dto.uri]?.let {
+                                add(QueueEntry(nextId(), it.toPlayableAudio(), dto.isQueue))
                             }
                         }
                     }
@@ -336,8 +344,9 @@ class QueueViewModel @Inject constructor(
     private suspend fun syncQueueToSpirc() = withContext(Dispatchers.IO) {
         val state = _queueState.value
 
-        val loadedPreviousUris = state.tracks.take(state.currentIndex).map { it.audio.uri }
-        val loadedNextUris = state.tracks.drop(state.currentIndex + 1).map { it.audio.uri }
+        // 6. Map the loaded tracks back into QueueTrackDtos so pagination retains the isQueue flag
+        val loadedPreviousUris = state.tracks.take(state.currentIndex).map { QueueTrackDto(it.audio.uri, it.isQueue) }
+        val loadedNextUris = state.tracks.drop(state.currentIndex + 1).map { QueueTrackDto(it.audio.uri, it.isQueue) }
 
         val newPreviousUris = unloadedPreviousHead + loadedPreviousUris
         val newNextUris = loadedNextUris + unloadedNextTail
@@ -347,7 +356,8 @@ class QueueViewModel @Inject constructor(
         allNextUris = newNextUris
 
         try {
-            spirc.setQueue(newNextUris.toTypedArray(), currentTrackEntry?.audio?.uri)
+            // 7. Strip the DTO down to raw URIs for Spirc (assuming it still only takes Array<String>)
+            spirc.setQueue(newNextUris.map { it.uri }.toTypedArray(), currentTrackEntry?.audio?.uri)
         } catch (e: Exception) {
             _queueState.update { it.copy(error = e.message) }
         }
@@ -383,17 +393,17 @@ class QueueViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadPreviousUris(): List<String> = withContext(Dispatchers.IO) {
+    private suspend fun loadPreviousUris(): List<QueueTrackDto> = withContext(Dispatchers.IO) {
         try {
-            json.decodeFromString<List<String>>(spirc.previousTracks())
+            spirc.previousTracks()
         } catch (e: Exception) {
             emptyList()
         }
     }
 
-    private suspend fun loadNextUris(): List<String> = withContext(Dispatchers.IO) {
+    private suspend fun loadNextUris(): List<QueueTrackDto> = withContext(Dispatchers.IO) {
         try {
-            json.decodeFromString<List<String>>(spirc.nextTracks())
+            spirc.nextTracks()
         } catch (e: Exception) {
             emptyList()
         }

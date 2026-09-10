@@ -36,17 +36,11 @@ class MultiQueueViewModel @Inject constructor(
      */
     fun saveCurrentQueue(name: String, currentAudio: PlayableAudio?) {
         viewModelScope.launch(Dispatchers.IO) {
-            val previousUris: List<String> = try {
-                json.decodeFromString(spirc.previousTracks())
-            } catch (_: Exception) {
-                emptyList()
-            }
+            val previousUris: List<String> =
+                spirc.previousTracks().map { it.uri }
 
-            val nextUris: List<String> = try {
-                json.decodeFromString(spirc.nextTracks())
-            } catch (_: Exception) {
-                emptyList()
-            }
+            val nextUris: List<String> =
+                spirc.nextTracks().map { it.uri }
 
             val allUris = buildList {
                 addAll(previousUris)
