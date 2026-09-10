@@ -59,7 +59,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -78,6 +80,7 @@ import cc.tomko.outify.data.setting.LocalSwipeActionHandler
 import cc.tomko.outify.data.setting.LocalSwipeGestureSettings
 import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.GlobalPopupController
+import cc.tomko.outify.ui.Haptics
 import cc.tomko.outify.ui.OutifyTheme
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.ThemeMode
@@ -372,6 +375,9 @@ class MainActivity : ComponentActivity() {
                                 LocalUiSettings provides interfaceSettings,
                             ) {
                                 Scaffold { innerPadding ->
+                                    val context = LocalContext.current
+                                    val view = LocalView.current
+
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -543,7 +549,10 @@ class MainActivity : ComponentActivity() {
                                                             ),
                                                             showQueue = { sheetState.show() },
                                                             onClick = {
-                                                                scope.launch { playerSheetState.expand() }
+                                                                scope.launch {
+                                                                    Haptics.toggle(context, view)
+                                                                    playerSheetState.expand()
+                                                                }
                                                             }
                                                         )
                                                     },

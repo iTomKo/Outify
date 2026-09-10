@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
@@ -57,6 +58,7 @@ import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
+import cc.tomko.outify.ui.Haptics
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.viewmodel.player.MiniPlayerViewModel
 import kotlinx.coroutines.launch
@@ -76,6 +78,7 @@ fun MiniPlayer(
     onClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val currentAudio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isBuffering by viewModel.isBuffering().collectAsState(initial = false)
@@ -115,12 +118,19 @@ fun MiniPlayer(
                         val verticalThreshold = 40.dp.toPx()
 
                         when {
-                            totalDragX > horizontalThreshold -> spirc.playerPrevious()
-                            totalDragX < -horizontalThreshold -> spirc.playerNext()
+                            totalDragX > horizontalThreshold -> {
+                                spirc.playerPrevious()
+                                Haptics.textHandleMove(context, view)
+                            }
+                            totalDragX < -horizontalThreshold -> {
+                                spirc.playerNext()
+                                Haptics.textHandleMove(context, view)
+                            }
                         }
 
                         if (totalDragY > verticalThreshold) {
                             onDismiss()
+                            Haptics.confirm(context, view)
                         }
 
                         coroutineScope.launch {
@@ -296,6 +306,7 @@ fun MiniPlayer(
                         IconButton(onClick = {
                             viewModel.setAudio(currentAudio)
                             spirc.playerPlayPause()
+                            Haptics.textHandleMove(context, view)
                         }) {
                             if (isPlaying) {
                                 Icon(

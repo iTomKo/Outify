@@ -75,9 +75,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -94,6 +94,7 @@ import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.ui.GlobalPopupController
+import cc.tomko.outify.ui.Haptics
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.AutoScrollingTextOnDemand
 import cc.tomko.outify.ui.components.SmartImage
@@ -115,6 +116,9 @@ fun PlayerContent(
     paddingValues: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+    val view = LocalView.current
+
     val audio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
     val isShuffling by viewModel.isShuffling.collectAsState()
@@ -156,9 +160,18 @@ fun PlayerContent(
             isShuffleEnabled = isShuffling,
             repeatMode = repeatMode,
             isFavorite = isFavorite,
-            onShuffleToggle = { viewModel.onAction(PlayerAction.ShuffleToggle) },
-            onRepeatToggle = { viewModel.onAction(PlayerAction.RepeatToggle) },
-            onFavoriteToggle = { viewModel.toggleFavorite() },
+            onShuffleToggle = {
+                viewModel.onAction(PlayerAction.ShuffleToggle)
+                Haptics.toggle(context, view)
+            },
+            onRepeatToggle = {
+                viewModel.onAction(PlayerAction.RepeatToggle)
+                Haptics.toggle(context, view)
+            },
+            onFavoriteToggle = {
+                viewModel.toggleFavorite()
+                Haptics.toggle(context, view)
+            },
             height = height,
         )
     }
@@ -602,7 +615,8 @@ private fun PlaybackControls(
     }
 
     val coroutineScope = rememberCoroutineScope()
-    val hapticFeedback = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val view = LocalView.current
 
     LaunchedEffect(lastClicked, clickTrigger) {
         lastClicked = null
@@ -637,6 +651,8 @@ private fun PlaybackControls(
                 lastClicked = PlaybackButtonType.PREVIOUS
                 clickTrigger++
 
+                Haptics.textHandleMove(context, view)
+
                 coroutineScope.launch {
                     onPrevious()
                 }
@@ -664,6 +680,8 @@ private fun PlaybackControls(
                     lastClicked = PlaybackButtonType.REWIND
                     clickTrigger++
 
+                    Haptics.textHandleMove(context, view)
+
                     coroutineScope.launch {
                         onRewind()
                     }
@@ -686,9 +704,7 @@ private fun PlaybackControls(
                 lastClicked = PlaybackButtonType.PLAY_PAUSE
                 clickTrigger++
 
-                hapticFeedback.performHapticFeedback(
-                    HapticFeedbackType.TextHandleMove
-                )
+                Haptics.textHandleMove(context, view)
 
                 onPlayPause()
             },
@@ -777,6 +793,8 @@ private fun PlaybackControls(
                     lastClicked = PlaybackButtonType.FAST_FORWARD
                     clickTrigger++
 
+                    Haptics.textHandleMove(context, view)
+
                     coroutineScope.launch {
                         onFastForward()
                     }
@@ -804,6 +822,8 @@ private fun PlaybackControls(
             onClick = {
                 lastClicked = PlaybackButtonType.NEXT
                 clickTrigger++
+
+                Haptics.textHandleMove(context, view)
 
                 coroutineScope.launch {
                     onNext()

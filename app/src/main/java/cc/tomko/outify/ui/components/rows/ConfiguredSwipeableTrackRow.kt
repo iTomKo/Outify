@@ -3,6 +3,8 @@
 package cc.tomko.outify.ui.components.rows
 
 import android.annotation.SuppressLint
+import android.os.VibrationEffect
+import android.os.Vibrator
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.Artist
@@ -34,6 +40,7 @@ import cc.tomko.outify.data.setting.LocalSwipeActionHandler
 import cc.tomko.outify.data.setting.LocalSwipeGestureSettings
 import cc.tomko.outify.data.setting.buildLongPressAction
 import cc.tomko.outify.data.setting.buildSwipeGesturesForTrack
+import cc.tomko.outify.ui.Haptics
 import cc.tomko.outify.ui.components.SkeletonBox
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -64,6 +71,9 @@ fun SharedTransitionScope.SwipeableTrackRowConfigured(
     startGestures: List<SwipeGesture>? = null,
     endGestures: List<SwipeGesture>? = null,
 ) {
+    val context = LocalContext.current
+    val view = LocalView.current
+
     if (track == null) {
         Row(
             modifier = modifier
@@ -94,6 +104,13 @@ fun SharedTransitionScope.SwipeableTrackRowConfigured(
             }
         }
         return
+    }
+
+    val wrappedOnRowClick = onRowClick?.let { click ->
+        {
+            Haptics.confirm(context, view)
+            click()
+        }
     }
 
     val artworkUrl = remember(track.uri) {
@@ -136,7 +153,7 @@ fun SharedTransitionScope.SwipeableTrackRowConfigured(
                 showAlbumName = showAlbumName,
                 albumName = track.album?.name,
 
-                onRowClick = onRowClick,
+                onRowClick = wrappedOnRowClick,
                 onRowLongClick = {
                     if (onRowLongClick != null) {
                         onRowLongClick.invoke()
