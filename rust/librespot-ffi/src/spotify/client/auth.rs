@@ -14,8 +14,8 @@ use crate::spotify::{
 };
 
 use super::{
-    check_response_json, OAuthState, SpotifyClient, SPOTIFY_OAUTH_CALLBACK_URI,
-    SPOTIFY_OAUTH_SCOPES,
+    OAuthState, SPOTIFY_OAUTH_CALLBACK_URI, SPOTIFY_OAUTH_SCOPES, SpotifyClient,
+    check_response_json,
 };
 
 impl SpotifyClient {
@@ -186,7 +186,10 @@ impl SpotifyClient {
         Ok(Some(token))
     }
 
-    pub(crate) async fn refresh_token(&self, token: &WebApiToken) -> Result<WebApiToken, SpotifyApiError> {
+    pub(crate) async fn refresh_token(
+        &self,
+        token: &WebApiToken,
+    ) -> Result<WebApiToken, SpotifyApiError> {
         let mut form = HashMap::new();
         form.insert("grant_type", "refresh_token");
         form.insert("refresh_token", &token.refresh_token);

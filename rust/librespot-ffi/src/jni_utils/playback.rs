@@ -19,7 +19,9 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
         }
     };
 
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER.lock().unwrap();
+    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
+        .lock()
+        .unwrap();
     let listener_ref: GlobalRef = match &*guard {
         Some(r) => r.clone(),
         None => {
@@ -46,7 +48,9 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
                             match serde_json::to_string(&track) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    error!("serde for track json failed on on_player_track_update: {e}");
+                                    error!(
+                                        "serde for track json failed on on_player_track_update: {e}"
+                                    );
                                     return;
                                 }
                             }
@@ -64,7 +68,9 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
                             match serde_json::to_string(&episode) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    error!("serde for episode json failed on on_player_track_update: {e}");
+                                    error!(
+                                        "serde for episode json failed on on_player_track_update: {e}"
+                                    );
                                     return;
                                 }
                             }
@@ -131,7 +137,9 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
         }
     };
 
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER.lock().unwrap();
+    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
+        .lock()
+        .unwrap();
     let listener_ref: GlobalRef = match &*guard {
         Some(r) => r.clone(),
         None => {
@@ -159,13 +167,17 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
                             match serde_json::to_string(&track) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    error!("serde for track json failed on on_player_position_update: {e}");
+                                    error!(
+                                        "serde for track json failed on on_player_position_update: {e}"
+                                    );
                                     return;
                                 }
                             }
                         }
                         Err(e) => {
-                            error!("track metadata fetch failed for on_player_position_update: {e}");
+                            error!(
+                                "track metadata fetch failed for on_player_position_update: {e}"
+                            );
                             return;
                         }
                     }
@@ -177,13 +189,17 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
                             match serde_json::to_string(&episode) {
                                 Ok(s) => s,
                                 Err(e) => {
-                                    error!("serde for episode json failed on on_player_position_update: {e}");
+                                    error!(
+                                        "serde for episode json failed on on_player_position_update: {e}"
+                                    );
                                     return;
                                 }
                             }
                         }
                         Err(e) => {
-                            error!("episode metadata fetch failed for on_player_position_update: {e}");
+                            error!(
+                                "episode metadata fetch failed for on_player_position_update: {e}"
+                            );
                             return;
                         }
                     }
@@ -248,7 +264,9 @@ pub fn on_player_status(playing: bool) {
         }
     };
 
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER.lock().unwrap();
+    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
+        .lock()
+        .unwrap();
     let listener_ref: GlobalRef = match &*guard {
         Some(r) => r.clone(),
         None => {

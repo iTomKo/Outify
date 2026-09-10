@@ -1,16 +1,11 @@
 use reqwest::StatusCode;
 
 use crate::{
-    spotify::{
-        error::SpotifyApiError,
-        search::extract_all_uris,
-    },
-    types::{
-        responses::{ArtistsOrTracksPage, CurrentUserResponse},
-    },
+    spotify::{error::SpotifyApiError, search::extract_all_uris},
+    types::responses::{ArtistsOrTracksPage, CurrentUserResponse},
 };
 
-use super::{check_response_json, SpotifyClient, REQUEST_TIMEOUT, SPOTIFY_API_URL};
+use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient, check_response_json};
 
 impl SpotifyClient {
     pub async fn search(
@@ -21,9 +16,8 @@ impl SpotifyClient {
         offset: Option<i32>,
     ) -> Result<Vec<String>, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let mut params = vec![("q", query.to_string()), ("type", types.to_string())];
 
@@ -63,9 +57,8 @@ impl SpotifyClient {
 
     pub async fn get_current_user(&self) -> Result<CurrentUserResponse, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let res = self
             .client
@@ -97,9 +90,8 @@ impl SpotifyClient {
         time_range: String,
     ) -> Result<ArtistsOrTracksPage, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let request_type = request_type.unwrap_or_else(|| "artists".to_string());
 

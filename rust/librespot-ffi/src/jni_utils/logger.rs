@@ -1,4 +1,4 @@
-use jni::{JavaVM};
+use jni::JavaVM;
 use log::{Level, LevelFilter, Metadata, Record};
 use std::ffi::CString;
 
@@ -42,7 +42,11 @@ fn log_to_ndk(level: Level, tag: &str, msg: &str) {
     };
 
     unsafe {
-        let _ = __android_log_write(prio, tag_c.as_ptr() as *const i8, msg_c.as_ptr() as *const i8);
+        let _ = __android_log_write(
+            prio,
+            tag_c.as_ptr() as *const i8,
+            msg_c.as_ptr() as *const i8,
+        );
     }
 }
 

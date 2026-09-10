@@ -100,11 +100,7 @@ impl From<&Show> for ShowJson {
             language: show.language.clone(),
             is_explicit: show.is_explicit,
             covers: show.covers.iter().map(ImageJson::from).collect(),
-            episodes: show
-                .episodes
-                .iter()
-                .map(|uri| uri.to_uri())
-                .collect(),
+            episodes: show.episodes.iter().map(|uri| uri.to_uri()).collect(),
             keywords: show.keywords.clone(),
             media_type: media_type,
             consumption_order: consumption_order,

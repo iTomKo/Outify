@@ -8,7 +8,7 @@ use crate::{
     },
 };
 
-use super::{check_response_json, SpotifyClient, REQUEST_TIMEOUT, SPOTIFY_API_URL};
+use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient, check_response_json};
 
 impl SpotifyClient {
     pub async fn add_to_playlist(
@@ -17,9 +17,8 @@ impl SpotifyClient {
         uris: Vec<String>,
     ) -> Result<StatusCode, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let body = AddItemRequest {
             uris,
@@ -55,9 +54,8 @@ impl SpotifyClient {
         uris: Vec<String>,
     ) -> Result<StatusCode, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let body = RemoveItemRequest {
             items: uris.into_iter().map(|uri| RemoveItem { uri }).collect(),
@@ -94,9 +92,8 @@ impl SpotifyClient {
         collaborative: bool,
     ) -> Result<CreatePlaylistResponse, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let body = CreatePlaylistRequest {
             name,
@@ -145,9 +142,8 @@ impl SpotifyClient {
         collaborative: bool,
     ) -> Result<StatusCode, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let body = CreatePlaylistRequest {
             name,

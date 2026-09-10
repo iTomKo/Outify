@@ -1,8 +1,4 @@
-use crate::{
-    TOKIO_RUNTIME,
-    metadata::user::UserJson,
-    session::with_session,
-};
+use crate::{TOKIO_RUNTIME, metadata::user::UserJson, session::with_session};
 use jni::{
     objects::{JClass, JString},
     sys::jstring,
@@ -32,7 +28,7 @@ pub async fn get_user_profile(username: Option<String>) -> Option<UserJson> {
         Err(e) => {
             error!("failed to get user profile: {e}");
             return None;
-        },
+        }
     };
 
     let json = match String::from_utf8(result.to_vec()) {
@@ -40,7 +36,7 @@ pub async fn get_user_profile(username: Option<String>) -> Option<UserJson> {
         Err(e) => {
             error!("failed to get string from bytes: {e}");
             return None;
-        },
+        }
     };
 
     let profile: UserJson = match serde_json::from_str(&json) {

@@ -2,20 +2,16 @@ use reqwest::StatusCode;
 
 use crate::{
     spotify::error::SpotifyApiError,
-    types::{
-        requests::TransferPlaybackRequest,
-        responses::DevicesResponse,
-    },
+    types::{requests::TransferPlaybackRequest, responses::DevicesResponse},
 };
 
-use super::{check_response_json, SpotifyClient, REQUEST_TIMEOUT, SPOTIFY_API_URL};
+use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient, check_response_json};
 
 impl SpotifyClient {
     pub async fn get_devices(&self) -> Result<DevicesResponse, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let url = format!("{}/v1/me/player/devices", SPOTIFY_API_URL);
 
@@ -50,9 +46,8 @@ impl SpotifyClient {
         device_id: String,
     ) -> Result<StatusCode, SpotifyApiError> {
         let token = self.load_token().await?;
-        let token = token.ok_or_else(|| {
-            SpotifyApiError::Generic("No account token present!".to_string())
-        })?;
+        let token = token
+            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
 
         let body = TransferPlaybackRequest {
             device_ids: vec![device_id],

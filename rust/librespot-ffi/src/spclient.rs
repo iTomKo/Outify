@@ -1,4 +1,4 @@
-use librespot_core::{spclient::SpClientResult, SpotifyId, SpotifyUri};
+use librespot_core::{SpotifyId, SpotifyUri, spclient::SpClientResult};
 use librespot_protocol::context::Context;
 
 use crate::session::with_session;
@@ -8,7 +8,9 @@ pub async fn get_context(uri: &str) -> Result<Context, librespot_core::error::Er
         Ok(s) => s,
         Err(e) => {
             error!("failed to clone session for get_context: {e}");
-            return Err(librespot_core::Error::internal("failed to clone session for get_context"));
+            return Err(librespot_core::Error::internal(
+                "failed to clone session for get_context",
+            ));
         }
     };
     let spclient = session.spclient();
@@ -20,7 +22,9 @@ pub async fn get_rootlist() -> SpClientResult {
         Ok(s) => s,
         Err(e) => {
             error!("failed to clone session for get_rootlist: {e}");
-            return Err(librespot_core::Error::internal("failed to clone session for get_rootlist"));
+            return Err(librespot_core::Error::internal(
+                "failed to clone session for get_rootlist",
+            ));
         }
     };
     let spclient = session.spclient();
@@ -32,7 +36,9 @@ pub async fn get_radio_for_track(track_uri: &SpotifyUri) -> SpClientResult {
         Ok(s) => s,
         Err(e) => {
             error!("failed to clone session for get_radio: {e}");
-            return Err(librespot_core::Error::internal("failed to clone session for get_radio"));
+            return Err(librespot_core::Error::internal(
+                "failed to clone session for get_radio",
+            ));
         }
     };
 
@@ -45,7 +51,9 @@ pub async fn get_lyrics(track_id: &SpotifyId) -> SpClientResult {
         Ok(s) => s,
         Err(e) => {
             error!("failed to clone session for get_lyrics: {e}");
-            return Err(librespot_core::Error::internal("failed to clone session for get_lyrics"));
+            return Err(librespot_core::Error::internal(
+                "failed to clone session for get_lyrics",
+            ));
         }
     };
 

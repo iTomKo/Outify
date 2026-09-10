@@ -1,6 +1,8 @@
 use std::{
-    pin::Pin, sync::{
-        RwLock, atomic::{AtomicBool, Ordering},
+    pin::Pin,
+    sync::{
+        RwLock,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -75,7 +77,9 @@ pub async fn connect() -> Result<Session, librespot_core::Error> {
         Ok(s) => s,
         Err(e) => {
             error!("failed to clone session for connect: {e}");
-            return Err(librespot_core::Error::internal("failed to clone session for connect"));
+            return Err(librespot_core::Error::internal(
+                "failed to clone session for connect",
+            ));
         }
     };
 

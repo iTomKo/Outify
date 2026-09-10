@@ -1,4 +1,3 @@
-
 // We seperate JNI only logic from the rust wrapper
 
 mod metadata;

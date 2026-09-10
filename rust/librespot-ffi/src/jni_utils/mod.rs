@@ -25,14 +25,17 @@ pub fn vec_to_jstring_array(env: &mut jni::JNIEnv, vec: Vec<String>) -> jni::sys
 
 pub fn throw_exception(env: &mut jni::JNIEnv, message: String) {
     match env.throw_new("java/lang/IllegalArgumentException", message) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(e) => {
             error!("jni throw_new failed: {e}");
-        },
+        }
     };
 }
 
-pub fn optionable_string(mut env: &mut jni::JNIEnv, string: jni::objects::JString) -> Option<String> {
+pub fn optionable_string(
+    mut env: &mut jni::JNIEnv,
+    string: jni::objects::JString,
+) -> Option<String> {
     if string.is_null() {
         None
     } else {
@@ -41,7 +44,7 @@ pub fn optionable_string(mut env: &mut jni::JNIEnv, string: jni::objects::JStrin
             Err(e) => {
                 error!("jni get_string failed for optionable_string: {e}");
                 throw_exception(&mut env, format!("Failed to get optional string: {e}"));
-                return None
+                return None;
             }
         }
     }

@@ -54,9 +54,7 @@ macro_rules! complete_future_exception {
                 .expect("failed to attach JVM");
 
             // Java String
-            let jmsg = env
-                .new_string(msg)
-                .expect("failed to create JString");
+            let jmsg = env.new_string(msg).expect("failed to create JString");
 
             let jmsg_obj = ::jni::objects::JObject::from(jmsg);
 
@@ -68,9 +66,7 @@ macro_rules! complete_future_exception {
                 )
                 .expect("failed to create RuntimeException");
 
-            let ex_global = env
-                .new_global_ref(ex)
-                .expect("failed to create GlobalRef");
+            let ex_global = env.new_global_ref(ex).expect("failed to create GlobalRef");
 
             let _ = env.call_method(
                 future_ref.as_obj(),
@@ -98,4 +94,3 @@ where
         std::thread::spawn(move || job());
     }
 }
-

@@ -11,7 +11,12 @@ pub struct WebApiToken {
 }
 
 impl WebApiToken {
-    pub fn new(access_token: String, refresh_token: String, expires_in: u64, scope: String) -> Self {
+    pub fn new(
+        access_token: String,
+        refresh_token: String,
+        expires_in: u64,
+        scope: String,
+    ) -> Self {
         let now = SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("Time went backwards")

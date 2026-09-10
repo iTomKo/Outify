@@ -271,10 +271,7 @@ pub extern "system" fn get_saved_items(
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getSavedEpisodeItems")]
-pub extern "system" fn get_saved_episode_items(
-    mut env: JNIEnv,
-    _class: JClass,
-) -> jstring {
+pub extern "system" fn get_saved_episode_items(mut env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
     let rt = match crate::TOKIO_RUNTIME.get() {
@@ -357,9 +354,7 @@ pub extern "system" fn get_episode_details(
                 return std::ptr::null_mut();
             }
         },
-        Err(SpotifyApiError::Http(_status, body)) => {
-            body
-        }
+        Err(SpotifyApiError::Http(_status, body)) => body,
         Err(e) => {
             error!("get_episode_details failed: {e}");
             let _ = env.throw_new(

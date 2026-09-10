@@ -34,7 +34,6 @@ static OAUTH_SCOPES: &[&str] = &[
     "user-top-read",
 ];
 
-
 pub static OAUTH_SESSION: OnceCell<Mutex<OAuthSession>> = OnceCell::new();
 
 pub struct OAuthSession {

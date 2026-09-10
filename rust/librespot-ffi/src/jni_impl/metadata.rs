@@ -55,25 +55,28 @@ pub extern "system" fn get_native_metadata(
         }
     };
 
-    let result: Result<Option<String>, librespot_core::error::Error> = match with_session(|session| {
-        rt.block_on(async move {
-            match spotify_uri.item_type() {
-                SPOTIFY_ITEM_TYPE_TRACK => get_track_metadata(&session, &spotify_uri).await,
-                SPOTIFY_ITEM_TYPE_ALBUM => get_album_metadata(&session, &spotify_uri).await,
-                SPOTIFY_ITEM_TYPE_ARTIST => get_artist_metadata(&session, &spotify_uri).await,
-                SPOTIFY_ITEM_TYPE_PLAYLIST => get_playlist_metadata(&session, &spotify_uri).await,
-                SPOTIFY_ITEM_TYPE_SHOW => get_show_metadata(&session, &spotify_uri).await,
-                SPOTIFY_ITEM_TYPE_EPISODE => get_episode_metadata(&session, &spotify_uri).await,
-                &_ => Ok(None),
+    let result: Result<Option<String>, librespot_core::error::Error> =
+        match with_session(|session| {
+            rt.block_on(async move {
+                match spotify_uri.item_type() {
+                    SPOTIFY_ITEM_TYPE_TRACK => get_track_metadata(&session, &spotify_uri).await,
+                    SPOTIFY_ITEM_TYPE_ALBUM => get_album_metadata(&session, &spotify_uri).await,
+                    SPOTIFY_ITEM_TYPE_ARTIST => get_artist_metadata(&session, &spotify_uri).await,
+                    SPOTIFY_ITEM_TYPE_PLAYLIST => {
+                        get_playlist_metadata(&session, &spotify_uri).await
+                    }
+                    SPOTIFY_ITEM_TYPE_SHOW => get_show_metadata(&session, &spotify_uri).await,
+                    SPOTIFY_ITEM_TYPE_EPISODE => get_episode_metadata(&session, &spotify_uri).await,
+                    &_ => Ok(None),
+                }
+            })
+        }) {
+            Ok(r) => r,
+            Err(e) => {
+                error!("with_session failed for metadata: {e}");
+                return std::ptr::null_mut();
             }
-        })
-    }) {
-        Ok(r) => r,
-        Err(e) => {
-            error!("with_session failed for metadata: {e}");
-            return std::ptr::null_mut();
-        },
-    };
+        };
 
     match result {
         Ok(Some(json)) => match env.new_string(&json) {
@@ -148,17 +151,19 @@ async fn get_track_metadata(
     match librespot_metadata::Track::get(session, &spotify_uri).await {
         Ok(metadata) => {
             let mut track = crate::metadata::track::TrackJson::from(&metadata);
-            
+
             // Fetch full album metadata to get complete artist info
             let album_uri = SpotifyUri::from_uri(&track.album.uri).ok();
             if let Some(album_uri) = album_uri {
                 if let Ok(Some(full_album_json)) = get_album_metadata(session, &album_uri).await {
-                    if let Ok(full_album) = serde_json::from_str::<crate::metadata::track::AlbumJson>(&full_album_json) {
+                    if let Ok(full_album) =
+                        serde_json::from_str::<crate::metadata::track::AlbumJson>(&full_album_json)
+                    {
                         track.album = full_album;
                     }
                 }
             }
-            
+
             Ok(convert_to_string(&track))
         }
         Err(e) => Err(e),

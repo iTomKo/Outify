@@ -170,8 +170,16 @@ impl SpotifyClient {
         match res {
             Ok(ep) => Ok(EpisodeDetails {
                 show_uri: ep.show.uri,
-                fully_played: ep.resume_point.as_ref().map(|r| r.fully_played).unwrap_or(false),
-                resume_position_ms: ep.resume_point.as_ref().map(|r| r.resume_position_ms).unwrap_or(0),
+                fully_played: ep
+                    .resume_point
+                    .as_ref()
+                    .map(|r| r.fully_played)
+                    .unwrap_or(false),
+                resume_position_ms: ep
+                    .resume_point
+                    .as_ref()
+                    .map(|r| r.resume_position_ms)
+                    .unwrap_or(0),
             }),
             Err(e) => {
                 error!("get_episode_details deserialization failed: {e}");

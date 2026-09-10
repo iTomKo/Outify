@@ -136,7 +136,10 @@ pub extern "system" fn Java_cc_tomko_outify_core_AuthManager_handleOAuthCode(
 }
 
 fn make_error_json(env: &JNIEnv, error_type: &str, message: &str) -> jstring {
-    let json = format!(r#"{{"error":{{"type":"{}","message":"{}"}}}}"#, error_type, message);
+    let json = format!(
+        r#"{{"error":{{"type":"{}","message":"{}"}}}}"#,
+        error_type, message
+    );
     match env.new_string(json) {
         Ok(s) => s.into_raw(),
         Err(_) => std::ptr::null_mut(),
@@ -154,7 +157,11 @@ fn classify_oauth_error(err: &librespot_core::Error) -> &'static str {
     let msg = err.to_string().to_lowercase();
     if msg.contains("unavailable") || msg.contains("service") {
         "service_unavailable"
-    } else if msg.contains("auth") || msg.contains("token") || msg.contains("credential") || msg.contains("unauthorized") {
+    } else if msg.contains("auth")
+        || msg.contains("token")
+        || msg.contains("credential")
+        || msg.contains("unauthorized")
+    {
         "authentication_error"
     } else if msg.contains("rate") {
         "rate_limit"
@@ -175,10 +182,10 @@ pub extern "system" fn logout(_env: JNIEnv, _class: JClass) -> jboolean {
         Ok(_) => {
             info!("oauth credentials removed");
             1
-        },
+        }
         Err(e) => {
             error!("oauth credential file removal failed: {e}");
             0
-        },
+        }
     }
 }

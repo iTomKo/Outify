@@ -1,4 +1,8 @@
-use jni::{JNIEnv, JavaVM, objects::{GlobalRef, JByteBuffer, JObject, JValue}, sys::jint};
+use jni::{
+    JNIEnv, JavaVM,
+    objects::{GlobalRef, JByteBuffer, JObject, JValue},
+    sys::jint,
+};
 use librespot_playback::{audio_backend::AndroidSink, config::AudioFormat};
 use log::{error, warn};
 use once_cell::sync::OnceCell;
@@ -22,7 +26,7 @@ extern "C" fn rust_pcm_trampoline(
 ) {
     if format != AudioFormat::S16 {
         return;
-    } 
+    }
 
     if data.is_null() || len == 0 {
         return;
@@ -147,19 +151,17 @@ pub extern "system" fn Java_cc_tomko_outify_playback_AudioEngine_registerPcmCall
         Err(e) => {
             error!("jni new_global_ref failed for pcm buffer: {e}");
             return;
-        },
+        }
     };
 
     BUFFER_GLOBAL.get_or_init(|| Mutex::new(None));
     if let Some(mutex) = BUFFER_GLOBAL.get() {
         match mutex.lock() {
-            Ok(mut guard) => {
-                *guard = Some(buf_global)
-            },
+            Ok(mut guard) => *guard = Some(buf_global),
             Err(e) => {
                 error!("lock of buffer_global mutex failed: {e}");
                 return;
-            },
+            }
         }
     }
 

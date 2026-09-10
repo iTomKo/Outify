@@ -6,11 +6,11 @@ pub mod jni_utils;
 pub mod metadata;
 
 pub mod oauth;
+pub mod outifyuri;
 pub mod session;
 pub mod spclient;
-pub mod types;
 pub mod spotify;
-pub mod outifyuri;
+pub mod types;
 
 mod playback;
 mod profile;
@@ -90,7 +90,7 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
         Err(e) => {
             error!("failed to read client_id from jni: {e}");
             return;
-        },
+        }
     };
 
     let client_secret: String = match env.get_string(&client_secret) {
@@ -98,7 +98,7 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
         Err(e) => {
             error!("failed to read client_secret from jni: {e}");
             return;
-        },
+        }
     };
 
     spotify::client::init_client(client_id, client_secret);

@@ -39,9 +39,8 @@ pub(crate) fn extract_all_uris(res: SearchResponse) -> Vec<String> {
         section
             .items
             .into_iter()
-            .flatten() 
+            .flatten()
             .filter_map(|item| item.uri)
     })
     .collect()
 }
-
