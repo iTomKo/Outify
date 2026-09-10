@@ -12,6 +12,7 @@
         android:label="@string/audio_playback_attribution"
         android:tag="audioPlayback" />
 
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:name=".OutifyApplication"
         android:allowBackup="true"
