@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.DragIndicator
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
@@ -184,6 +185,25 @@ fun SharedTransitionScope.QueueBottomSheet(
             val lastVisible = visibleItems.lastOrNull()?.index ?: 0
 
             targetIndex !in firstVisible..lastVisible
+        }
+    }.value
+
+    // Up is true, down is false
+    val scrollDirectionToCurrent = remember(listState, currentTrackIndex) {
+        derivedStateOf {
+            if (currentTrackIndex == -1 || localTracks.isEmpty()) return@derivedStateOf null
+
+            val targetIndex = currentTrackIndex + 1 // Offset by 1 for your header spacer
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            val firstVisible = visibleItems.firstOrNull()?.index ?: 0
+            val lastVisible = visibleItems.lastOrNull()?.index ?: 0
+
+            when {
+                targetIndex !in firstVisible..lastVisible -> {
+                    targetIndex < firstVisible
+                }
+                else -> null
+            }
         }
     }.value
 
@@ -603,6 +623,7 @@ fun SharedTransitionScope.QueueBottomSheet(
             }
 
             this@ModalBottomSheet.AnimatedVisibility(
+                modifier = Modifier.align(Alignment.BottomEnd),
                 visible = showScrollToCurrent,
                 enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                 exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
@@ -620,8 +641,8 @@ fun SharedTransitionScope.QueueBottomSheet(
                         .size(40.dp)
                 ) {
                     Icon(
-                        Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Scroll to top"
+                        if(scrollDirectionToCurrent ?: true) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Scroll to current track"
                     )
                 }
             }
