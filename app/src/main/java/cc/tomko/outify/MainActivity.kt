@@ -12,6 +12,7 @@ import android.os.PowerManager
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
@@ -24,6 +25,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -90,6 +92,7 @@ import cc.tomko.outify.ui.components.navigation.OutifyBottomNav
 import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.components.player.MiniPlayer
 import cc.tomko.outify.ui.components.player.PlayerSheet
+import cc.tomko.outify.ui.components.player.PlayerSheetValue
 import cc.tomko.outify.ui.components.player.QueueBottomSheet
 import cc.tomko.outify.ui.components.player.rememberPlayerSheetState
 import cc.tomko.outify.ui.components.player.rememberQueueBottomSheetState
@@ -112,6 +115,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -307,9 +311,25 @@ class MainActivity : ComponentActivity() {
             } else routes
         }
 
-        BackHandler(enabled = playerSheetState.isExpanded) {
-            scope.launch {
-                playerSheetState.collapse()
+        PredictiveBackHandler(enabled = playerSheetState.isExpanded) { progress ->
+            val collapsedOffset = playerSheetState.draggableState.anchors.positionOf(PlayerSheetValue.Collapsed)
+            var previousOffset = 0f
+
+            try {
+                progress.collect { backEvent ->
+                    val targetOffset = backEvent.progress * collapsedOffset
+                    val delta = targetOffset - previousOffset
+                    playerSheetState.draggableState.dispatchRawDelta(delta)
+                    previousOffset = targetOffset
+                }
+
+                scope.launch {
+                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Collapsed)
+                }
+            } catch (e: CancellationException) {
+                scope.launch {
+                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Expanded)
+                }
             }
         }
 
