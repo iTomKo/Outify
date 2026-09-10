@@ -194,6 +194,7 @@ fun MiniPlayer(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 6.dp, end = 10.dp)
@@ -229,8 +230,6 @@ fun MiniPlayer(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
-
                 Column(
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier.weight(1f)
@@ -263,8 +262,6 @@ fun MiniPlayer(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-
-                Spacer(modifier = Modifier.width(4.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
