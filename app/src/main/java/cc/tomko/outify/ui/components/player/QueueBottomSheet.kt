@@ -571,6 +571,12 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                     )
                                                 )
 
+                                                val startGestures = if(isCurrentTrack) emptyList()
+                                                else if (flipQueueGestures) removeFromQueueGesture else playNextGesture
+
+                                                val endGestures = if(isCurrentTrack) emptyList()
+                                                else if (flipQueueGestures) playNextGesture else removeFromQueueGesture
+
                                                 if (item.audio.isEpisode()) {
                                                     SwipeableEpisodeRowConfigured(
                                                         episode = item.audio.sourceEpisode,
@@ -578,13 +584,13 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                         onRowClick = {
 //                                                        spirc.load(episode.toOutifyUri())
                                                         },
-                                                        startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                                        endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                        startGestures = startGestures,
+                                                        endGestures = endGestures,
                                                     )
                                                 } else {
                                                     SwipeableTrackRowConfigured(
-                                                        startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                                        endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                        startGestures = startGestures,
+                                                        endGestures = endGestures,
                                                         track = item.audio.sourceTrack,
                                                         currentAudio = currentTrack,
                                                         isPlaybackPlaying = isPlaybackPlaying,
