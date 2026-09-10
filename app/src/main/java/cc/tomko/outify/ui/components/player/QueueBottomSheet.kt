@@ -1,7 +1,12 @@
 package cc.tomko.outify.ui.components.player
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -295,6 +300,10 @@ fun SharedTransitionScope.QueueBottomSheet(
                 }
 
                 else -> {
+                    val currentTrackIndex = remember(localTracks, currentTrack) {
+                        localTracks.indexOfFirst { it.audio.uri == currentTrack?.uri }
+                    }
+
                     LazyColumn(
                         state = listState,
                         modifier = Modifier
@@ -305,13 +314,42 @@ fun SharedTransitionScope.QueueBottomSheet(
                         // Spacer item to preserve index offset for reorder
                         item { Spacer(modifier = Modifier.height(0.dp)) }
 
-                        items(
+                        itemsIndexed(
                             items = localTracks,
-                            key = { it.id },
-                            contentType = { "track" },
-                        ) { item ->
-                            val isCurrentTrack = remember(currentTrack, item.audio.uri) {
-                                currentTrack?.uri == item.audio.uri
+                            key = { _, item -> item.id },
+                            contentType = { _, _ -> "track" },
+                        ) { index, item ->
+
+                            val isCurrentTrack = currentTrackIndex != -1 && index == currentTrackIndex
+                            val isPrevious = currentTrackIndex != -1 && index < currentTrackIndex
+                            val isNext = currentTrackIndex == -1 || index > currentTrackIndex
+
+                            val prevItem = localTracks.getOrNull(index - 1)
+                            val prevIsNext = currentTrackIndex == -1 || (index - 1) > currentTrackIndex
+
+                            // Raw calculation of header required for this specific index in real time
+                            var rawHeaderText: String? = null
+                            var rawHeaderColor: Color = Color.Unspecified
+
+                            if (isPrevious && index == 0) {
+                                // Previous tracks (no matter if queued manually or not)
+                                rawHeaderText = "Previous tracks"
+                                rawHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            } else if (isCurrentTrack) {
+                                rawHeaderText = "Now playing"
+                                rawHeaderColor = MaterialTheme.colorScheme.primary
+                            } else if (isNext) {
+                                if (item.isQueue) {
+                                    if (!prevIsNext || prevItem?.isQueue != true) {
+                                        rawHeaderText = "Next in queue"
+                                        rawHeaderColor = MaterialTheme.colorScheme.secondary
+                                    }
+                                } else {
+                                    if (!prevIsNext || prevItem?.isQueue == true) {
+                                        rawHeaderText = "Up next"
+                                        rawHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                }
                             }
 
                             ReorderableItem(reorderState, key = item.id) { isDraggingItem ->
@@ -320,134 +358,168 @@ fun SharedTransitionScope.QueueBottomSheet(
                                     label = "elevation"
                                 )
 
-                                Surface(
-                                    shadowElevation = elevation,
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = when {
-                                        isDraggingItem -> MaterialTheme.colorScheme.surfaceVariant
-                                        isCurrentTrack -> MaterialTheme.colorScheme.primaryContainer.copy(
-                                            alpha = 0.5f
-                                        )
+                                // This prevents the item from dynamically snapping its height
+                                var frozenHeaderText by remember { mutableStateOf(rawHeaderText) }
+                                var frozenHeaderColor by remember { mutableStateOf(rawHeaderColor) }
 
-                                        else -> Color.Transparent
-                                    },
-                                    modifier = Modifier.animateItem(),
+                                LaunchedEffect(rawHeaderText, rawHeaderColor, isDraggingItem) {
+                                    if (!isDraggingItem) {
+                                        frozenHeaderText = rawHeaderText
+                                        frozenHeaderColor = rawHeaderColor
+                                    }
+                                }
+
+                                val displayHeaderText = if (isDraggingItem) frozenHeaderText else rawHeaderText
+                                val displayHeaderColor = if (isDraggingItem) frozenHeaderColor else rawHeaderColor
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .animateItem()
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
+                                    AnimatedVisibility(
+                                        visible = displayHeaderText != null,
+                                        enter = expandVertically() + fadeIn(),
+                                        exit = shrinkVertically() + fadeOut()
                                     ) {
-                                        IconButton(
-                                            modifier = Modifier.draggableHandle(
-                                                onDragStarted = {
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    isDragging = true
-                                                },
-                                                onDragStopped = {
-                                                    hapticFeedback.performHapticFeedback(
-                                                        HapticFeedbackType.LongPress
-                                                    )
-                                                    isDragging = false
+                                        Text(
+                                            text = displayHeaderText.orEmpty(),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = displayHeaderColor,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(start = 48.dp, top = 12.dp, bottom = 4.dp)
+                                        )
+                                    }
 
-                                                    viewModel.setQueueEntries(localTracks)
-                                                    viewModel.debouncedSaveToRepository(localTracks)
-                                                }
-                                            ),
-                                            onClick = {}
+                                    Surface(
+                                        shadowElevation = elevation,
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = when {
+                                            isDraggingItem -> MaterialTheme.colorScheme.surfaceVariant
+                                            isCurrentTrack -> MaterialTheme.colorScheme.primaryContainer.copy(
+                                                alpha = 0.5f
+                                            )
+                                            item.isQueue -> MaterialTheme.colorScheme.secondaryContainer.copy(
+                                                alpha = 0.5f
+                                            )
+                                            else -> Color.Transparent
+                                        },
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Icon(
-                                                Icons.Default.DragIndicator,
-                                                contentDescription = "Reorder",
-                                                tint = if (isCurrentTrack)
-                                                    MaterialTheme.colorScheme.primary
-                                                else
-                                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
+                                            IconButton(
+                                                modifier = Modifier.draggableHandle(
+                                                    onDragStarted = {
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress
+                                                        )
+                                                        isDragging = true
+                                                    },
+                                                    onDragStopped = {
+                                                        hapticFeedback.performHapticFeedback(
+                                                            HapticFeedbackType.LongPress
+                                                        )
+                                                        isDragging = false
 
-                                        val playNextGesture = listOf(
-                                            SwipeGesture(
-                                                thresholdFraction = 0.25f,
-                                                icon = {
-                                                    Icon(
-                                                        Icons.Default.MoveUp,
-                                                        contentDescription = null
-                                                    )
-                                                },
-                                                onTrigger = {
-                                                    val currentUri = currentTrack?.uri
-                                                    val mutable = localTracks.toMutableList()
-                                                    mutable.remove(item)
-                                                    val currentIdx =
-                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                    val insertAt =
-                                                        (currentIdx + 1).coerceIn(0, mutable.size)
-                                                    mutable.add(insertAt, item)
-                                                    val newCurrentIdx =
-                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                            .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(
-                                                        mutable,
-                                                        newCurrentIdx
-                                                    )
-                                                    viewModel.debouncedSaveToRepository(mutable)
-                                                }
-                                            ),
-                                        )
-                                        val removeFromQueueGesture = listOf(
-                                            SwipeGesture(
-                                                thresholdFraction = 0.25f,
-                                                icon = {
-                                                    Icon(
-                                                        Icons.Default.RemoveCircle,
-                                                        contentDescription = null
-                                                    )
-                                                },
-                                                onTrigger = {
-                                                    val currentUri = currentTrack?.uri
-                                                    val mutable = localTracks.toMutableList()
-                                                    mutable.remove(item)
-                                                    val newCurrentIdx =
-                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                            .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(
-                                                        mutable,
-                                                        newCurrentIdx
-                                                    )
-                                                    viewModel.debouncedSaveToRepository(mutable)
-                                                }
-                                            )
-                                        )
-
-                                        if (item.audio.isEpisode()) {
-                                            SwipeableEpisodeRowConfigured(
-                                                episode = item.audio.sourceEpisode,
-                                                isPlaybackPlaying = isPlaybackPlaying,
-                                                onRowClick = {
-//                                                    spirc.load(episode.toOutifyUri())
-                                                },
-                                                startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                                endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
-                                                modifier = Modifier.animateItem()
-                                            )
-                                        } else {
-                                            SwipeableTrackRowConfigured(
-                                                startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
-                                                endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
-                                                track = item.audio.sourceTrack,
-                                                currentAudio = currentTrack,
-                                                isPlaybackPlaying = isPlaybackPlaying,
-                                                onRowClick = remember(item.audio.uri) {
-                                                    {
-//                                                    spirc.load(album.uri, item.track.uri)
+                                                        viewModel.setQueueEntries(localTracks)
+                                                        viewModel.debouncedSaveToRepository(localTracks)
                                                     }
-                                                },
-                                                isLiked = item.audio.id in likedTracksId,
-                                                onArtistClick = { onArtistClick(it) },
-                                                onArtworkClick = { onArtworkClick(item.audio.sourceTrack!!) }
+                                                ),
+                                                onClick = {}
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.DragIndicator,
+                                                    contentDescription = "Reorder",
+                                                    tint = if (isCurrentTrack)
+                                                        MaterialTheme.colorScheme.primary
+                                                    else
+                                                        MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+
+                                            val playNextGesture = listOf(
+                                                SwipeGesture(
+                                                    thresholdFraction = 0.25f,
+                                                    icon = {
+                                                        Icon(
+                                                            Icons.Default.MoveUp,
+                                                            contentDescription = null
+                                                        )
+                                                    },
+                                                    onTrigger = {
+                                                        val currentUri = currentTrack?.uri
+                                                        val mutable = localTracks.toMutableList()
+                                                        mutable.remove(item)
+                                                        val currentIdx =
+                                                            mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                        val insertAt =
+                                                            (currentIdx + 1).coerceIn(0, mutable.size)
+                                                        mutable.add(insertAt, item)
+                                                        val newCurrentIdx =
+                                                            mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                                .coerceAtLeast(0)
+                                                        viewModel.setQueueEntries(
+                                                            mutable,
+                                                            newCurrentIdx
+                                                        )
+                                                        viewModel.debouncedSaveToRepository(mutable)
+                                                    }
+                                                ),
                                             )
+                                            val removeFromQueueGesture = listOf(
+                                                SwipeGesture(
+                                                    thresholdFraction = 0.25f,
+                                                    icon = {
+                                                        Icon(
+                                                            Icons.Default.RemoveCircle,
+                                                            contentDescription = null
+                                                        )
+                                                    },
+                                                    onTrigger = {
+                                                        val currentUri = currentTrack?.uri
+                                                        val mutable = localTracks.toMutableList()
+                                                        mutable.remove(item)
+                                                        val newCurrentIdx =
+                                                            mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                                .coerceAtLeast(0)
+                                                        viewModel.setQueueEntries(
+                                                            mutable,
+                                                            newCurrentIdx
+                                                        )
+                                                        viewModel.debouncedSaveToRepository(mutable)
+                                                    }
+                                                )
+                                            )
+
+                                            if (item.audio.isEpisode()) {
+                                                SwipeableEpisodeRowConfigured(
+                                                    episode = item.audio.sourceEpisode,
+                                                    isPlaybackPlaying = isPlaybackPlaying,
+                                                    onRowClick = {
+//                                                        spirc.load(episode.toOutifyUri())
+                                                    },
+                                                    startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
+                                                    endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                )
+                                            } else {
+                                                SwipeableTrackRowConfigured(
+                                                    startGestures = if (flipQueueGestures) removeFromQueueGesture else playNextGesture,
+                                                    endGestures = if (flipQueueGestures) playNextGesture else removeFromQueueGesture,
+                                                    track = item.audio.sourceTrack,
+                                                    currentAudio = currentTrack,
+                                                    isPlaybackPlaying = isPlaybackPlaying,
+                                                    onRowClick = remember(item.audio.uri) {
+                                                        {
+//                                                            spirc.load(album.uri, item.track.uri)
+                                                        }
+                                                    },
+                                                    isLiked = item.audio.id in likedTracksId,
+                                                    onArtistClick = { onArtistClick(it) },
+                                                    onArtworkClick = { onArtworkClick(item.audio.sourceTrack!!) }
+                                                )
+                                            }
                                         }
                                     }
                                 }
