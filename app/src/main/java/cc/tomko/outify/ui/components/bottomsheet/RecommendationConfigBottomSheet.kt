@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,9 +16,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.SliderState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -235,6 +238,21 @@ fun EmojiSlider(
     val isValueSet = value != null
     val sliderValue = value ?: ((range.start + range.endInclusive) / 2f)
 
+    val state = remember(range) {
+        SliderState(
+            value = sliderValue,
+            trackRange = range
+        )
+    }
+
+    LaunchedEffect(sliderValue) {
+        if (state.value != sliderValue) {
+            state.value = sliderValue
+        }
+    }
+
+    val interactionSource = remember { MutableInteractionSource() }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = modifier.fillMaxWidth()
@@ -272,10 +290,11 @@ fun EmojiSlider(
             )
 
             Slider(
-                value = sliderValue,
+                state = state,
                 onValueChange = onValueChange,
-                valueRange = range,
                 modifier = Modifier.weight(1f),
+                enabled = true,
+                interactionSource = interactionSource,
                 colors = if (isValueSet) {
                     SliderDefaults.colors()
                 } else {
@@ -287,7 +306,7 @@ fun EmojiSlider(
                 },
                 thumb = { sliderState ->
                     SliderDefaults.Thumb(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        interactionSource = interactionSource,
                         modifier = Modifier.alpha(if (isValueSet) 1f else 0.35f),
                         colors = if (isValueSet) SliderDefaults.colors() else SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.outlineVariant

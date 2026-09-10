@@ -291,7 +291,7 @@ impl SpircRuntime {
 
     pub async fn prev_tracks(
         &self,
-    ) -> Result<Vec<librespot_protocol::player::ProvidedTrack>, librespot_core::Error> {
+    ) -> Result<Vec<(librespot_protocol::player::ProvidedTrack, bool)>, librespot_core::Error> {
         self.spirc
             .prev_tracks()
             .await
@@ -300,7 +300,7 @@ impl SpircRuntime {
 
     pub async fn next_tracks(
         &self,
-    ) -> Result<Vec<librespot_protocol::player::ProvidedTrack>, librespot_core::Error> {
+    ) -> Result<Vec<(librespot_protocol::player::ProvidedTrack, bool)>, librespot_core::Error> {
         self.spirc
             .next_tracks()
             .await

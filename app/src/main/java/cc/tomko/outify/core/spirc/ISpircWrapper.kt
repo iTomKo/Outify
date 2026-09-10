@@ -23,7 +23,7 @@ interface ISpircWrapper {
     fun playerPlayPause(): Boolean
     fun playerNext(): Boolean
     fun playerPrevious(): Boolean
-    fun previousTracks(): String
-    fun nextTracks(): String
+    fun previousTracks(): List<QueueTrackDto>
+    fun nextTracks(): List<QueueTrackDto>
     fun playNext(trackUri: String): Boolean
 }
