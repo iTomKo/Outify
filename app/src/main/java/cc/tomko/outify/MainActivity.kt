@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -469,32 +470,23 @@ class MainActivity : ComponentActivity() {
                                             // Portrait mode
                                             val showBottomNav =
                                                 currentAudio == null || !playerSheetState.isExpanded
-                                            val playerSheetBottomPadding by animateDpAsState(
-                                                targetValue = if (showBottomNav) {
-                                                    if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp
-                                                } else {
-                                                    0.dp
-                                                },
-                                                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                                label = "playerSheetBottomPadding"
-                                            )
 
                                             AnimatedVisibility(
                                                 visible = currentAudio != null,
                                                 enter = slideInVertically(
                                                     initialOffsetY = { fullHeight -> fullHeight }
-                                                ) + fadeIn(),
+                                                ),
                                                 exit = slideOutVertically(
                                                     targetOffsetY = { fullHeight -> fullHeight }
-                                                ) + fadeOut(),
+                                                ),
                                                 modifier = Modifier
                                                     .align(Alignment.BottomCenter)
-                                                    .padding(bottom = playerSheetBottomPadding)
                                             ) {
                                                 PlayerSheet(
                                                     sheetState = playerSheetState,
                                                     listState = playerListState,
                                                     miniPlayerHeight = 88.dp,
+                                                    collapsedBottomInset = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp,
                                                     miniContent = { progress ->
                                                         MiniPlayer(
                                                             viewModel = miniPlayerViewModel,

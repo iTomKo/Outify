@@ -37,6 +37,7 @@ fun PlayerSheet(
     fullContent: @Composable (progress: Float) -> Unit,
     modifier: Modifier = Modifier,
     miniPlayerHeight: Dp = 88.dp,
+    collapsedBottomInset: Dp = 0.dp,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -44,7 +45,8 @@ fun PlayerSheet(
         val density = LocalDensity.current
         val screenHeightPx = with(density) { maxHeight.toPx() }
         val miniHeightPx = with(density) { miniPlayerHeight.toPx() }
-        val collapsedOffset = screenHeightPx - miniHeightPx
+        val insetPx = with(density) { collapsedBottomInset.toPx() }
+        val collapsedOffset = screenHeightPx - miniHeightPx - insetPx
 
         LaunchedEffect(collapsedOffset) {
             sheetState.draggableState.updateAnchors(
