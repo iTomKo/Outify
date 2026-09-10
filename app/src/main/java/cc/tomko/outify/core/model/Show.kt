@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class ShowMediaType {
-   MIXED, AUDIO, VIDEO
+    MIXED, AUDIO, VIDEO
 }
 
 @Serializable

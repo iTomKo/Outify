@@ -43,8 +43,16 @@ extensions.configure<ApplicationExtension>("android") {
         versionCode = majorVersion * 10_000 + minorVersion * 100 + patchVersion
         versionName = "$majorVersion.$minorVersion.$patchVersion"
 
-        buildConfigField("String", "SPOTIFY_CLIENT_ID", "\"${keystoreProps.getProperty("spotify.playback.clientId", "")}\"")
-        buildConfigField("String", "SPOTIFY_CLIENT_SECRET", "\"${keystoreProps.getProperty("spotify.playback.clientSecret", "")}\"")
+        buildConfigField(
+            "String",
+            "SPOTIFY_CLIENT_ID",
+            "\"${keystoreProps.getProperty("spotify.playback.clientId", "")}\""
+        )
+        buildConfigField(
+            "String",
+            "SPOTIFY_CLIENT_SECRET",
+            "\"${keystoreProps.getProperty("spotify.playback.clientSecret", "")}\""
+        )
     }
 
     signingConfigs {
@@ -79,7 +87,10 @@ extensions.configure<ApplicationExtension>("android") {
             isMinifyEnabled = true
             isShrinkResources = true
 
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             if (
                 !System.getenv("ANDROID_KEYSTORE_FILE").isNullOrBlank() &&
                 !System.getenv("ANDROID_KEYSTORE_PASSWORD").isNullOrBlank() &&
@@ -205,10 +216,10 @@ dependencies {
 //    implementation(libs.room.compiler){
 //        exclude(group = "com.intellij", module = "annotations")
 //    }
-    implementation(libs.room.runtime){
+    implementation(libs.room.runtime) {
         exclude(group = "com.intellij", module = "annotations")
     }
-    implementation(libs.room.ktx){
+    implementation(libs.room.ktx) {
         exclude(group = "com.intellij", module = "annotations")
     }
     ksp(libs.room.compiler)

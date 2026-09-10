@@ -2,10 +2,9 @@ package cc.tomko.outify.ui.viewmodel.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.queue.SavedQueue

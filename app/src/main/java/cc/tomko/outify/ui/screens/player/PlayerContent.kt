@@ -81,7 +81,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -91,7 +90,6 @@ import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.playback.model.RepeatMode
@@ -108,14 +106,14 @@ import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
 @Composable
 fun PlayerContent(
-   viewModel: PlayerViewModel,
-   expansionFractionProvider: () -> Float,
-   onShowQueue: () -> Unit,
-   onArtistClick: (Artist) -> Unit,
-   onShowClick: (Episode?) -> Unit,
-   listState: LazyListState,
-   paddingValues: PaddingValues,
-   modifier: Modifier = Modifier,
+    viewModel: PlayerViewModel,
+    expansionFractionProvider: () -> Float,
+    onShowQueue: () -> Unit,
+    onArtistClick: (Artist) -> Unit,
+    onShowClick: (Episode?) -> Unit,
+    listState: LazyListState,
+    paddingValues: PaddingValues,
+    modifier: Modifier = Modifier,
 ) {
     val audio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
@@ -169,7 +167,14 @@ fun PlayerContent(
         MoreActionsSection(
             onQueueClick = { onShowQueue() },
             onLyricsClick = { GlobalPopupController.show(PopupSpec.Lyrics(audio!!.sourceTrack!!)) },
-            onMoreClick = { GlobalPopupController.show(PopupSpec.TrackInfo(audio!!.sourceTrack!!, isLiked = isFavorite)) }
+            onMoreClick = {
+                GlobalPopupController.show(
+                    PopupSpec.TrackInfo(
+                        audio!!.sourceTrack!!,
+                        isLiked = isFavorite
+                    )
+                )
+            }
         )
     }
 
@@ -205,14 +210,26 @@ fun PlayerContent(
             expansionFractionProvider = expansionFractionProvider,
             isPlaying = isPlaying,
             titleStyle = if (landscape) {
-                MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, color = textColor)
+                MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
             } else {
-                MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold, color = textColor)
+                MaterialTheme.typography.headlineSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
+                )
             },
             artistStyle = if (landscape) {
-                MaterialTheme.typography.bodySmall.copy(letterSpacing = 0.sp, color = artistTextColor)
+                MaterialTheme.typography.bodySmall.copy(
+                    letterSpacing = 0.sp,
+                    color = artistTextColor
+                )
             } else {
-                MaterialTheme.typography.titleMedium.copy(letterSpacing = 0.sp, color = artistTextColor)
+                MaterialTheme.typography.titleMedium.copy(
+                    letterSpacing = 0.sp,
+                    color = artistTextColor
+                )
             },
         )
     }
@@ -310,11 +327,11 @@ private fun AlbumCoverContent(
 
 @Composable
 private fun PlayerProgressContent(
-   elapsed: Long,
-   duration: Long,
-   isPlaying: Boolean,
-   onSeek: (Long) -> Unit,
-   textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
+    elapsed: Long,
+    duration: Long,
+    isPlaying: Boolean,
+    onSeek: (Long) -> Unit,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMedium,
 ) {
     fun formatTime(ms: Long): String {
         val s = (ms / 1000).coerceAtLeast(0L)
@@ -432,12 +449,14 @@ private fun PlayerControlsContent(
 
                 ToggleSegmentButton(
                     modifier = commonModifier
-                        .clip(AbsoluteSmoothCornerShape(
-                            cornerRadiusBL = rowCorners,
-                            cornerRadiusBR = 0.dp,
-                            cornerRadiusTL = rowCorners,
-                            cornerRadiusTR = 0.dp,
-                        )),
+                        .clip(
+                            AbsoluteSmoothCornerShape(
+                                cornerRadiusBL = rowCorners,
+                                cornerRadiusBR = 0.dp,
+                                cornerRadiusTL = rowCorners,
+                                cornerRadiusTR = 0.dp,
+                            )
+                        ),
                     active = isShuffleEnabled,
                     activeColor = activeColorMain,
                     activeCornerRadius = rowCorners,
@@ -451,12 +470,14 @@ private fun PlayerControlsContent(
 
                 ToggleSegmentButton(
                     modifier = commonModifier
-                        .clip(AbsoluteSmoothCornerShape(
-                            cornerRadiusBL = 0.dp,
-                            cornerRadiusBR = 0.dp,
-                            cornerRadiusTL = 0.dp,
-                            cornerRadiusTR = 0.dp,
-                        )),
+                        .clip(
+                            AbsoluteSmoothCornerShape(
+                                cornerRadiusBL = 0.dp,
+                                cornerRadiusBR = 0.dp,
+                                cornerRadiusTL = 0.dp,
+                                cornerRadiusTR = 0.dp,
+                            )
+                        ),
                     active = repeatMode != RepeatMode.NONE,
                     activeColor = activeColorMain,
                     activeCornerRadius = rowCorners,
@@ -464,18 +485,20 @@ private fun PlayerControlsContent(
                     inactiveColor = inactiveColor,
                     inactiveContentColor = inactiveContentColor,
                     onClick = onRepeatToggle,
-                    imageVector = if(!repeatMode.repeatTrack) Icons.Default.Repeat else Icons.Default.RepeatOne,
+                    imageVector = if (!repeatMode.repeatTrack) Icons.Default.Repeat else Icons.Default.RepeatOne,
                     contentDesc = "Repeat"
                 )
 
                 ToggleSegmentButton(
                     modifier = commonModifier
-                        .clip(AbsoluteSmoothCornerShape(
-                            cornerRadiusBR = rowCorners,
-                            cornerRadiusBL = 0.dp,
-                            cornerRadiusTR = rowCorners,
-                            cornerRadiusTL = 0.dp,
-                        )),
+                        .clip(
+                            AbsoluteSmoothCornerShape(
+                                cornerRadiusBR = rowCorners,
+                                cornerRadiusBL = 0.dp,
+                                cornerRadiusTR = rowCorners,
+                                cornerRadiusTL = 0.dp,
+                            )
+                        ),
                     active = isFavorite,
                     activeColor = activeColorMain,
                     activeCornerRadius = rowCorners,
@@ -846,7 +869,7 @@ private fun AudioMetadataSection(
             ?: audio?.showName
             ?: "Unknown source"
 
-        if(audio?.isEpisode() ?: true) {
+        if (audio?.isEpisode() ?: true) {
             AutoScrollingTextOnDemand(
                 text = subtitle,
                 style = artistStyle,
@@ -990,7 +1013,7 @@ private fun FullPlayerPortraitContent(
             playbackControlsSection(playbackControlsHeight)
             controlsSection(segmentedControlsHeight)
 
-            if(!isEpisode) {
+            if (!isEpisode) {
                 moreActions()
             }
         }

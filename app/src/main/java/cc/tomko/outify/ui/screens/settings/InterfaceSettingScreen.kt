@@ -108,7 +108,12 @@ fun InterfaceSettingScreen(
                             description = "When enabled shows on right side, otherwise left",
                             isChecked = showNavbarHistoryOnEnd,
                             onCheckedChange = { viewModel.setNavbarHistoryOnEnd(it) },
-                            icon = { Icon(Icons.AutoMirrored.Filled.ArrowRight, contentDescription = null) }
+                            icon = {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowRight,
+                                    contentDescription = null
+                                )
+                            }
                         )
                     }
                 }

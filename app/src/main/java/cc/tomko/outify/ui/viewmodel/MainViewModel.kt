@@ -9,12 +9,12 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -160,7 +160,9 @@ class MainViewModel @Inject constructor(
             }
 
             if (wasLiked) {
-                if (isTrack) likedRepository.removeLikedEpisode(id) else likedRepository.removeLikedEpisode(id)
+                if (isTrack) likedRepository.removeLikedEpisode(id) else likedRepository.removeLikedEpisode(
+                    id
+                )
             } else {
                 if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(id)
             }
@@ -171,11 +173,15 @@ class MainViewModel @Inject constructor(
                 spClient.saveItems(arrayOf(rawUri))
             }
 
-            if(!success) {
+            if (!success) {
                 if (wasLiked) {
-                    if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(id)
+                    if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(
+                        id
+                    )
                 } else {
-                    if (isTrack) likedRepository.removeLiked(id) else likedRepository.removeLikedEpisode(id)
+                    if (isTrack) likedRepository.removeLiked(id) else likedRepository.removeLikedEpisode(
+                        id
+                    )
                 }
                 InAppNotificationController.show(
                     "Failed to update favorite",

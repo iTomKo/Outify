@@ -31,9 +31,9 @@ import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Constraints
 
 @Composable
 fun AutoScrollingTextOnDemand(
@@ -45,7 +45,10 @@ fun AutoScrollingTextOnDemand(
     canScroll: Boolean = true
 ) {
     var overflow by remember(text, style) { mutableStateOf(false) }
-    val canStart by remember(text, style) { derivedStateOf { expansionFractionProvider() > 0.99f && overflow } }
+    val canStart by remember(
+        text,
+        style
+    ) { derivedStateOf { expansionFractionProvider() > 0.99f && overflow } }
 
 
 // Usamos un Text "medidor" sólo la primera composición para detectar overflow.
@@ -116,7 +119,10 @@ fun AutoScrollingText(
                             // Left fade-in: Animates its color from opaque to transparent
                             drawRect(
                                 brush = Brush.horizontalGradient(
-                                    colors = listOf(animatedLeftGradientStartColor, gradientEdgeColor),
+                                    colors = listOf(
+                                        animatedLeftGradientStartColor,
+                                        gradientEdgeColor
+                                    ),
                                     startX = 0f,
                                     endX = gradientWidthPx
                                 ),
@@ -186,7 +192,8 @@ fun AutoScrollingText(
         }
 
         val contentPlaceable = subcompose("content", content)[0].measure(constraints)
-        val targetWidth = constraints.maxWidth.takeIf { it != Constraints.Infinity } ?: contentPlaceable.width
+        val targetWidth =
+            constraints.maxWidth.takeIf { it != Constraints.Infinity } ?: contentPlaceable.width
 
         layout(targetWidth, contentPlaceable.height) {
             contentPlaceable.place(0, 0)

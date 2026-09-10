@@ -13,16 +13,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
@@ -35,8 +37,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -260,7 +260,11 @@ fun CustomSpeedBottomSheet(
     val scope = rememberCoroutineScope()
 
     var sliderValue by remember { mutableFloatStateOf(currentSpeed.coerceIn(MIN_SPEED, MAX_SPEED)) }
-    var textValue by rememberSaveable { mutableStateOf(currentSpeed.speedLabel().removeSuffix("x")) }
+    var textValue by rememberSaveable {
+        mutableStateOf(
+            currentSpeed.speedLabel().removeSuffix("x")
+        )
+    }
     var textIsInvalid by remember { mutableStateOf(false) }
 
     // Keep the text field following the slider without fighting user typing.

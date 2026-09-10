@@ -1,8 +1,8 @@
 package cc.tomko.outify.data.repository
 
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.model.LyricsResponse
 import cc.tomko.outify.core.model.LyricLine
+import cc.tomko.outify.core.model.LyricsResponse
 import cc.tomko.outify.core.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

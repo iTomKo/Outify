@@ -241,7 +241,16 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "outify_database"
                 )
-                    .addMigrations(MIGRATION_15_16, MIGRATION_16_17, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21, MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24)
+                    .addMigrations(
+                        MIGRATION_15_16,
+                        MIGRATION_16_17,
+                        MIGRATION_18_19,
+                        MIGRATION_19_20,
+                        MIGRATION_20_21,
+                        MIGRATION_21_22,
+                        MIGRATION_22_23,
+                        MIGRATION_23_24
+                    )
                     .build()
                 INSTANCE = instance
                 instance

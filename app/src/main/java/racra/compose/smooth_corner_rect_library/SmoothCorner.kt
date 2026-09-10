@@ -1,6 +1,10 @@
 package racra.compose.smooth_corner_rect_library
 
-import kotlin.math.*
+import kotlin.math.cos
+import kotlin.math.min
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.tan
 
 /**
  * A class representing the points required to draw the curves in a smooth corner.

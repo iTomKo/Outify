@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,9 +29,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.reccobeats.RecommendationConfig
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -74,7 +73,9 @@ fun RecommendationConfigBottomSheet(
         ) {
             item {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -86,9 +87,20 @@ fun RecommendationConfigBottomSheet(
 
                     Button(
                         onClick = {
-                            onSubmit(RecommendationConfig(
-                                acousticness, danceability, energy, instrumentalness, liveness, loudness, speechiness, tempo, valence, featureWeight
-                            ))
+                            onSubmit(
+                                RecommendationConfig(
+                                    acousticness,
+                                    danceability,
+                                    energy,
+                                    instrumentalness,
+                                    liveness,
+                                    loudness,
+                                    speechiness,
+                                    tempo,
+                                    valence,
+                                    featureWeight
+                                )
+                            )
                         },
                     ) {
                         Text("Apply")
@@ -277,7 +289,9 @@ fun EmojiSlider(
                     SliderDefaults.Thumb(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         modifier = Modifier.alpha(if (isValueSet) 1f else 0.35f),
-                        colors = if (isValueSet) SliderDefaults.colors() else SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.outlineVariant)
+                        colors = if (isValueSet) SliderDefaults.colors() else SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.outlineVariant
+                        )
                     )
                 },
                 track = { sliderState ->
@@ -288,8 +302,12 @@ fun EmojiSlider(
                             SliderDefaults.colors()
                         } else {
                             SliderDefaults.colors(
-                                activeTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                                activeTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(
+                                    alpha = 0.2f
+                                ),
+                                inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant.copy(
+                                    alpha = 0.2f
+                                )
                             )
                         }
                     )

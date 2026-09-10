@@ -30,7 +30,6 @@ import androidx.palette.graphics.Palette
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import coil3.imageLoader
 import coil3.request.ImageRequest

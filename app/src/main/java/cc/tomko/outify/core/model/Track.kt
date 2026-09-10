@@ -6,7 +6,6 @@ import cc.tomko.outify.data.database.TrackArtistEntity
 import cc.tomko.outify.data.database.TrackEntity
 import cc.tomko.outify.utils.canonicalIdFromUri
 import kotlinx.serialization.Serializable
-import kotlin.math.exp
 
 /**
  * Contains information about single Track.

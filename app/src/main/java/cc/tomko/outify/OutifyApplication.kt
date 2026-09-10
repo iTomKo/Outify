@@ -7,8 +7,8 @@ import android.widget.Toast
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.media3.common.util.UnstableApi
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.spirc.SpircController
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
 import cc.tomko.outify.ui.viewmodel.detail.setDetailViewModelStore
@@ -61,15 +61,19 @@ class OutifyApplication : Application() {
             false
         }
 
-				if(!libraryLoaded) {
-					Toast.makeText(this, "Failed to load librespot!", Toast.LENGTH_LONG).show()
-				}
+        if (!libraryLoaded) {
+            Toast.makeText(this, "Failed to load librespot!", Toast.LENGTH_LONG).show()
+        }
 
         val spotifySecret = BuildConfig.SPOTIFY_CLIENT_SECRET
         val spotifyId = BuildConfig.SPOTIFY_CLIENT_ID
 
         if (spotifySecret.isEmpty() || spotifyId.isEmpty()) {
-            Toast.makeText(this, "No Spotify credentials were supplied during build", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                "No Spotify credentials were supplied during build",
+                Toast.LENGTH_LONG
+            ).show()
             throw Exception("No Spotify credentials were supplied during build! spotify.playback.clientId is${if (spotifyId.isEmpty()) "" else " not"} empty; spotify.playback.clientSecret is${if (spotifySecret.isEmpty()) "" else " not"} empty")
         }
 

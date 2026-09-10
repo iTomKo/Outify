@@ -2,14 +2,12 @@ package cc.tomko.outify.ui.viewmodel.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
-import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.LyricLine
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.PlayerRepository
@@ -28,7 +26,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest

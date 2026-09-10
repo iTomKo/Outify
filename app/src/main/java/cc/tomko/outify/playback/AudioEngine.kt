@@ -3,14 +3,12 @@ package cc.tomko.outify.playback
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
-import android.media.AudioManager
 import android.media.AudioTrack
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
-import cc.tomko.outify.core.spirc.VolumeController.Companion.SPOTIFY_MAX_VOLUME
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import java.nio.ByteBuffer
 import java.nio.ByteOrder

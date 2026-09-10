@@ -37,7 +37,11 @@ interface EpisodeDao {
     suspend fun deleteByIds(episodeIds: List<String>)
 
     @Query("UPDATE episodes SET fullyPlayed = :fullyPlayed, resumePositionMs = :resumePositionMs WHERE episodeId = :episodeId")
-    suspend fun updateEpisodePlayState(episodeId: String, fullyPlayed: Boolean, resumePositionMs: Long)
+    suspend fun updateEpisodePlayState(
+        episodeId: String,
+        fullyPlayed: Boolean,
+        resumePositionMs: Long
+    )
 
     @Query("UPDATE episodes SET fullyPlayed = 0, resumePositionMs = 0 WHERE episodeId IN (:episodeIds)")
     suspend fun resetEpisodePlayState(episodeIds: List<String>)

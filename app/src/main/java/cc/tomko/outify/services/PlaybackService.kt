@@ -13,7 +13,6 @@ import android.media.AudioManager
 import android.os.Binder
 import android.util.Log
 import android.widget.Toast
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC
@@ -33,8 +32,8 @@ import cc.tomko.outify.MainActivity
 import cc.tomko.outify.MediaSessionConstants
 import cc.tomko.outify.R
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.SpotifyUri
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import cc.tomko.outify.data.repository.LikedRepository
@@ -195,7 +194,7 @@ class PlaybackService : MediaLibraryService(),
         val browserFuture = MediaBrowser.Builder(this, sessionToken).buildAsync()
         browserFuture.addListener({ browserFuture.get() }, MoreExecutors.directExecutor())
 
-        if(requestAudioFocus()) {
+        if (requestAudioFocus()) {
             Log.i(TAG, "Focus requested :)")
         } else {
             Log.i(TAG, "Focus failed to request :(")
@@ -239,7 +238,9 @@ class PlaybackService : MediaLibraryService(),
             if (isTrack) {
                 if (wasLiked) likedRepository.removeLiked(id) else likedRepository.addLiked(id)
             } else {
-                if (wasLiked) likedRepository.removeLikedEpisode(id) else likedRepository.addLikedEpisode(id)
+                if (wasLiked) likedRepository.removeLikedEpisode(id) else likedRepository.addLikedEpisode(
+                    id
+                )
             }
             updateNotification()
 
@@ -255,7 +256,9 @@ class PlaybackService : MediaLibraryService(),
                 if (isTrack) {
                     if (wasLiked) likedRepository.addLiked(id) else likedRepository.removeLiked(id)
                 } else {
-                    if (wasLiked) likedRepository.addLikedEpisode(id) else likedRepository.removeLikedEpisode(id)
+                    if (wasLiked) likedRepository.addLikedEpisode(id) else likedRepository.removeLikedEpisode(
+                        id
+                    )
                 }
                 updateNotification()
             }
@@ -304,8 +307,8 @@ class PlaybackService : MediaLibraryService(),
                 CommandButton.Builder(
                     when (repeatMode) {
                         RepeatMode.NONE -> CommandButton.ICON_REPEAT_OFF
-                        RepeatMode.ONE  -> CommandButton.ICON_REPEAT_ONE
-                        RepeatMode.ALL  -> CommandButton.ICON_REPEAT_ALL
+                        RepeatMode.ONE -> CommandButton.ICON_REPEAT_ONE
+                        RepeatMode.ALL -> CommandButton.ICON_REPEAT_ALL
                     }
                 )
                     .setDisplayName(
@@ -401,16 +404,19 @@ class PlaybackService : MediaLibraryService(),
                 Log.i(TAG, "Resuming playback")
 //                resumePlayback()
             }
+
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasAudioFocus = false
                 Log.i(TAG, "Stopping playback")
 //                stopPlayback()
             }
+
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 hasAudioFocus = false
                 Log.i(TAG, "Pausing playback")
 //                pausePlayback()
             }
+
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 Log.i(TAG, "Ducking playback")
 //                mediaPlayer?.setVolume(0.2f, 0.2f)
@@ -426,7 +432,8 @@ class PlaybackService : MediaLibraryService(),
                 android.media.AudioAttributes.Builder()
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
                     .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                    .build())
+                    .build()
+            )
             .build()
 
         val result = audioManager.requestAudioFocus(audioFocusRequest!!)

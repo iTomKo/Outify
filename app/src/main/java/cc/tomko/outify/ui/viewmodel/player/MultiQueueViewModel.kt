@@ -2,9 +2,8 @@ package cc.tomko.outify.ui.viewmodel.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.queue.SavedQueue
 import cc.tomko.outify.data.repository.SavedQueueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

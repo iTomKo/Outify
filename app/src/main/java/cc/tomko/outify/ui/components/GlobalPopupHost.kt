@@ -7,17 +7,20 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.reccobeats.PendingRecommendation
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.bottomsheet.AddToPlaylistBottomSheet
@@ -26,21 +29,18 @@ import cc.tomko.outify.ui.components.bottomsheet.ArtistInfoBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.AuthResultBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.BatteryOptimizationBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.CreatePlaylistBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.LyricsBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.NotificationPermissionBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.PlaybackDevicesBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.PlaylistInfoBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.RecommendationConfigBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.TrackInfoBottomSheet
-import cc.tomko.outify.reccobeats.PendingRecommendation
 import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.CreatePlaylistViewModel
-import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import cc.tomko.outify.ui.components.bottomsheet.LyricsBottomSheet
+import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -289,9 +289,10 @@ fun GlobalPopupHost(
                 ) { }
                 BatteryOptimizationBottomSheet(
                     onAllow = {
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:${context.packageName}")
-                        }
+                        val intent =
+                            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
                         batteryLauncher.launch(intent)
                         GlobalPopupController.dismiss(popup.id)
                     },

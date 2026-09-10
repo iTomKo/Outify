@@ -50,11 +50,11 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.MainActivity
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.components.GlanceSmartImage
 import cc.tomko.outify.ui.extractThemeColor

@@ -4,11 +4,9 @@ import android.util.Log
 import androidx.annotation.FloatRange
 import androidx.annotation.IntRange
 import androidx.annotation.Size
-import cc.tomko.outify.core.model.OutifyUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
@@ -50,8 +48,28 @@ class Recommendations @Inject constructor(
 ) {
     val client = OkHttpClient()
 
-    suspend fun fetchRecommendations(@IntRange(from = 1, to = 100) size: Int, @Size(min = 1, max = 5) seeds: Array<String>, config: RecommendationConfig): List<String> {
-        return fetchRecommendations(size, seeds, config.acousticness, config.danceability, config.energy, config.instrumentalness, null, config.liveness, config.loudness, null, config.speechiness, config.tempo, config.valence, null, config.featureWeight)
+    suspend fun fetchRecommendations(
+        @IntRange(from = 1, to = 100) size: Int,
+        @Size(min = 1, max = 5) seeds: Array<String>,
+        config: RecommendationConfig
+    ): List<String> {
+        return fetchRecommendations(
+            size,
+            seeds,
+            config.acousticness,
+            config.danceability,
+            config.energy,
+            config.instrumentalness,
+            null,
+            config.liveness,
+            config.loudness,
+            null,
+            config.speechiness,
+            config.tempo,
+            config.valence,
+            null,
+            config.featureWeight
+        )
     }
 
     /**
@@ -59,22 +77,23 @@ class Recommendations @Inject constructor(
      * @param size how many tracks to return
      * @param seeds IDs of tracks to seed by
      */
-    suspend fun fetchRecommendations(@IntRange(from = 1, to = 100) size: Int,
-                                     @Size(min = 1, max = 5) seeds: Array<String>,
+    suspend fun fetchRecommendations(
+        @IntRange(from = 1, to = 100) size: Int,
+        @Size(min = 1, max = 5) seeds: Array<String>,
 
-                                     @FloatRange(from = 0.0, to = 1.0) acousticness: Float? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) danceability: Float? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) energy: Float? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) instrumentalness: Float? = null,
-                                     @IntRange(from = -1, to = 11) key: Int? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) liveness: Float? = null,
-                                     @FloatRange(from = -60.0, to = 2.0) loudness: Float? = null,
-                                     mode: Mode? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) speechiness: Float? = null,
-                                     @FloatRange(from = 0.0, to = 250.0) tempo: Float? = null,
-                                     @FloatRange(from = 0.0, to = 1.0) valence: Float? = null,
-                                     @IntRange(from = 0, to = 100) popularity: Int? = null,
-                                     @FloatRange(from = 1.0, to = 5.0) featureWeight: Float? = null,
+        @FloatRange(from = 0.0, to = 1.0) acousticness: Float? = null,
+        @FloatRange(from = 0.0, to = 1.0) danceability: Float? = null,
+        @FloatRange(from = 0.0, to = 1.0) energy: Float? = null,
+        @FloatRange(from = 0.0, to = 1.0) instrumentalness: Float? = null,
+        @IntRange(from = -1, to = 11) key: Int? = null,
+        @FloatRange(from = 0.0, to = 1.0) liveness: Float? = null,
+        @FloatRange(from = -60.0, to = 2.0) loudness: Float? = null,
+        mode: Mode? = null,
+        @FloatRange(from = 0.0, to = 1.0) speechiness: Float? = null,
+        @FloatRange(from = 0.0, to = 250.0) tempo: Float? = null,
+        @FloatRange(from = 0.0, to = 1.0) valence: Float? = null,
+        @IntRange(from = 0, to = 100) popularity: Int? = null,
+        @FloatRange(from = 1.0, to = 5.0) featureWeight: Float? = null,
     ): List<String> = withContext(Dispatchers.IO) {
         require(seeds.size in 1..5)
 
@@ -105,13 +124,13 @@ class Recommendations @Inject constructor(
             .build()
 
         client.newCall(request).execute().use { resp ->
-            if(!resp.isSuccessful) {
+            if (!resp.isSuccessful) {
                 Log.w("Recommendations", "Request failed with status code: ${resp.code}")
                 return@withContext emptyList()
             }
 
             val body = resp.body?.string()
-            if(body == null) {
+            if (body == null) {
                 Log.w("Recommendations", "Response body is empty!")
                 return@withContext emptyList()
             }

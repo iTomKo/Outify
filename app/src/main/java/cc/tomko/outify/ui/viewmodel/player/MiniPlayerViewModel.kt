@@ -2,9 +2,8 @@ package cc.tomko.outify.ui.viewmodel.player
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -77,7 +76,7 @@ class MiniPlayerViewModel @Inject constructor(
             .map { it.isActiveDevice }
 
     fun setAudio(audio: PlayableAudio?) {
-        if (audio == null){
+        if (audio == null) {
             spirc.playerPause()
         }
         playbackStateHolder.setAudio(audio)

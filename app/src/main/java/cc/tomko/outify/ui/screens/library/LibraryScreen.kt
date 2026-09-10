@@ -65,15 +65,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
-import cc.tomko.outify.core.model.Album
-import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
-import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.toColor
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -96,9 +92,11 @@ import kotlinx.coroutines.launch
 
 private sealed class LibraryItem {
     abstract val key: String
+
     data class FolderHeader(val folder: PlaylistFolder, val isExpanded: Boolean) : LibraryItem() {
         override val key get() = "folder:${folder.id}"
     }
+
     data class PlaylistRow(val playlist: Playlist, val folderId: String?) : LibraryItem() {
         override val key get() = "playlist:${playlist.uri}"
     }
@@ -247,7 +245,9 @@ fun SharedTransitionScope.LibraryScreen(
                     if (flatItems.isEmpty()) {
                         item(key = "playlists_empty") {
                             Box(
-                                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -284,6 +284,7 @@ fun SharedTransitionScope.LibraryScreen(
                                     onDelete = { deleteFolderId = item.folder.id },
                                 )
                             }
+
                             is LibraryItem.PlaylistRow -> {
                                 PlaylistRowContent(
                                     playlist = item.playlist,
@@ -452,7 +453,8 @@ fun SharedTransitionScope.LibraryScreen(
                     }
                 }
 
-                else -> { /* Managed safety fallback for removed states */ }
+                else -> { /* Managed safety fallback for removed states */
+                }
             }
         }
 
@@ -651,7 +653,8 @@ private fun LibraryExpressiveFilters(
         modifier = Modifier.fillMaxWidth()
     ) {
         // Explicitly handle desired dynamic filters instead of full structural tabs loop
-        val allowedFilters = listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Shows, LibraryTab.Episodes)
+        val allowedFilters =
+            listOf(LibraryTab.Playlists, LibraryTab.Albums, LibraryTab.Shows, LibraryTab.Episodes)
 
         allowedFilters.forEach { tab ->
             val isSelected = tab == selectedTab

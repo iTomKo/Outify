@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -254,6 +253,7 @@ fun SharedTransitionScope.ShowDetailScreen(
                                 val target = when (effectiveOrder) {
                                     ConsumptionOrder.SEQUENTIAL ->
                                         viewModel.findNextEpisode(episodes)
+
                                     ConsumptionOrder.EPISODIC, ConsumptionOrder.RECENT ->
                                         episodes.firstOrNull()
                                 }

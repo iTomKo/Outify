@@ -47,16 +47,13 @@ import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalEpisodeSwipeActionHandler
-import cc.tomko.outify.data.setting.LocalSwipeActionHandler
 import cc.tomko.outify.data.setting.LocalSwipeGestureSettings
 import cc.tomko.outify.data.setting.LocalUiSettings
-import cc.tomko.outify.data.setting.buildLongPressAction
 import cc.tomko.outify.data.setting.buildLongPressActionForEpisode
 import cc.tomko.outify.data.setting.buildSwipeGesturesForEpisode
 import cc.tomko.outify.ui.components.AudioBarsIndicator
 import cc.tomko.outify.ui.components.SkeletonBox
 import cc.tomko.outify.ui.components.SmartImage
-import cc.tomko.outify.ui.components.rows.EpisodeRow
 import java.util.concurrent.TimeUnit
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
@@ -382,7 +379,12 @@ fun SharedTransitionScope.EpisodeRow(
     }
 }
 
-private fun formatEpisodeMeta(publishTimeMs: Long, durationMs: Long, fullyPlayed: Boolean, resumePositionMs: Long): String {
+private fun formatEpisodeMeta(
+    publishTimeMs: Long,
+    durationMs: Long,
+    fullyPlayed: Boolean,
+    resumePositionMs: Long
+): String {
     val now = System.currentTimeMillis()
     val daysAgo = TimeUnit.MILLISECONDS.toDays(now - publishTimeMs)
     val whenStr = when {
@@ -404,6 +406,7 @@ private fun formatEpisodeMeta(publishTimeMs: Long, durationMs: Long, fullyPlayed
             val resumeStr = if (resumeMin > 0) "${resumeMin}m ${resumeSec}s" else "${resumeSec}s"
             "$whenStr · $durationStr · Resume $resumeStr"
         }
+
         else -> "$whenStr · $durationStr"
     }
 }

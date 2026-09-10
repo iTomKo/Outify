@@ -89,7 +89,7 @@ class BackupRepository @Inject constructor(
             preferences = BackupPreferences(
                 shuffle = prefs[SettingsRepository.Keys.SHUFFLE],
                 repeat = prefs[SettingsRepository.Keys.REPEAT],
-								repeatTrack = prefs[SettingsRepository.Keys.REPEAT_TRACK],
+                repeatTrack = prefs[SettingsRepository.Keys.REPEAT_TRACK],
                 gapless = prefs[SettingsRepository.Keys.GAPLESS],
                 normalizeAudio = prefs[SettingsRepository.Keys.NORMALIZE_AUDIO],
                 keepalive = prefs[SettingsRepository.Keys.KEEPALIVE],

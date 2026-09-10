@@ -1,7 +1,6 @@
 package cc.tomko.outify.playback
 
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.playback.model.PlaybackState
 import cc.tomko.outify.playback.model.PositionInfo

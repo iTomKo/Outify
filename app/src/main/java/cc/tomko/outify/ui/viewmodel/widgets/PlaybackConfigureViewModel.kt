@@ -3,7 +3,6 @@ package cc.tomko.outify.ui.viewmodel.widgets
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.model.PlayableAudio
-import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder

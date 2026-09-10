@@ -68,7 +68,10 @@ fun FloatingOutifyBottomNav(
     ) {
         Row(
             modifier = Modifier.padding(horizontal = ROW_PADDING_H, vertical = ROW_PADDING_V),
-            horizontalArrangement = Arrangement.spacedBy(ITEM_SPACING, Alignment.CenterHorizontally),
+            horizontalArrangement = Arrangement.spacedBy(
+                ITEM_SPACING,
+                Alignment.CenterHorizontally
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items.forEach { item ->

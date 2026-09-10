@@ -2,14 +2,18 @@ package racra.compose.smooth_corner_rect_library
 
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.ui.geometry.*
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.toRect
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import java.lang.Math.toRadians
-import kotlin.math.*
+import kotlin.math.min
 
 /**
  * A shape describing a rectangle with smooth rounded corners sometimes called a
@@ -53,6 +57,7 @@ data class AbsoluteSmoothCornerShape(
         topStart + topEnd + bottomEnd + bottomStart == 0.0f -> {
             Outline.Rectangle(size.toRect())
         }
+
         smoothnessAsPercentTL + smoothnessAsPercentTR +
                 smoothnessAsPercentBR + smoothnessAsPercentBL == 0 -> {
             Outline.Rounded(
@@ -65,6 +70,7 @@ data class AbsoluteSmoothCornerShape(
                 )
             )
         }
+
         else -> {
             Outline.Generic(
                 Path().apply {

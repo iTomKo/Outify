@@ -4,9 +4,9 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.Device
 import cc.tomko.outify.core.model.DevicesResponse
+import cc.tomko.outify.core.spirc.SpircWrapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

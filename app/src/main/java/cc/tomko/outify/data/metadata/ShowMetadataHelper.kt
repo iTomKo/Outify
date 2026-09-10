@@ -12,7 +12,6 @@ import cc.tomko.outify.data.dao.ShowEpisodeDao
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.data.database.ShowEntity
 import cc.tomko.outify.data.database.show.ShowEpisodeCrossRef
-import cc.tomko.outify.data.database.show.ShowWithEpisodes
 import cc.tomko.outify.data.database.show.toDomain
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

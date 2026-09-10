@@ -81,7 +81,7 @@ class MediaLibrarySessionCallback @Inject constructor(
         when (customCommand.customAction) {
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
             MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
-						MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> toggleRepeatMode()
+            MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> toggleRepeatMode()
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }

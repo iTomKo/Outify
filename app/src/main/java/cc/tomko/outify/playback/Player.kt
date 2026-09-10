@@ -13,12 +13,12 @@ import androidx.media3.common.audio.AudioFocusManager
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.ALBUM_COVER_URL
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.services.PlaybackService
@@ -53,10 +53,13 @@ class Player @Inject constructor(
 ) : SimpleBasePlayer(application.mainLooper) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+
     @Volatile
     var currentArtworkBitmap: Bitmap? = null
+
     @Volatile
     private var currentArtworkBytes: ByteArray? = null
+
     @Volatile
     private var currentArtworkUri: String? = null
 
@@ -67,140 +70,145 @@ class Player @Inject constructor(
             application.applicationContext,
             object : PlayerEventCallback {
                 override fun onTrackChange(spotify_uri: String, json_str: String) {
-                scope.launch {
-                    val audio = if (spotify_uri.startsWith("spotify:episode:")) {
-                        val episode: Episode = try {
-                            json.decodeFromString(json_str)
-                        } catch (e: Exception) {
-                            Log.w("Player", "Failed to decode episode JSON", e)
-                            return@launch
-                        }
-                        episode.toPlayableAudio()
-                    } else {
-                        val track: Track = try {
-                            json.decodeFromString(json_str)
-                        } catch (e: Exception) {
-                            Log.w("Player", "Failed to decode track JSON", e)
-                            return@launch
-                        }
-                        track.toPlayableAudio()
-                    }
-                    stateHolder.setAudio(audio)
-
-                    val cover = if (audio.isEpisode()) {
-                        audio.covers.firstOrNull()
-                    } else {
-                        audio.sourceTrack?.album?.getCover(CoverSize.LARGE)
-                    }
-                    val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
-                    currentArtworkUri = artworkUrl
-
-                    invalidateState()
-
-                    artworkJob?.cancel()
-
-                    if (artworkUrl == null) return@launch
-
-                    artworkJob = scope.launch {
-                        val loadResult = withContext(Dispatchers.IO) {
-                            try {
-                                val request = ImageRequest.Builder(application)
-                                    .data(artworkUrl)
-                                    .allowHardware(false)
-                                    .build()
-
-                                val result = imageLoader.execute(request)
-                                val bmp = result.image?.toBitmap()
-
-                                val finalBmp = bmp?.let {
-                                    val max = 1024
-                                    if (it.width > max || it.height > max) {
-                                        val ratio = minOf(
-                                            max.toFloat() / it.width,
-                                            max.toFloat() / it.height
-                                        )
-                                        it.scale(
-                                            (it.width * ratio).toInt(),
-                                            (it.height * ratio).toInt()
-                                        )
-                                    } else it
-                                }
-
-                                val bytes = finalBmp?.let { fb ->
-                                    ByteArrayOutputStream().use { stream ->
-                                        fb.compress(
-                                            android.graphics.Bitmap.CompressFormat.PNG,
-                                            100,
-                                            stream
-                                        )
-                                        stream.toByteArray()
-                                    }
-                                }
-
-                                Pair(finalBmp, bytes)
+                    scope.launch {
+                        val audio = if (spotify_uri.startsWith("spotify:episode:")) {
+                            val episode: Episode = try {
+                                json.decodeFromString(json_str)
                             } catch (e: Exception) {
-                                Log.w("Player", "artwork load failed", e)
-                                null
+                                Log.w("Player", "Failed to decode episode JSON", e)
+                                return@launch
+                            }
+                            episode.toPlayableAudio()
+                        } else {
+                            val track: Track = try {
+                                json.decodeFromString(json_str)
+                            } catch (e: Exception) {
+                                Log.w("Player", "Failed to decode track JSON", e)
+                                return@launch
+                            }
+                            track.toPlayableAudio()
+                        }
+                        stateHolder.setAudio(audio)
+
+                        val cover = if (audio.isEpisode()) {
+                            audio.covers.firstOrNull()
+                        } else {
+                            audio.sourceTrack?.album?.getCover(CoverSize.LARGE)
+                        }
+                        val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
+                        currentArtworkUri = artworkUrl
+
+                        invalidateState()
+
+                        artworkJob?.cancel()
+
+                        if (artworkUrl == null) return@launch
+
+                        artworkJob = scope.launch {
+                            val loadResult = withContext(Dispatchers.IO) {
+                                try {
+                                    val request = ImageRequest.Builder(application)
+                                        .data(artworkUrl)
+                                        .allowHardware(false)
+                                        .build()
+
+                                    val result = imageLoader.execute(request)
+                                    val bmp = result.image?.toBitmap()
+
+                                    val finalBmp = bmp?.let {
+                                        val max = 1024
+                                        if (it.width > max || it.height > max) {
+                                            val ratio = minOf(
+                                                max.toFloat() / it.width,
+                                                max.toFloat() / it.height
+                                            )
+                                            it.scale(
+                                                (it.width * ratio).toInt(),
+                                                (it.height * ratio).toInt()
+                                            )
+                                        } else it
+                                    }
+
+                                    val bytes = finalBmp?.let { fb ->
+                                        ByteArrayOutputStream().use { stream ->
+                                            fb.compress(
+                                                android.graphics.Bitmap.CompressFormat.PNG,
+                                                100,
+                                                stream
+                                            )
+                                            stream.toByteArray()
+                                        }
+                                    }
+
+                                    Pair(finalBmp, bytes)
+                                } catch (e: Exception) {
+                                    Log.w("Player", "artwork load failed", e)
+                                    null
+                                }
+                            }
+
+                            if (loadResult == null) return@launch
+
+                            val (loadedBitmap, loadedBytes) = loadResult
+
+                            val currentTrackId = stateHolder.state.value.currentAudio?.id
+                            if (currentTrackId != audio.id) {
+                                return@launch
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                currentArtworkBitmap = loadedBitmap
+                                currentArtworkBytes = loadedBytes
+
+                                invalidateState()
                             }
                         }
-
-                        if (loadResult == null) return@launch
-
-                        val (loadedBitmap, loadedBytes) = loadResult
-
-                        val currentTrackId = stateHolder.state.value.currentAudio?.id
-                        if (currentTrackId != audio.id) {
-                            return@launch
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            currentArtworkBitmap = loadedBitmap
-                            currentArtworkBytes = loadedBytes
-
-                            invalidateState()
-                        }
                     }
                 }
-            }
 
-            override fun onPositionUpdate(
-                spotify_uri: String,
-                position_ms: Long,
-                json_raw: String
-            ) {
-                scope.launch {
-                    stateHolder.seekTo(position_ms.toDuration(DurationUnit.MILLISECONDS))
+                override fun onPositionUpdate(
+                    spotify_uri: String,
+                    position_ms: Long,
+                    json_raw: String
+                ) {
+                    scope.launch {
+                        stateHolder.seekTo(position_ms.toDuration(DurationUnit.MILLISECONDS))
 
-                    val currentAudio = stateHolder.state.value.currentAudio
-                    if (spotify_uri.startsWith("spotify:episode:") && currentAudio?.isEpisode() != true) {
-                        val episode: Episode? = try {
-                            json.decodeFromString(json_raw)
-                        } catch (e: Exception) {
-                            Log.w("Player", "Failed to decode episode JSON in position update", e)
-                            null
+                        val currentAudio = stateHolder.state.value.currentAudio
+                        if (spotify_uri.startsWith("spotify:episode:") && currentAudio?.isEpisode() != true) {
+                            val episode: Episode? = try {
+                                json.decodeFromString(json_raw)
+                            } catch (e: Exception) {
+                                Log.w(
+                                    "Player",
+                                    "Failed to decode episode JSON in position update",
+                                    e
+                                )
+                                null
+                            }
+                            episode?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+                        } else if (spotify_uri.startsWith("spotify:track:") && currentAudio?.isTrack() != true) {
+                            val track: Track? = try {
+                                json.decodeFromString(json_raw)
+                            } catch (e: Exception) {
+                                Log.w("Player", "Failed to decode track JSON in position update", e)
+                                null
+                            }
+                            track?.let { stateHolder.setAudio(it.toPlayableAudio()) }
                         }
-                        episode?.let { stateHolder.setAudio(it.toPlayableAudio()) }
-                    } else if (spotify_uri.startsWith("spotify:track:") && currentAudio?.isTrack() != true) {
-                        val track: Track? = try {
-                            json.decodeFromString(json_raw)
-                        } catch (e: Exception) {
-                            Log.w("Player", "Failed to decode track JSON in position update", e)
-                            null
-                        }
-                        track?.let { stateHolder.setAudio(it.toPlayableAudio()) }
+
+                        invalidateState()
                     }
-
-                    invalidateState()
                 }
-            }
 
-            override fun onPlayingStatus(playing: Boolean) {
-                scope.launch {
-                    stateHolder.setPlaying(playing)
-                    invalidateState()
+                override fun onPlayingStatus(playing: Boolean) {
+                    scope.launch {
+                        stateHolder.setPlaying(playing)
+                        invalidateState()
+                    }
                 }
-            }
-        }, stateHolder)
+            }, stateHolder
+        )
 
     private val audioFocusManager = AudioFocusManager(
         application.applicationContext,
@@ -305,7 +313,8 @@ class Player @Inject constructor(
     }
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
-        val currentMedia3State = if (stateHolder.state.value.currentAudio == null) STATE_IDLE else STATE_READY
+        val currentMedia3State =
+            if (stateHolder.state.value.currentAudio == null) STATE_IDLE else STATE_READY
 
         val playerCommand = audioFocusManager.updateAudioFocus(playWhenReady, currentMedia3State)
 

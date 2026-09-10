@@ -159,8 +159,8 @@ object Spirc {
 
     /**
      * Repeats the playback
-		 * @param repeat whether to even repeat
-		 * @param repeatTrack whether to repeat current track
+     * @param repeat whether to even repeat
+     * @param repeatTrack whether to repeat current track
      * @return <code>true</code> if success
      */
     @JvmStatic

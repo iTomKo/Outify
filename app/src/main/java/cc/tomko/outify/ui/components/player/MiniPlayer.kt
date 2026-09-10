@@ -1,7 +1,6 @@
 package cc.tomko.outify.ui.components.player
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -61,12 +59,12 @@ import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.viewmodel.player.MiniPlayerViewModel
-import cc.tomko.outify.utils.SharedElementKey
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 private val TAB_HEIGHT = 20.dp
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MiniPlayer(

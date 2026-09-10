@@ -162,7 +162,8 @@ fun LyricsBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = displayedTrack?.artists?.joinToString { it.name } ?: "Unknown Artist",
+                            text = displayedTrack?.artists?.joinToString { it.name }
+                                ?: "Unknown Artist",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1
@@ -340,7 +341,9 @@ fun LyricsBottomSheet(
                                 sliderPosition = it.coerceIn(0f, 1f)
                             },
                             onValueChangeFinished = {
-                                onSeek((sliderPosition * durationMs).toLong().coerceIn(0L, durationMs))
+                                onSeek(
+                                    (sliderPosition * durationMs).toLong().coerceIn(0L, durationMs)
+                                )
                                 isDragging = false
                             },
                             inactiveTrackColor = MaterialTheme.colorScheme.secondary,

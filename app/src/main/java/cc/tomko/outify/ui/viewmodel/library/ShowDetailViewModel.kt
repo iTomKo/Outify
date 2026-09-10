@@ -5,12 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.ConsumptionOrder
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
@@ -264,7 +264,8 @@ class ShowDetailViewModel @Inject constructor(
                 episodes.map { episode ->
                     try {
                         val raw = spClient.getEpisodeDetails(episode.id)
-                        val checked = spClient.checkAndHandleError(raw, "getEpisodeDetails:${episode.id}")
+                        val checked =
+                            spClient.checkAndHandleError(raw, "getEpisodeDetails:${episode.id}")
                         val details = EpisodeDetails.fromJson(checked)
                         episodeDao.updateEpisodePlayState(
                             episodeId = episode.id,
@@ -287,7 +288,10 @@ class ShowDetailViewModel @Inject constructor(
 
     fun playEpisode(episode: Episode) {
         val showUri = _uiState.value.show?.uri
-        spirc.load(showUri?.let { cc.tomko.outify.core.model.OutifyUri.fromUriString(it) }, episode.toSpotifyUri())
+        spirc.load(
+            showUri?.let { cc.tomko.outify.core.model.OutifyUri.fromUriString(it) },
+            episode.toSpotifyUri()
+        )
         setEpisode(episode)
         if (episode.resumePositionMs > 0 && !episode.fullyPlayed) {
             viewModelScope.launch {
@@ -316,6 +320,7 @@ class ShowDetailViewModel @Inject constructor(
                 val nextIndex = lastFullyPlayed + 1
                 if (nextIndex < episodes.size) episodes[nextIndex] else episodes.first()
             }
+
             else -> episodes.first()
         }
     }

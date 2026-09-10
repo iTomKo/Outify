@@ -6,12 +6,12 @@ import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.AuthStateEvent
 import cc.tomko.outify.core.AuthStateEventBus
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.metadata.NativeErrorHandler
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -102,7 +102,8 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _isPlaybackLoggedIn.value = withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
+            _isPlaybackLoggedIn.value =
+                withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
         }
         loadData()
         viewModelScope.launch {
@@ -120,11 +121,13 @@ class HomeViewModel @Inject constructor(
 
                     is AuthStateEvent.PlaybackLoggedIn -> {
                         delay(200)
-                        _isPlaybackLoggedIn.value = withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
+                        _isPlaybackLoggedIn.value =
+                            withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
                     }
 
                     is AuthStateEvent.PlaybackLoggedOut -> {
-                        _isPlaybackLoggedIn.value = withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
+                        _isPlaybackLoggedIn.value =
+                            withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
                     }
                 }
             }
@@ -133,7 +136,8 @@ class HomeViewModel @Inject constructor(
 
     fun refreshPlaybackLoginState() {
         viewModelScope.launch {
-            _isPlaybackLoggedIn.value = withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
+            _isPlaybackLoggedIn.value =
+                withContext(Dispatchers.IO) { authManager.hasCachedCredentials() }
         }
     }
 
@@ -174,7 +178,8 @@ class HomeViewModel @Inject constructor(
             delay(150)
 
             try {
-                val isAuthenticated = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
+                val isAuthenticated =
+                    withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
                 if (!isAuthenticated) {
                     _uiState.value = HomeUiState.NotAuthenticated
                     loadUserProfile()
@@ -192,7 +197,9 @@ class HomeViewModel @Inject constructor(
                             TopItemsDuration.LONG_TERM -> allCaches.longTerm
                         }
                         if (hit.artists.isNotEmpty()) {
-                            val cachedTracks = withContext(Dispatchers.IO) { trackMetadataHelper.getTrackMetadata(hit.trackUris) }
+                            val cachedTracks = withContext(Dispatchers.IO) {
+                                trackMetadataHelper.getTrackMetadata(hit.trackUris)
+                            }
                             _uiState.value = HomeUiState.Success(hit.artists, cachedTracks)
                         }
                     } catch (_: Exception) {
@@ -208,7 +215,12 @@ class HomeViewModel @Inject constructor(
                 for (fallbackDuration in durationsToTry) {
                     val durationValue = fallbackDuration.value
 
-                    val topArtistsJson = withContext(Dispatchers.IO) { spClient.getUserTop("artists", durationValue) }
+                    val topArtistsJson = withContext(Dispatchers.IO) {
+                        spClient.getUserTop(
+                            "artists",
+                            durationValue
+                        )
+                    }
                     if (topArtistsJson == null) {
                         _uiState.value = HomeUiState.NotAuthenticated
                         loadUserProfile()
@@ -222,7 +234,8 @@ class HomeViewModel @Inject constructor(
                         return@launch
                     }
 
-                    val topTracksJson = withContext(Dispatchers.IO) { spClient.getUserTop("tracks", durationValue) }
+                    val topTracksJson =
+                        withContext(Dispatchers.IO) { spClient.getUserTop("tracks", durationValue) }
                     if (topTracksJson == null) {
                         _uiState.value = HomeUiState.NotAuthenticated
                         loadUserProfile()
@@ -237,7 +250,8 @@ class HomeViewModel @Inject constructor(
                     }
 
                     val topArtists = parseTopArtists(topArtistsJson)
-                    val topTracks = withContext(Dispatchers.IO) { fetchTrackMetadata(topTracksJson) }
+                    val topTracks =
+                        withContext(Dispatchers.IO) { fetchTrackMetadata(topTracksJson) }
 
                     if (topArtists.isNotEmpty() || topTracks.isNotEmpty()) {
                         _selectedDuration.value = fallbackDuration

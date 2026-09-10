@@ -1,17 +1,16 @@
 package cc.tomko.outify
 
-import android.content.res.Configuration
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
@@ -63,7 +62,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -71,7 +69,6 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import cc.tomko.outify.MainActivity.MainActivity.LocalSharedTransitionScope
 import cc.tomko.outify.core.AuthManager
-import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.spirc.VolumeController
 import cc.tomko.outify.data.repository.InterfaceSettings
@@ -285,6 +282,7 @@ class MainActivity : ComponentActivity() {
                 is Route.TrackScreen,
                 is Route.ProfileScreen,
                 is Route.ShowScreen -> lastDetailRoute = currentRoute
+
                 else -> {}
             }
         }
@@ -295,8 +293,19 @@ class MainActivity : ComponentActivity() {
                     is Route.ArtistScreen -> Triple("detail_artist", "Artist", Icons.Default.Person)
                     is Route.AlbumScreen,
                     is Route.TrackScreen -> Triple("detail_album", "Album", Icons.Default.Album)
-                    is Route.PlaylistScreen -> Triple("detail_playlist", "Playlist", Icons.AutoMirrored.Filled.QueueMusic)
-                    is Route.ProfileScreen -> Triple("detail_profile", "Profile", Icons.Default.AccountCircle)
+
+                    is Route.PlaylistScreen -> Triple(
+                        "detail_playlist",
+                        "Playlist",
+                        Icons.AutoMirrored.Filled.QueueMusic
+                    )
+
+                    is Route.ProfileScreen -> Triple(
+                        "detail_profile",
+                        "Profile",
+                        Icons.Default.AccountCircle
+                    )
+
                     is Route.ShowScreen -> Triple("detail_show", "Show", Icons.Default.Podcasts)
                     else -> return@let null
                 }
@@ -304,7 +313,11 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        val allRoutes = remember(detailDestination, interfaceSettings.showNavbarHistory, interfaceSettings.navbarHistoryOnEnd) {
+        val allRoutes = remember(
+            detailDestination,
+            interfaceSettings.showNavbarHistory,
+            interfaceSettings.navbarHistoryOnEnd
+        ) {
             if (detailDestination != null && interfaceSettings.showNavbarHistory) {
                 if (interfaceSettings.navbarHistoryOnEnd) routes + detailDestination
                 else listOf(detailDestination) + routes
@@ -312,7 +325,8 @@ class MainActivity : ComponentActivity() {
         }
 
         PredictiveBackHandler(enabled = playerSheetState.isExpanded) { progress ->
-            val collapsedOffset = playerSheetState.draggableState.anchors.positionOf(PlayerSheetValue.Collapsed)
+            val collapsedOffset =
+                playerSheetState.draggableState.anchors.positionOf(PlayerSheetValue.Collapsed)
             var previousOffset = 0f
 
             try {
@@ -391,7 +405,8 @@ class MainActivity : ComponentActivity() {
                                             startRadio = { viewModel.startRadio(it) },
                                             openRadio = {
                                                 val uri =
-                                                    viewModel.getRadioUri(it) ?: return@GlobalPopupHost
+                                                    viewModel.getRadioUri(it)
+                                                        ?: return@GlobalPopupHost
                                                 backStack.add(Route.PlaylistScreen(uri))
                                             },
                                             addToPlaylist = { viewModel.addToPlaylist(it) },
@@ -403,9 +418,10 @@ class MainActivity : ComponentActivity() {
                                             addToWidgetViewModel = addToWidgetViewModel,
                                         )
 
-                                        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                                        val isLandscape =
+                                            LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                                         val onShowClick: (Episode?) -> Unit = onShowClick@{
-                                            if(it == null) return@onShowClick
+                                            if (it == null) return@onShowClick
                                             val showUri = it.showUri
                                             if (showUri.isNotBlank()) {
                                                 backStack.add(Route.ShowScreen(showUri))
@@ -472,7 +488,11 @@ class MainActivity : ComponentActivity() {
                                                         FloatingOutifyBottomNav(
                                                             items = allRoutes,
                                                             selectedId = selectedId,
-                                                            onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                            onItemSelected = { item ->
+                                                                if (backStack.last() != item.route) backStack.add(
+                                                                    item.route
+                                                                )
+                                                            },
                                                             showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                             modifier = Modifier.align(Alignment.BottomCenter)
                                                         )
@@ -480,7 +500,11 @@ class MainActivity : ComponentActivity() {
                                                         OutifyBottomNav(
                                                             items = allRoutes,
                                                             selectedId = selectedId,
-                                                            onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                            onItemSelected = { item ->
+                                                                if (backStack.last() != item.route) backStack.add(
+                                                                    item.route
+                                                                )
+                                                            },
                                                             modifier = Modifier.align(Alignment.BottomCenter)
                                                         )
                                                     }
@@ -560,14 +584,22 @@ class MainActivity : ComponentActivity() {
                                                     FloatingOutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) },
+                                                        onItemSelected = { item ->
+                                                            if (backStack.last() != item.route) backStack.add(
+                                                                item.route
+                                                            )
+                                                        },
                                                         showSelectedLabel = interfaceSettings.navbarShowLabel,
                                                     )
                                                 } else {
                                                     OutifyBottomNav(
                                                         items = allRoutes,
                                                         selectedId = selectedId,
-                                                        onItemSelected = { item -> if (backStack.last() != item.route) backStack.add(item.route) }
+                                                        onItemSelected = { item ->
+                                                            if (backStack.last() != item.route) backStack.add(
+                                                                item.route
+                                                            )
+                                                        }
                                                     )
                                                 }
                                             }

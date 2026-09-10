@@ -5,14 +5,13 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
-import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.playback.PlaybackStateHolder

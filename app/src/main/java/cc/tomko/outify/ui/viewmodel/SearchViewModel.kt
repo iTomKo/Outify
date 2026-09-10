@@ -6,9 +6,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.R
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.UserProfile
-import cc.tomko.outify.core.model.*
+import cc.tomko.outify.core.model.Album
+import cc.tomko.outify.core.model.Artist
+import cc.tomko.outify.core.model.Episode
+import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.PlayableAudio
+import cc.tomko.outify.core.model.Playlist
+import cc.tomko.outify.core.model.Profile
+import cc.tomko.outify.core.model.Show
+import cc.tomko.outify.core.model.Track
+import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.SearchRepository
@@ -38,25 +47,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
-import kotlin.collections.List
-import kotlin.collections.distinct
-import kotlin.collections.drop
-import kotlin.collections.emptyList
-import kotlin.collections.filterNotNull
-import kotlin.collections.first
-import kotlin.collections.firstOrNull
-import kotlin.collections.indexOfLast
-import kotlin.collections.isNotEmpty
-import kotlin.collections.listOf
-import kotlin.collections.map
-import kotlin.collections.mapIndexed
-import kotlin.collections.mapNotNull
-import kotlin.collections.toMutableList
-import kotlin.collections.toTypedArray
-import kotlin.sequences.filterNotNull
-import kotlin.text.get
-import kotlin.text.isBlank
-import kotlin.text.set
 
 @OptIn(FlowPreview::class)
 @HiltViewModel

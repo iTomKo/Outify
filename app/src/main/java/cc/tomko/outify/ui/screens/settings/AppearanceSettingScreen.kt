@@ -261,7 +261,7 @@ fun AppearanceSettingScreen(
                     )
                 }
 
-                if(settings.experimentalFloatingNav) {
+                if (settings.experimentalFloatingNav) {
                     ElevatedCard {
                         SwitchPreferenceEntry(
                             title = { Text("Show selected label") },

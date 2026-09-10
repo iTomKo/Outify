@@ -5,8 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.SpClient
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.core.model.CurrentUserProfile
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.utils.ExceptionCollector

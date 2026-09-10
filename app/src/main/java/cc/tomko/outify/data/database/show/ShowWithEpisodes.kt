@@ -74,8 +74,16 @@ fun ShowWithEpisodes.toDomain(): Show {
         covers = covers,
         episodes = episodes.map { it.uri },
         keywords = keywords,
-        mediaType = try { ShowMediaType.valueOf(show.mediaType) } catch (_: Exception) { ShowMediaType.AUDIO },
-        consumptionOrder = try { ConsumptionOrder.valueOf(show.consumptionOrder) } catch (_: Exception) { ConsumptionOrder.RECENT },
+        mediaType = try {
+            ShowMediaType.valueOf(show.mediaType)
+        } catch (_: Exception) {
+            ShowMediaType.AUDIO
+        },
+        consumptionOrder = try {
+            ConsumptionOrder.valueOf(show.consumptionOrder)
+        } catch (_: Exception) {
+            ConsumptionOrder.RECENT
+        },
         trailerUri = show.trailerUri,
         hasMusicAndTalk = show.hasMusicAndTalk,
         isAudiobook = show.isAudiobook,
@@ -130,7 +138,11 @@ fun EpisodeEntity.toDomain(): Episode {
         keywords = keywords,
         allowBackgroundPlayback = allowBackgroundPlayback,
         externalUrl = externalUrl,
-        episodeType = try { EpisodeType.valueOf(episodeType) } catch (_: Exception) { EpisodeType.FULL },
+        episodeType = try {
+            EpisodeType.valueOf(episodeType)
+        } catch (_: Exception) {
+            EpisodeType.FULL
+        },
         hasMusicAndTalk = hasMusicAndTalk,
         isAudiobookChapter = isAudiobookChapter,
         fullyPlayed = fullyPlayed,

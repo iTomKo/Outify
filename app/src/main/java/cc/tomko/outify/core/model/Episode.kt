@@ -1,13 +1,12 @@
 package cc.tomko.outify.core.model
 
-import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Immutable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
 enum class EpisodeType {
-    FULL,TRAILER,BONUS
+    FULL, TRAILER, BONUS
 }
 
 @Serializable

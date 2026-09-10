@@ -4,23 +4,23 @@ import android.util.Log
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.EpisodeDetails
-import cc.tomko.outify.core.spirc.SpircWrapper
+import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Episode
+import cc.tomko.outify.core.model.OutifyUri
+import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.core.model.Profile
-import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Show
-import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toOutifyUri
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -195,7 +195,20 @@ class LibraryViewModel @Inject constructor(
             )
 
     val libraryState: StateFlow<LibraryState> = combine(
-        listOf(playlists, albums, shows, episodes, foldersFlow, _selectedTab, _error, _isLoadingAlbums, _isLoadingShows, _isLoadingEpisodes, _isLoadingTracks, _episodeShowUris)
+        listOf(
+            playlists,
+            albums,
+            shows,
+            episodes,
+            foldersFlow,
+            _selectedTab,
+            _error,
+            _isLoadingAlbums,
+            _isLoadingShows,
+            _isLoadingEpisodes,
+            _isLoadingTracks,
+            _episodeShowUris
+        )
     ) { values ->
         LibraryState(
             playlists = values[0] as List<Playlist>,

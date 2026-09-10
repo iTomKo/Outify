@@ -565,7 +565,12 @@ private fun FeatureItem(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun FeatureAvailability(text: String, available: Boolean, badgeNumber: Int, modifier: Modifier = Modifier) {
+private fun FeatureAvailability(
+    text: String,
+    available: Boolean,
+    badgeNumber: Int,
+    modifier: Modifier = Modifier
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

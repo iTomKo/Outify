@@ -30,8 +30,7 @@
             android:name=".services.OAuthService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
-        </service>
+            android:foregroundServiceType="mediaPlayback"></service>
 
         <service
             android:name=".services.PlaybackService"
@@ -39,9 +38,9 @@
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService"/>
-                <action android:name="android.media.browse.MediaBrowserService"/>
-                <action android:name="android.intent.action.MEDIA_BUTTON"/>
+                <action android:name="androidx.media3.session.MediaSessionService" />
+                <action android:name="android.media.browse.MediaBrowserService" />
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </service>
 
@@ -60,7 +59,7 @@
             android:name="androidx.media.session.MediaButtonReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.MEDIA_BUTTON"/>
+                <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
 
@@ -68,14 +67,14 @@
             android:shell="true"
             tools:targetApi="29" />
 
-<!--        <service-->
-<!--            android:name=".services.MusicService"-->
-<!--            android:exported="false"-->
-<!--            android:foregroundServiceType="mediaPlayback">-->
-<!--            <intent-filter>-->
-<!--                <action android:name="android.media.browse.MediaBrowserService" />-->
-<!--            </intent-filter>-->
-<!--        </service>-->
+        <!--        <service-->
+        <!--            android:name=".services.MusicService"-->
+        <!--            android:exported="false"-->
+        <!--            android:foregroundServiceType="mediaPlayback">-->
+        <!--            <intent-filter>-->
+        <!--                <action android:name="android.media.browse.MediaBrowserService" />-->
+        <!--            </intent-filter>-->
+        <!--        </service>-->
 
         <activity
             android:name=".MainActivity"
@@ -151,11 +150,13 @@
             android:label="@string/title_activity_home_screen"
             android:theme="@style/Theme.Material3Expressive" />
 
-        <activity android:name=".ui.widgets.PlaybackWidgetConfigure"
+        <activity
+            android:name=".ui.widgets.PlaybackWidgetConfigure"
             android:exported="false"
             android:theme="@style/Theme.Material3Expressive" />
 
-        <receiver android:name=".ui.widgets.PlaybackWidgetReceiver"
+        <receiver
+            android:name=".ui.widgets.PlaybackWidgetReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

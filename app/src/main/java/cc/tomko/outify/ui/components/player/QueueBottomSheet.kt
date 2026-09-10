@@ -213,7 +213,7 @@ fun SharedTransitionScope.QueueBottomSheet(
 
                 IconButton(onClick = { viewModel.toggleShuffle() }) {
                     Icon(
-                        if(isShuffling) MyIcons.Shuffle else MyIcons.NoShuffle,
+                        if (isShuffling) MyIcons.Shuffle else MyIcons.NoShuffle,
                         contentDescription = "Shuffle queue",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
@@ -370,17 +370,28 @@ fun SharedTransitionScope.QueueBottomSheet(
                                         val playNextGesture = listOf(
                                             SwipeGesture(
                                                 thresholdFraction = 0.25f,
-                                                icon = { Icon(Icons.Default.MoveUp, contentDescription = null) },
+                                                icon = {
+                                                    Icon(
+                                                        Icons.Default.MoveUp,
+                                                        contentDescription = null
+                                                    )
+                                                },
                                                 onTrigger = {
                                                     val currentUri = currentTrack?.uri
                                                     val mutable = localTracks.toMutableList()
                                                     mutable.remove(item)
-                                                    val currentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                    val insertAt = (currentIdx + 1).coerceIn(0, mutable.size)
+                                                    val currentIdx =
+                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                    val insertAt =
+                                                        (currentIdx + 1).coerceIn(0, mutable.size)
                                                     mutable.add(insertAt, item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                        .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(mutable, newCurrentIdx)
+                                                    val newCurrentIdx =
+                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                            .coerceAtLeast(0)
+                                                    viewModel.setQueueEntries(
+                                                        mutable,
+                                                        newCurrentIdx
+                                                    )
                                                     viewModel.debouncedSaveToRepository(mutable)
                                                 }
                                             ),
@@ -388,20 +399,29 @@ fun SharedTransitionScope.QueueBottomSheet(
                                         val removeFromQueueGesture = listOf(
                                             SwipeGesture(
                                                 thresholdFraction = 0.25f,
-                                                icon = { Icon(Icons.Default.RemoveCircle, contentDescription = null) },
+                                                icon = {
+                                                    Icon(
+                                                        Icons.Default.RemoveCircle,
+                                                        contentDescription = null
+                                                    )
+                                                },
                                                 onTrigger = {
                                                     val currentUri = currentTrack?.uri
                                                     val mutable = localTracks.toMutableList()
                                                     mutable.remove(item)
-                                                    val newCurrentIdx = mutable.indexOfFirst { it.audio.uri == currentUri }
-                                                        .coerceAtLeast(0)
-                                                    viewModel.setQueueEntries(mutable, newCurrentIdx)
+                                                    val newCurrentIdx =
+                                                        mutable.indexOfFirst { it.audio.uri == currentUri }
+                                                            .coerceAtLeast(0)
+                                                    viewModel.setQueueEntries(
+                                                        mutable,
+                                                        newCurrentIdx
+                                                    )
                                                     viewModel.debouncedSaveToRepository(mutable)
                                                 }
                                             )
                                         )
 
-                                        if(item.audio.isEpisode()) {
+                                        if (item.audio.isEpisode()) {
                                             SwipeableEpisodeRowConfigured(
                                                 episode = item.audio.sourceEpisode,
                                                 isPlaybackPlaying = isPlaybackPlaying,

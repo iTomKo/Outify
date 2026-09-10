@@ -150,7 +150,12 @@ fun PlaybackSettingScreen(
                                 PreferenceEntry(
                                     title = { Text("Restart Spirc") },
                                     description = "Required to apply playback related settings",
-                                    icon = { Icon(Icons.Default.RestartAlt, contentDescription = null) },
+                                    icon = {
+                                        Icon(
+                                            Icons.Default.RestartAlt,
+                                            contentDescription = null
+                                        )
+                                    },
                                     onClick = {
                                         viewModel.restartSpirc()
                                     },

@@ -315,7 +315,10 @@ class LikedRepository @Inject constructor(
         if (remote.size == cached.size) {
             var allMatch = true
             for ((i, pair) in remote.withIndex()) {
-                if (pair.first.length <= EPISODE_SUBSTRING_OFFSET || pair.first.substring(EPISODE_SUBSTRING_OFFSET) != cached[i]) {
+                if (pair.first.length <= EPISODE_SUBSTRING_OFFSET || pair.first.substring(
+                        EPISODE_SUBSTRING_OFFSET
+                    ) != cached[i]
+                ) {
                     allMatch = false
                     break
                 }

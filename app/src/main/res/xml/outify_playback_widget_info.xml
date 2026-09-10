@@ -12,5 +12,4 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:configure="cc.tomko.outify.ui.widgets.PlaybackWidgetConfigure"
-    android:widgetFeatures="reconfigurable|configuration_optional">
-</appwidget-provider>
+    android:widgetFeatures="reconfigurable|configuration_optional"></appwidget-provider>

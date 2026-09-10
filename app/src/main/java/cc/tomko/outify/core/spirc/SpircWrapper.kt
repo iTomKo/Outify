@@ -9,8 +9,6 @@ import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.model.DevicesResponse
 import cc.tomko.outify.core.model.OutifyUri
-import cc.tomko.outify.core.spirc.ISpircWrapper
-import cc.tomko.outify.core.spirc.Spirc
 import cc.tomko.outify.data.repository.SavedQueueRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -169,8 +167,8 @@ class SpircWrapper @Inject constructor(
 
     /**
      * Repeats the playback
-		 * @param repeat whether to even repeat
-		 * @param repeatTrack whether to repeat current track
+     * @param repeat whether to even repeat
+     * @param repeatTrack whether to repeat current track
      * @return <code>true</code> if success
      */
     override fun repeat(repeat: Boolean, repeatTrack: Boolean): Boolean {
