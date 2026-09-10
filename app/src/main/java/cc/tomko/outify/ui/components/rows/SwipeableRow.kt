@@ -18,6 +18,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -27,11 +28,14 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import cc.tomko.outify.ui.Haptics
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -63,6 +67,10 @@ fun SwipeableRowWithGestures(
     val offsetX = remember { Animatable(0f) } // px
     var containerWidthPx by remember { mutableIntStateOf(0) }
     var contentHeightPx by remember { mutableIntStateOf(0) }
+
+    val context = LocalContext.current
+    val view = LocalView.current
+    var lastArmedGesture by remember { mutableStateOf<SwipeGesture?>(null) }
 
     val density = LocalDensity.current
     val widthPx = containerWidthPx.toFloat().coerceAtLeast(1f)
@@ -230,8 +238,19 @@ fun SwipeableRowWithGestures(
                             }
 
                             scope.launch { offsetX.snapTo(allowed) }
+
+                            val armed = chosenGestureForOffset(allowed)?.first
+                            if (armed != null) {
+                                if (armed !== lastArmedGesture) {
+                                    Haptics.swipeArm(context, view)
+                                    lastArmedGesture = armed
+                                }
+                            } else {
+                                lastArmedGesture = null
+                            }
                         },
                         onDragEnd = {
+                            lastArmedGesture = null
                             scope.launch {
                                 val final = offsetX.value
                                 if (final == 0f) return@launch
@@ -276,6 +295,7 @@ fun SwipeableRowWithGestures(
 
                                 if (chosen != null) {
                                     // There is a gesture that was crossed
+                                    Haptics.confirm(context, view)
                                     if (chosen.dismissOnTrigger) {
                                         val offScreen = sign * widthPx
                                         offsetX.animateTo(offScreen, animationSpec = enterSpring)
@@ -301,6 +321,7 @@ fun SwipeableRowWithGestures(
                             }
                         },
                         onDragCancel = {
+                            lastArmedGesture = null
                             scope.launch { offsetX.animateTo(0f, animationSpec = tween(200)) }
                         }
                     )
