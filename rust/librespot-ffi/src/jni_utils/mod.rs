@@ -1,6 +1,7 @@
 pub mod exceptions;
 pub mod folders;
 pub mod futures;
+pub mod jni_bridge;
 pub mod logger;
 pub mod playback;
 

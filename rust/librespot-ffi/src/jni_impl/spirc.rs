@@ -1,22 +1,43 @@
-use std::{sync::Mutex, time::Duration};
+use std::{sync::{Arc, Mutex}, time::Duration};
 
 use jni::{
     JNIEnv,
-    objects::{GlobalRef, JClass, JObject, JObjectArray, JString},
+    objects::{JClass, JObject, JObjectArray, JString},
     sys::{jboolean, jint, jlong, jobjectArray, jstring},
 };
 use librespot_connect::{LoadContextOptions, LoadRequestOptions, PlayingTrack};
 use librespot_core::SpotifyUri;
 use librespot_playback::config::Bitrate;
+use once_cell::sync::OnceCell;
 use serde::Serialize;
 
 use crate::{
+    jni_utils::jni_bridge::{JavaCallback, dispatch},
     outifyuri::OutifyUri,
     spirc::{SpircError, with_spirc},
 };
 
-pub static BUFFER_CALLBACK: Mutex<Option<GlobalRef>> = Mutex::new(None);
-pub static DEVICE_CALLBACK: Mutex<Option<GlobalRef>> = Mutex::new(None);
+// BufferCallback: void started(), void stopped()
+pub static BUFFER_CB: OnceCell<Mutex<Option<Arc<JavaCallback>>>> = OnceCell::new();
+// DeviceCallback: void becameActive(), void becameInactive(), void volumeChanged(int)
+pub static DEVICE_CB: OnceCell<Mutex<Option<Arc<JavaCallback>>>> = OnceCell::new();
+
+pub const METHOD_BUFFER_STARTED: usize = 0;
+pub const METHOD_BUFFER_STOPPED: usize = 1;
+
+pub const METHOD_DEVICE_ACTIVE: usize = 0;
+pub const METHOD_DEVICE_INACTIVE: usize = 1;
+pub const METHOD_DEVICE_VOLUME: usize = 2;
+
+pub fn buffer_cb() -> Option<Arc<JavaCallback>> {
+    let m = BUFFER_CB.get()?;
+    m.lock().ok()?.clone()
+}
+
+pub fn device_cb() -> Option<Arc<JavaCallback>> {
+    let m = DEVICE_CB.get()?;
+    m.lock().ok()?.clone()
+}
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
@@ -41,10 +62,14 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
 
     let handle = rt.handle().clone();
 
-    let global_callback = match env.new_global_ref(callback) {
-        Ok(g) => g,
+    let global_callback = match JavaCallback::register(
+        &mut env,
+        callback,
+        &[("initialized", "()V"), ("failed", "()V")],
+    ) {
+        Ok(c) => c,
         Err(e) => {
-            error!("jni new_global_ref failed for spirc callback: {e}");
+            error!("jni register failed for spirc callback: {e}");
             return 0;
         }
     };
@@ -56,8 +81,6 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
             return 0;
         }
     };
-
-    let jvm = crate::JVM.get().unwrap();
 
     let bitrate = match bitrate {
         320 => Bitrate::Bitrate320,
@@ -72,23 +95,9 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
         let result =
             crate::spirc::initialize_spirc(name, gapless != 0, normalisation != 0, bitrate, crossfade).await;
 
-        let mut env = match jvm.attach_current_thread() {
-            Ok(env) => env,
-            Err(e) => {
-                error!("jvm attach_current_thread failed for spirc init: {e}");
-                return;
-            }
-        };
-
         match result {
-            Ok(_) => {
-                env.call_method(global_callback.as_obj(), "initialized", "()V", &[])
-                    .ok();
-            }
-            Err(_) => {
-                env.call_method(global_callback.as_obj(), "failed", "()V", &[])
-                    .ok();
-            }
+            Ok(_) => dispatch(global_callback, 0, vec![]),
+            Err(_) => dispatch(global_callback, 1, vec![]),
         }
     });
 
@@ -102,61 +111,64 @@ pub extern "system" fn shutdown(_env: JNIEnv, _this: JClass) {
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_unregisterBufferCallback")]
 pub extern "system" fn unregister_buffer_callback(_env: JNIEnv, _this: JClass) {
-    let mut lock = BUFFER_CALLBACK.lock().unwrap();
-    if let Some(global) = lock.take() {
-        drop(global);
+    if let Some(m) = BUFFER_CB.get() {
+        *m.lock().unwrap() = None;
     }
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_unregisterDeviceCallback")]
 pub extern "system" fn unregister_device_callback(_env: JNIEnv, _this: JClass) {
-    let mut lock = DEVICE_CALLBACK.lock().unwrap();
-    if let Some(global) = lock.take() {
-        drop(global);
+    if let Some(m) = DEVICE_CB.get() {
+        *m.lock().unwrap() = None;
     }
 }
 
 // Sets the buffer callback, so we can notify UI of spirc buferring
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_bufferCallback")]
 pub extern "system" fn set_buffer_callback(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _this: JClass,
     callback: JObject,
 ) -> jboolean {
-    let global_callback = match env.new_global_ref(callback) {
-        Ok(g) => g,
+    let cb = match JavaCallback::register(&mut env, callback, &[("started", "()V"), ("stopped", "()V")])
+    {
+        Ok(c) => c,
         Err(e) => {
-            error!("jni new_global_ref failed for buffer callback: {e}");
+            error!("jni register failed for buffer callback: {e}");
             return 0;
         }
     };
 
-    {
-        let mut lock = BUFFER_CALLBACK.lock().unwrap();
-        *lock = Some(global_callback);
-    }
+    let m = BUFFER_CB.get_or_init(|| Mutex::new(None));
+    *m.lock().unwrap() = Some(cb);
 
     1
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_deviceCallback")]
 pub extern "system" fn set_device_callback(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _this: JClass,
     callback: JObject,
 ) -> jboolean {
-    let global_callback = match env.new_global_ref(callback) {
-        Ok(g) => g,
+    let cb = match JavaCallback::register(
+        &mut env,
+        callback,
+        &[
+            ("becameActive", "()V"),
+            ("becameInactive", "()V"),
+            ("volumeChanged", "(I)V"),
+        ],
+    ) {
+        Ok(c) => c,
         Err(e) => {
-            error!("jni new_global_ref failed for device callback: {e}");
+            error!("jni register failed for device callback: {e}");
             return 0;
         }
     };
 
-    {
-        let mut lock = DEVICE_CALLBACK.lock().unwrap();
-        *lock = Some(global_callback);
-    }
+    let m = DEVICE_CB.get_or_init(|| Mutex::new(None));
+    *m.lock().unwrap() = Some(cb);
 
     1
 }

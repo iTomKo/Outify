@@ -83,6 +83,8 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
     // Initialize logger
     crate::jni_utils::logger::AndroidLogger::init(jvm, log::LevelFilter::Debug).unwrap();
 
+    // Start the single JNI callback dispatcher thread
+    crate::jni_utils::jni_bridge::start_dispatcher();
     unsafe {
         std::env::set_var("RUST_BACKTRACE", "1");
     }
