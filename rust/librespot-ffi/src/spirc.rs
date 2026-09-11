@@ -374,8 +374,6 @@ impl SpircRuntime {
 
 // Handles each player event accordingly
 fn handle_event(event: PlayerEvent) {
-    info!("handling player event: {event:#?}");
-
     match event {
         PlayerEvent::Playing {
             play_request_id: _,
