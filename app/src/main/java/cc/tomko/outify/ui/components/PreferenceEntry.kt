@@ -60,16 +60,22 @@ fun PreferenceEntry(
     content: (@Composable () -> Unit)? = null,
     icon: (@Composable () -> Unit)? = null,
     trailingContent: (@Composable () -> Unit)? = null,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)? = null,
     isEnabled: Boolean = true,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
-                enabled = isEnabled,
-                onClick = onClick
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(
+                        enabled = isEnabled,
+                        onClick = onClick
+                    )
+                } else {
+                    Modifier
+                }
             )
             .alpha(if (isEnabled) 1f else 0.5f)
             .padding(horizontal = 16.dp, vertical = 16.dp)
