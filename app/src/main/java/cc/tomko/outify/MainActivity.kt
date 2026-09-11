@@ -337,29 +337,6 @@ class MainActivity : ComponentActivity() {
             } else routes
         }
 
-        PredictiveBackHandler(enabled = playerSheetState.isExpanded) { progress ->
-            val collapsedOffset =
-                playerSheetState.draggableState.anchors.positionOf(PlayerSheetValue.Collapsed)
-            var previousOffset = 0f
-
-            try {
-                progress.collect { backEvent ->
-                    val targetOffset = backEvent.progress * collapsedOffset
-                    val delta = targetOffset - previousOffset
-                    playerSheetState.draggableState.dispatchRawDelta(delta)
-                    previousOffset = targetOffset
-                }
-
-                scope.launch {
-                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Collapsed)
-                }
-            } catch (e: CancellationException) {
-                scope.launch {
-                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Expanded)
-                }
-            }
-        }
-
         val onboardingViewModel: OnboardingViewModel = hiltViewModel()
         val onboardingComplete by onboardingViewModel.isComplete.collectAsStateWithLifecycle()
 
@@ -407,6 +384,29 @@ class MainActivity : ComponentActivity() {
                                             modifier = Modifier.matchParentSize(),
                                             bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                         )
+
+                                        PredictiveBackHandler(enabled = playerSheetState.isExpanded) { progress ->
+                                            val collapsedOffset =
+                                                playerSheetState.draggableState.anchors.positionOf(PlayerSheetValue.Collapsed)
+                                            var previousOffset = 0f
+
+                                            try {
+                                                progress.collect { backEvent ->
+                                                    val targetOffset = backEvent.progress * collapsedOffset
+                                                    val delta = targetOffset - previousOffset
+                                                    playerSheetState.draggableState.dispatchRawDelta(delta)
+                                                    previousOffset = targetOffset
+                                                }
+
+                                                scope.launch {
+                                                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Collapsed)
+                                                }
+                                            } catch (e: CancellationException) {
+                                                scope.launch {
+                                                    playerSheetState.draggableState.animateTo(PlayerSheetValue.Expanded)
+                                                }
+                                            }
+                                        }
 
                                         InAppNotificationHost(
                                             modifier = Modifier.matchParentSize(),
