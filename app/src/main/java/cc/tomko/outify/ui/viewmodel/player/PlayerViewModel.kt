@@ -19,6 +19,7 @@ import cc.tomko.outify.ui.model.player.PlayerAction
 import cc.tomko.outify.ui.model.player.PlayerUIState
 import coil3.ImageLoader
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
@@ -183,10 +185,12 @@ class PlayerViewModel @Inject constructor(
                 likedRepository.addLiked(trackId)
             }
 
-            val success = if (wasLiked) {
-                spClient.deleteItems(arrayOf("spotify:track:$trackId"))
-            } else {
-                spClient.saveItems(arrayOf("spotify:track:$trackId"))
+            val success = withContext(Dispatchers.IO) {
+                if (wasLiked) {
+                    spClient.deleteItems(arrayOf("spotify:track:$trackId"))
+                } else {
+                    spClient.saveItems(arrayOf("spotify:track:$trackId"))
+                }
             }
 
             if (!success) {

@@ -52,6 +52,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Singleton
 
 
@@ -245,7 +246,9 @@ class PlaybackService : MediaLibraryService(),
             updateNotification()
 
             val success = try {
-                if (wasLiked) spClient.deleteItems(arrayOf(uri)) else spClient.saveItems(arrayOf(uri))
+                withContext(Dispatchers.IO) {
+                    if (wasLiked) spClient.deleteItems(arrayOf(uri)) else spClient.saveItems(arrayOf(uri))
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "spClient failed to ${if (wasLiked) "delete" else "save"} $uri", e)
                 false
