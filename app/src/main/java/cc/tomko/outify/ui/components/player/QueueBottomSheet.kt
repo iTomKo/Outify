@@ -236,7 +236,8 @@ fun SharedTransitionScope.QueueBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Header
