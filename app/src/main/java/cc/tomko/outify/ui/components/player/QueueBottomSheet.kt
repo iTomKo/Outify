@@ -166,9 +166,19 @@ fun SharedTransitionScope.QueueBottomSheet(
             }
     }
 
-    LaunchedEffect(queueState.tracks, queueState.currentIndex) {
-        if (queueState.tracks.isNotEmpty() && !queueState.isLoading) {
-            listState.scrollToItem(queueState.currentIndex.coerceIn(queueState.tracks.indices) + 1)
+    var hasInitialScrolled by remember { mutableStateOf(false) }
+
+    LaunchedEffect(queueState.isLoading, queueState.tracks) {
+        if (
+            !hasInitialScrolled &&
+            !queueState.isLoading &&
+            queueState.tracks.isNotEmpty()
+        ) {
+            val index = queueState.currentIndex
+                .coerceIn(queueState.tracks.indices)
+
+            listState.scrollToItem(index + 1)
+            hasInitialScrolled = true
         }
     }
 
@@ -353,10 +363,6 @@ fun SharedTransitionScope.QueueBottomSheet(
                     }
 
                     else -> {
-                        val currentTrackIndex = remember(localTracks, currentTrack) {
-                            localTracks.indexOfFirst { it.audio.uri == currentTrack?.uri }
-                        }
-
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
@@ -383,15 +389,12 @@ fun SharedTransitionScope.QueueBottomSheet(
                                 val prevIsNext =
                                     currentTrackIndex == -1 || (index - 1) > currentTrackIndex
 
-                                // Raw calculation of header required for this specific index in real time
                                 var rawHeaderText: String? = null
                                 var rawHeaderColor: Color = Color.Unspecified
 
-                                if (isPrevious && index == 0) {
-                                    // Previous tracks (no matter if queued manually or not)
-                                    rawHeaderText = "Previous tracks"
-                                    rawHeaderColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                } else if (isCurrentTrack) {
+                                val showPreviousHeader = isPrevious && index == currentTrackIndex - 1
+
+                                if (isCurrentTrack) {
                                     rawHeaderText = "Now playing"
                                     rawHeaderColor = MaterialTheme.colorScheme.primary
                                 } else if (isNext) {
@@ -608,6 +611,20 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                 }
                                             }
                                         }
+
+                                        if (showPreviousHeader) {
+                                            Text(
+                                                text = "Previous tracks",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(
+                                                    start = 48.dp,
+                                                    top = 12.dp,
+                                                    bottom = 4.dp
+                                                )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -639,7 +656,9 @@ fun SharedTransitionScope.QueueBottomSheet(
                 FloatingActionButton(
                     onClick = {
                         coroutineScope.launch {
-                            listState.animateScrollToItem(0)
+                            if (currentTrackIndex >= 0) {
+                                listState.animateScrollToItem(currentTrackIndex + 1)
+                            }
                         }
                     },
                     shape = CircleShape,
