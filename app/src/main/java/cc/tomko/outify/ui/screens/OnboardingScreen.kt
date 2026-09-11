@@ -215,7 +215,7 @@ private fun PlaybackLoginContent(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "This login is required to stream audio. Outify uses librespot with anonymous Spotify credentials to power playback - independent of your personal account.",
+            text = "A Spotify Premium subscription is required. This login is required to stream audio. Outify uses librespot with anonymous Spotify credentials to power playback - independent of your personal account.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -329,7 +329,7 @@ private fun AccountLoginContent(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "Connect your Spotify account to unlock library, playlists, likes and recommendations. This is handled securely via OAuth.",
+            text = "A Spotify Premium subscription is required. Connect your Spotify account to unlock library, playlists, likes and recommendations. This is handled securely via OAuth.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
