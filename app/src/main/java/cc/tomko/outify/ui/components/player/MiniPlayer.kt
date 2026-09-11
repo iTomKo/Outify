@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -101,6 +102,7 @@ fun MiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
+            .clip(RoundedCornerShape(32.dp))
             .pointerInput(Unit) {
                 var totalDragX = 0f
                 var totalDragY = 0f
@@ -197,7 +199,6 @@ fun MiniPlayer(
                 .fillMaxWidth()
                 .height(64.dp)
                 .clickable { onClick?.invoke() },
-            shape = RoundedCornerShape(32.dp),
             tonalElevation = 0.dp,
             shadowElevation = 16.dp,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
