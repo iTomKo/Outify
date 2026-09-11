@@ -379,7 +379,7 @@ class SearchViewModel @Inject constructor(
     }
 
     fun saveItem(uri: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             if (!spClient.saveItems(arrayOf(uri))) {
                 Log.w("SearchViewModel", "saveItem failed")
             }

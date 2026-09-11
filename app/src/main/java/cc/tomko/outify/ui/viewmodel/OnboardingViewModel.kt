@@ -121,24 +121,26 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun startAccountAuth(context: Context) {
-        OAuthService.start(context)
+        viewModelScope.launch {
+            OAuthService.start(context)
 
-        serverManager.start(onCodeReceived = { code, _ ->
-            OAuthService.stop(context)
-            val result = spClient.completeOAuthFlow(code)
-            val isSuccess = result.contains("\"success\":true")
-            if (isSuccess) {
-                // Restart the Web API client so it picks up the fresh credentials
-                spClient.reset()
-                _isAccountLoggedIn.value = spClient.isOAuthAuthenticated()
-                AuthStateEventBus.tryEmitAccountLoggedIn()
-                fetchProfile()
-                advanceAfterSuccess()
-            }
-        })
+            serverManager.start(onCodeReceived = { code, _ ->
+                OAuthService.stop(context)
+                val result = spClient.completeOAuthFlow(code)
+                val isSuccess = result.contains("\"success\":true")
+                if (isSuccess) {
+                    // Restart the Web API client so it picks up the fresh credentials
+                    spClient.reset()
+                    _isAccountLoggedIn.value = spClient.isOAuthAuthenticated()
+                    AuthStateEventBus.tryEmitAccountLoggedIn()
+                    fetchProfile()
+                    advanceAfterSuccess()
+                }
+            })
 
-        val url = spClient.startOAuthFlow()
-        context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+            val url = withContext(Dispatchers.IO) { spClient.startOAuthFlow() }
+            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+        }
     }
 
     private fun advanceAfterSuccess() {
@@ -156,7 +158,7 @@ class OnboardingViewModel @Inject constructor(
     private fun fetchProfile() {
         viewModelScope.launch {
             try {
-                val profile = spClient.getCurrentUserProfile() ?: return@launch
+                val profile = withContext(Dispatchers.IO) { spClient.getCurrentUserProfile() } ?: return@launch
                 val jsonObject = json.decodeFromString<CurrentUserProfile>(profile)
                 settingsRepository.saveUserProfile(
                     jsonObject.id,

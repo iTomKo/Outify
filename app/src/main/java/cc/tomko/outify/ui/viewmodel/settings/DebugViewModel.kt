@@ -12,12 +12,14 @@ import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.utils.ExceptionCollector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import javax.inject.Inject
@@ -75,14 +77,17 @@ class DebugViewModel @Inject constructor(
     //endregion
 
     fun loadData() {
-        _isAccountLoggedIn.value = spClient.isOAuthAuthenticated()
         _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
         _hasAccountsFile.value = File(context.filesDir, "account.json").exists()
         _hasPlaybackFile.value = File(context.filesDir, "credentials.json").exists()
         _isSpircUsable.value = spircWrapper.isUsable
 
-        if (_isAccountLoggedIn.value) {
-            fetchProfile()
+        viewModelScope.launch {
+            val authenticated = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
+            _isAccountLoggedIn.value = authenticated
+            if (authenticated) {
+                fetchProfile()
+            }
         }
 
         viewModelScope.launch {
@@ -107,7 +112,7 @@ class DebugViewModel @Inject constructor(
     private fun fetchProfile() {
         viewModelScope.launch {
             try {
-                val profile = spClient.getCurrentUserProfile()
+                val profile = withContext(Dispatchers.IO) { spClient.getCurrentUserProfile() }
                 if (profile == null) {
                     return@launch
                 }
