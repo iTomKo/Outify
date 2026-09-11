@@ -105,13 +105,7 @@ pub fn update_client(client_id: String, client_secret: String) {
 
 pub fn reset_client() {
     if let Some(client) = SPOTIFY_CLIENT.get() {
-        let rt = match crate::TOKIO_RUNTIME.get() {
-            Some(r) => r,
-            None => {
-                warn!("tokio runtime not available for spclient reset");
-                return;
-            }
-        };
+        let rt = crate::network_rt();
 
         rt.block_on(async {
             let mut oauth_state_guard = client.oauth_state.write().await;

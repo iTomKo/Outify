@@ -47,13 +47,7 @@ pub extern "system" fn get_native_metadata(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_native_metadata");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result: Result<Option<String>, librespot_core::error::Error> =
         match with_session(|session| {

@@ -33,13 +33,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_AuthManager_getAuthorizationURL
     env: JNIEnv,
     _this: JObject,
 ) -> jstring {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            warn!("tokio runtime not available for get_authorization_url");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let auth_url_opt: Option<Url> = match with_session(|session| {
         rt.block_on(async move {
@@ -91,13 +85,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_AuthManager_handleOAuthCode(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(rt) => rt,
-        None => {
-            error!("tokio runtime not available for handle_oauth_code");
-            return make_error_json(&env, "unknown", "Tokio runtime not initialized");
-        }
-    };
+    let rt = crate::network_rt();
 
     let session_mutex = match crate::oauth::OAUTH_SESSION.get() {
         Some(m) => m,

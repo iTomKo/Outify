@@ -86,7 +86,7 @@ pub(crate) fn spawn_background<F>(job: F)
 where
     F: FnOnce() + Send + 'static,
 {
-    if let Some(h) = crate::TOKIO_RUNTIME.get() {
+    if let Some(h) = crate::NETWORK_RUNTIME.get() {
         let _ = h.spawn_blocking(move || job());
     } else {
         // fallback: spawn a thread so background work still runs
