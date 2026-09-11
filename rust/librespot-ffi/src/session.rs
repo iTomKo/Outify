@@ -1,9 +1,8 @@
 use std::{
-    pin::Pin,
-    sync::{
+    pin::Pin, sync::{
         RwLock,
         atomic::{AtomicBool, Ordering},
-    },
+    }, time::Duration,
 };
 
 use crate::{CACHE_DIR, FILES_DIR, TOKIO_RUNTIME};
@@ -129,16 +128,17 @@ fn start_shutdown_listener(session: Session) {
             .get()
             .map(|m| m.lock().unwrap().clone())
             .unwrap_or("Outify".to_string());
-        let gapless = crate::spirc::GAPLESS.load(std::sync::atomic::Ordering::Relaxed);
-        let normalise = crate::spirc::NORMALISE_AUDIO.load(std::sync::atomic::Ordering::Relaxed);
+        let gapless = crate::spirc::GAPLESS.load(Ordering::Relaxed);
+        let normalise = crate::spirc::NORMALISE_AUDIO.load(Ordering::Relaxed);
         let bitrate_mutex = crate::spirc::BITRATE
             .get()
             .expect("BITRATE not initialized");
         let bitrate = *bitrate_mutex.lock().unwrap();
+        let crossfade = crate::spirc::CROSSFADE.load(Ordering::Relaxed);
 
         initialize_session().await;
         if let Err(e) =
-            crate::spirc::initialize_spirc(device_name, gapless, normalise, bitrate).await
+            crate::spirc::initialize_spirc(device_name, gapless, normalise, bitrate, Duration::from_millis(crossfade as u64)).await
         {
             IS_AUTO_RESTARTING.store(false, Ordering::Release);
             error!("spirc init after reconnect failed: {e}");

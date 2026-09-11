@@ -26,6 +26,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
     gapless: jboolean,
     normalisation: jboolean,
     bitrate: jint,
+    crossfade: jint,
     device_name: JString,
 ) -> jboolean {
     info!("initializing spirc");
@@ -65,9 +66,11 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
         _ => Bitrate::Bitrate320,
     };
 
+    let crossfade = Duration::from_millis(crossfade as u64);
+
     handle.spawn(async move {
         let result =
-            crate::spirc::initialize_spirc(name, gapless != 0, normalisation != 0, bitrate).await;
+            crate::spirc::initialize_spirc(name, gapless != 0, normalisation != 0, bitrate, crossfade).await;
 
         let mut env = match jvm.attach_current_thread() {
             Ok(env) => env,

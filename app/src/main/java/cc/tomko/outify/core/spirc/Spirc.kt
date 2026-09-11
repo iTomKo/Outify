@@ -56,6 +56,7 @@ object Spirc {
         gapless: Boolean,
         normalisation: Boolean,
         bitrateSpeed: Int = Bitrate.KBPS320.getSpeed(),
+        crossfadeMillis: Int = 5_000,
         deviceName: String = "Outify"
     ): Boolean
 

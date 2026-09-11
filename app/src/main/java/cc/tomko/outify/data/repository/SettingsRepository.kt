@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import cc.tomko.outify.core.model.PlaylistFolder
@@ -48,6 +49,7 @@ class SettingsRepository @Inject constructor(
          */
         val AUTO_TRANSFER = booleanPreferencesKey("auto_transfer")
         val BITRATE = stringPreferencesKey("bitrate")
+        val CROSSFADE_MILLIS = intPreferencesKey("crossfade_millis")
         val DEVICE_NAME = stringPreferencesKey("device_name")
 
         val USER_ID = stringPreferencesKey("user_id")
@@ -175,6 +177,7 @@ class SettingsRepository @Inject constructor(
             keepalive = prefs[Keys.KEEPALIVE] ?: default.keepalive,
             autoTransfer = prefs[Keys.AUTO_TRANSFER] ?: default.autoTransfer,
             bitrate = Bitrate.valueOf(bitrate),
+            crossfadeMillis = prefs[Keys.CROSSFADE_MILLIS] ?: default.crossfadeMillis,
             deviceName = prefs[Keys.DEVICE_NAME] ?: default.deviceName,
 
             forwardMilliseconds = prefs[Keys.Playback.FORWARD_DURATION_MS] ?: 15_000
@@ -264,6 +267,10 @@ class SettingsRepository @Inject constructor(
         Bitrate.valueOf(bitrate)
     }
 
+    val crossfadeMillis = dataStore.data.map {
+        it[Keys.CROSSFADE_MILLIS] ?: 5_000
+    }
+
     val deviceName = dataStore.data.map {
         it[Keys.DEVICE_NAME] ?: "Outify"
     }
@@ -313,6 +320,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setBitrate(bitrate: Bitrate) {
         dataStore.edit { it[Keys.BITRATE] = bitrate.name }
+    }
+
+    suspend fun setCrossfade(crossfadeMillis: Int) {
+        dataStore.edit { it[Keys.CROSSFADE_MILLIS] = crossfadeMillis }
     }
 
     suspend fun setAutoTransfer(enabled: Boolean) {
@@ -608,6 +619,7 @@ data class PlaybackSettings(
     val keepalive: Boolean = true,
     val autoTransfer: Boolean = true,
     val bitrate: Bitrate = Bitrate.KBPS320,
+    val crossfadeMillis: Int = 5_000,
     val deviceName: String = "Outify",
 
     val forwardMilliseconds: Long = 15_000

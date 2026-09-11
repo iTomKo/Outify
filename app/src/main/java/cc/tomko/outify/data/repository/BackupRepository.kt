@@ -48,6 +48,7 @@ data class BackupPreferences(
     val keepalive: Boolean? = null,
     val autoTransfer: Boolean? = null,
     val bitrate: String? = null,
+    val crossfadeMillis: Int? = null,
     val deviceName: String? = null,
     val userId: String? = null,
     val username: String? = null,
@@ -95,6 +96,7 @@ class BackupRepository @Inject constructor(
                 keepalive = prefs[SettingsRepository.Keys.KEEPALIVE],
                 autoTransfer = prefs[SettingsRepository.Keys.AUTO_TRANSFER],
                 bitrate = prefs[SettingsRepository.Keys.BITRATE],
+                crossfadeMillis = prefs[SettingsRepository.Keys.CROSSFADE_MILLIS],
                 deviceName = prefs[SettingsRepository.Keys.DEVICE_NAME],
                 userId = prefs[SettingsRepository.Keys.USER_ID],
                 username = prefs[SettingsRepository.Keys.USERNAME],
@@ -152,6 +154,7 @@ class BackupRepository @Inject constructor(
             prefs.keepalive?.let { data[SettingsRepository.Keys.KEEPALIVE] = it }
             prefs.autoTransfer?.let { data[SettingsRepository.Keys.AUTO_TRANSFER] = it }
             prefs.bitrate?.let { data[SettingsRepository.Keys.BITRATE] = it }
+            prefs.crossfadeMillis?.let { data[SettingsRepository.Keys.CROSSFADE_MILLIS] = it }
             prefs.deviceName?.let { data[SettingsRepository.Keys.DEVICE_NAME] = it }
             prefs.gesturesEnabled?.let { data[SettingsRepository.Keys.Gesture.ENABLED] = it }
             prefs.gesturesJson?.let { data[SettingsRepository.Keys.Gesture.GESTURES] = it }

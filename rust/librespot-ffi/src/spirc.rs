@@ -1,7 +1,7 @@
-use std::sync::{
+use std::{sync::{
     Arc, Mutex, RwLock,
     atomic::{AtomicBool, AtomicU8, AtomicU32},
-};
+}, time::Duration};
 
 use jni::objects::JValue;
 use librespot_connect::{
@@ -42,6 +42,7 @@ pub static DEVICE_NAME: OnceCell<Mutex<String>> = OnceCell::new();
 
 pub static NORMALISE_AUDIO: AtomicBool = AtomicBool::new(false);
 pub static GAPLESS: AtomicBool = AtomicBool::new(false);
+pub static CROSSFADE: AtomicU32 = AtomicU32::new(0);
 static CURRENT_CONTEXT: OnceCell<Mutex<Option<CurrentContext>>> = OnceCell::new();
 static IS_PLAYING: AtomicBool = AtomicBool::new(false);
 static IS_SHUFFLING: AtomicBool = AtomicBool::new(false);
@@ -101,10 +102,12 @@ impl SpircRuntime {
         gapless: bool,
         normalisation: bool,
         bitrate: Bitrate,
+        crossfade: Duration,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let player_config = PlayerConfig {
             // TODO: Make configurable from app
             position_update_interval: Some(std::time::Duration::from_millis(5_000)),
+            crossfade,
             bitrate,
             gapless,
             normalisation,
@@ -159,6 +162,7 @@ impl SpircRuntime {
 
         GAPLESS.store(gapless, std::sync::atomic::Ordering::Relaxed);
         NORMALISE_AUDIO.store(normalisation, std::sync::atomic::Ordering::Relaxed);
+        CROSSFADE.store(crossfade.as_millis() as u32, std::sync::atomic::Ordering::Relaxed);
 
         let bitrate_mutex = BITRATE.get().expect("BITRATE not initialized");
         *bitrate_mutex.lock().unwrap() = bitrate;
@@ -502,12 +506,13 @@ pub async fn auto_initialize_spirc() -> Result<(), SpircError> {
     let normalisation = NORMALISE_AUDIO.load(std::sync::atomic::Ordering::Relaxed);
     let bitrate_mutex = BITRATE.get().expect("BITRATE not initialized");
     let bitrate = *bitrate_mutex.lock().unwrap();
+    let crossfade = CROSSFADE.load(std::sync::atomic::Ordering::Relaxed);
     let device_name = DEVICE_NAME
         .get()
         .map(|m| m.lock().unwrap().clone())
         .unwrap_or("Outify".to_string());
 
-    initialize_spirc(device_name, gapless, normalisation, bitrate).await
+    initialize_spirc(device_name, gapless, normalisation, bitrate, Duration::from_millis(crossfade as u64)).await
 }
 
 pub async fn initialize_spirc(
@@ -515,6 +520,7 @@ pub async fn initialize_spirc(
     gapless: bool,
     normalisation: bool,
     bitrate: Bitrate,
+    crossfade: Duration,
 ) -> Result<(), SpircError> {
     debug!("initializing spirc runtime");
 
@@ -556,6 +562,7 @@ pub async fn initialize_spirc(
         gapless,
         normalisation,
         bitrate,
+        crossfade,
     )
     .await
     .map_err(|e| SpircError::Other(e.to_string()))?;

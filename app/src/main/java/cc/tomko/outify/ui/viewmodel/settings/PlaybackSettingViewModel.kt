@@ -69,6 +69,13 @@ class PlaybackSettingViewModel @Inject constructor(
         }
     }
 
+    fun setCrossfade(crossfadeMillis: Int) {
+        viewModelScope.launch {
+            _needsRestart.value = true
+            settingsRepository.setCrossfade(crossfadeMillis)
+        }
+    }
+
     fun setAutoTransfer(transfer: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAutoTransfer(transfer)
