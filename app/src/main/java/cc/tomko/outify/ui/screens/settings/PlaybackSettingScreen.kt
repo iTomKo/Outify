@@ -151,26 +151,25 @@ fun PlaybackSettingScreen(
                             icon = { Icon(Icons.Default.GraphicEq, contentDescription = null) },
                             content = {
                                 Text(
-                                    text = "${crossfadeSecs.roundToInt()} seconds",
+                                    text = "%.1f seconds".format(crossfadeSecs),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
                                 val sliderState = rememberSliderState(
                                     value = crossfadeSecs,
-                                    steps = 17,
-                                    trackRange = 0f..90f
+                                    steps = 59,
+                                    trackRange = 0f..30f
                                 )
 
                                 Slider(
                                     state = sliderState,
                                     onValueChangeFinished = {
                                         crossfadeSecs = sliderState.value
-                                        viewModel.setCrossfade(sliderState.value.toInt() * 1000)
+                                        viewModel.setCrossfade((sliderState.value * 1000).toInt())
                                     }
                                 )
                             },
-                            onClick = {}
                         )
 
                         ElevatedCard(

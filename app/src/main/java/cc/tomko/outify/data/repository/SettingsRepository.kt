@@ -268,7 +268,7 @@ class SettingsRepository @Inject constructor(
     }
 
     val crossfadeMillis = dataStore.data.map {
-        it[Keys.CROSSFADE_MILLIS] ?: 5_000
+        it[Keys.CROSSFADE_MILLIS] ?: 2_000
     }
 
     val deviceName = dataStore.data.map {
