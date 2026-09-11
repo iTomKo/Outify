@@ -2,6 +2,7 @@ package cc.tomko.outify
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.assist.AssistContent
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -49,6 +50,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -64,6 +66,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -126,6 +129,9 @@ class MainActivity : ComponentActivity() {
     lateinit var volumeController: VolumeController
 
     private val deepLinkFlow = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+
+    @Volatile
+    private var assistContentRoute: Route? = null
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
@@ -234,6 +240,10 @@ class MainActivity : ComponentActivity() {
         )
 
         val currentRoute = backStack.last()
+
+        SideEffect {
+            assistContentRoute = currentRoute as? Route
+        }
 
         val selectedId = when (currentRoute) {
             Route.HomeScreen -> "home"
@@ -642,6 +652,26 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             })
+    }
+
+    override fun onProvideAssistContent(outContent: AssistContent) {
+        super.onProvideAssistContent(outContent)
+        val uri = when (val route = assistContentRoute) {
+            is Route.ArtistScreen -> route.artistUri.toAssistContentUri("artist")
+            is Route.AlbumScreen -> route.albumUri.toAssistContentUri("album")
+            is Route.PlaylistScreen -> route.playlistUri.toAssistContentUri("playlist")
+            is Route.ShowScreen -> route.showUri.toAssistContentUri("show")
+            is Route.TrackScreen -> route.trackUri.toAssistContentUri("track")
+            is Route.LikedScreen -> "https://open.spotify.com/collection/tracks"
+            else -> null
+        }
+        uri?.let { outContent.webUri = it.toUri() }
+    }
+
+    private fun String.toAssistContentUri(type: String): String {
+        if (this.startsWith("https://open.spotify.com/")) return this
+        val id = this.substringAfterLast(":")
+        return "https://open.spotify.com/$type/$id"
     }
 
     fun parseDeepLinkUriToNavKey(uri: Uri): NavKey? {
