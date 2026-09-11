@@ -1,4 +1,7 @@
-use crate::{TOKIO_RUNTIME, metadata::user::UserJson, session::with_session};
+use crate::{
+    metadata::user::UserJson,
+    session::with_session,
+};
 use jni::{
     objects::{JClass, JString},
     sys::jstring,
@@ -56,13 +59,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_UserProfile_getUserProfile(
     _this: JClass,
     username: JString,
 ) -> jstring {
-    let rt = match TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            warn!("tokio runtime not available for get_user_profile");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let username: Option<String> = if username.is_null() {
         None

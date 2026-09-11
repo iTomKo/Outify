@@ -37,13 +37,7 @@ pub extern "system" fn username(env: JNIEnv, _class: JClass) -> jstring {
 pub extern "system" fn get_current_user(env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_current_user");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = match rt.block_on(async { client.get_current_user().await }) {
         Ok(r) => match serde_json::to_string(&r) {
@@ -95,13 +89,7 @@ pub extern "system" fn spotify_search(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for search");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let limit = if limit == -1 { None } else { Some(limit) };
     let offset = if offset == -1 { None } else { Some(offset) };
@@ -133,13 +121,7 @@ pub extern "system" fn save_item(mut env: JNIEnv, _class: JClass, uris: JObjectA
         rust_uris.push(rust_string);
     }
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for save_items");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.save_items(rust_uris).await });
 
@@ -177,13 +159,7 @@ pub extern "system" fn delete_items(
         rust_uris.push(rust_string);
     }
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for delete_items");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.delete_items(rust_uris).await });
 
@@ -211,13 +187,7 @@ pub extern "system" fn get_saved_items(
 ) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_saved_uris");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let item_type_raw: String = match env.get_string(&item_type) {
         Ok(s) => s.into(),
@@ -274,13 +244,7 @@ pub extern "system" fn get_saved_items(
 pub extern "system" fn get_saved_episode_items(mut env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_saved_episode_items");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = match rt.block_on(client.get_saved_episode_items()) {
         Ok(items) => {
@@ -322,13 +286,7 @@ pub extern "system" fn get_episode_details(
 ) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_episode_details");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let episode_id: String = match env.get_string(&episode_id) {
         Ok(s) => s.into(),
@@ -407,13 +365,7 @@ pub extern "system" fn get_user_top(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_user_top");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.get_top(request_type, time_range).await });
 
@@ -454,13 +406,7 @@ pub extern "system" fn transfer_playback_device(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for transfer_playback");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.transfer_playback(device_id).await });
 
@@ -477,13 +423,7 @@ pub extern "system" fn transfer_playback_device(
 pub extern "system" fn get_devices(env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_devices");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.get_devices().await });
     match result {
@@ -511,13 +451,7 @@ pub extern "system" fn get_devices(env: JNIEnv, _class: JClass) -> jstring {
 pub extern "system" fn is_oauth_authenticated(_env: JNIEnv, _class: JClass) -> jboolean {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for is_oauth_authenticated");
-            return 0 as jboolean;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.is_oauth_authenticated().await });
 
@@ -525,17 +459,10 @@ pub extern "system" fn is_oauth_authenticated(_env: JNIEnv, _class: JClass) -> j
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getOAuthScope")]
-pub extern "system" fn get_oauth_scope(mut env: JNIEnv, _class: JClass) -> jstring {
+pub extern "system" fn get_oauth_scope(env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_oauth_scope");
-            throw_exception(&mut env, "tokio runtime not available".to_string());
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.get_scope().await });
     match result {
@@ -577,13 +504,7 @@ pub extern "system" fn add_to_playlist(
         rust_uris.push(rust_string);
     }
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for add_to_playlist");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.add_to_playlist(playlist_id, rust_uris).await });
 
@@ -630,13 +551,7 @@ pub extern "system" fn delete_from_playlist(
         rust_uris.push(rust_string);
     }
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for delete_from_playlist");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.delete_from_playlist(playlist_id, rust_uris).await });
 
@@ -678,13 +593,7 @@ pub extern "system" fn create_playlist(
 
     let description = optionable_string(&mut env, description);
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for create_playlist");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async {
         client
@@ -740,13 +649,7 @@ pub extern "system" fn modify_playlist(
 
     let description = optionable_string(&mut env, description);
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for modify_playlist");
-            return 0;
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async {
         client
@@ -778,13 +681,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_searchContext(
     _class: JClass,
     query: JString,
 ) -> jstring {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for search_context");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let query: String = match env.get_string(&query) {
         Ok(q) => q.into(),
@@ -843,13 +740,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getUserCollection(
     _class: JClass,
     query: JString,
 ) -> jstring {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_user_collection");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let query: Option<String> = if query.is_null() {
         None
@@ -920,13 +811,7 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getRootlist(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jobjectArray {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_rootlist");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let uris: Vec<String> = rt.block_on(async {
         match crate::spclient::get_rootlist().await {
@@ -965,13 +850,7 @@ pub extern "system" fn get_radio_for_track(
     _class: JClass,
     track_uri: JString,
 ) -> jstring {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_radio");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let track_uri_raw: String = match env.get_string(&track_uri) {
         Ok(js) => js.into(),
@@ -1028,13 +907,7 @@ pub extern "system" fn get_lyrics_for_track(
     _class: JClass,
     track_id: JString,
 ) -> jstring {
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for get_lyrics");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let track_id_raw: String = match env.get_string(&track_id) {
         Ok(js) => js.into(),
@@ -1087,13 +960,7 @@ pub extern "system" fn get_lyrics_for_track(
 pub extern "system" fn start_oauth_flow(env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for start_oauth_flow");
-            return std::ptr::null_mut();
-        }
-    };
+    let rt = crate::network_rt();
 
     let auth_url_result = rt.block_on(async { client.start_oauth_flow().await });
 
@@ -1130,13 +997,7 @@ pub extern "system" fn complete_oauth_flow(
         }
     };
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(r) => r,
-        None => {
-            error!("tokio runtime not available for complete_oauth_flow");
-            return spclient_make_error_json(&env, "unknown", "Tokio runtime not initialized");
-        }
-    };
+    let rt = crate::network_rt();
 
     let result = rt.block_on(async { client.complete_oauth_flow(code).await });
 

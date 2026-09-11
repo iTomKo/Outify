@@ -1,7 +1,7 @@
 use jni::{
     JNIEnv, JavaVM,
     objects::{GlobalRef, JByteBuffer, JObject, JValue},
-    sys::jint,
+    sys::{jint, jmethodID},
 };
 use librespot_playback::{audio_backend::AndroidSink, config::AudioFormat};
 use log::{error, warn};
@@ -11,11 +11,26 @@ use std::sync::Mutex;
 static JAVA_VM: OnceCell<JavaVM> = OnceCell::new();
 static PCM_CALLBACK: OnceCell<Mutex<Option<GlobalRef>>> = OnceCell::new();
 
+#[derive(Clone, Copy)]
+struct JniMethodId(jmethodID);
+
+unsafe impl Send for JniMethodId {}
+unsafe impl Sync for JniMethodId {}
+
+// Method ID is resolved once at registration; per-frame calls use the cached ID.
+static PCM_METHOD: OnceCell<JniMethodId> = OnceCell::new();
+
 /// Player related
 static BUFFER_CAPACITY: OnceCell<usize> = OnceCell::new();
 static BUFFER_PTR: OnceCell<usize> = OnceCell::new();
 
 static BUFFER_GLOBAL: OnceCell<Mutex<Option<GlobalRef>>> = OnceCell::new();
+
+// Flags the (single, long-lived) audio thread as permanently JNI-attached so
+// subsequent frames skip the expensive attach/detach round trip.
+thread_local! {
+    static PCM_ATTACHED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
 
 extern "C" fn rust_pcm_trampoline(
     data: *const u8,
@@ -68,32 +83,57 @@ extern "C" fn rust_pcm_trampoline(
         None => return,
     };
 
+    let method_id = match PCM_METHOD.get() {
+        Some(m) => m.0,
+        None => return,
+    };
+
     let jvm = match crate::JVM.get() {
         Some(j) => j,
         None => return,
     };
 
-    let mut env = match jvm.attach_current_thread_as_daemon() {
+    // Attach this audio thread permanently exactly once.
+    if !PCM_ATTACHED.with(|t| t.get()) {
+        match jvm.attach_current_thread_permanently() {
+            Ok(_) => PCM_ATTACHED.with(|t| t.set(true)),
+            Err(_) => return,
+        }
+    }
+
+    // Cheap: GetEnv for an already-attached thread.
+    let env = match jvm.attach_current_thread() {
         Ok(e) => e,
         Err(_) => return,
     };
 
-    let _ = env.call_method(
-        cb_ref.as_obj(),
-        "onPcmReady",
-        "(III)V",
-        &[
-            JValue::Int(len as jint),
-            JValue::Int(sample_rate as jint),
-            JValue::Int(channels as jint),
-        ],
-    );
+    let args = [
+        JValue::Int(len as jint).as_jni(),
+        JValue::Int(sample_rate as jint).as_jni(),
+        JValue::Int(channels as jint).as_jni(),
+    ];
+
+    let env_raw = env.get_native_interface();
+    if !env_raw.is_null() {
+        let iface = unsafe { &(**env_raw) };
+        if let Some(call) = iface.CallVoidMethodA {
+            unsafe {
+                call(env_raw, cb_ref.as_obj().as_raw(), method_id, args.as_ptr());
+            }
+        } else {
+            error!("CallVoidMethodA not available in JNI interface");
+        }
+    }
+
+    if let Ok(true) = env.exception_check() {
+        env.exception_clear().ok();
+    }
 }
 
 /// JNI registration function — called from Java.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_playback_AudioEngine_registerPcmCallback(
-    env: JNIEnv,
+    mut env: JNIEnv,
     _class: JObject,
     callback: JObject,
     buffer: JByteBuffer,
@@ -108,7 +148,7 @@ pub extern "system" fn Java_cc_tomko_outify_playback_AudioEngine_registerPcmCall
         }
     }
 
-    let global_ref = match env.new_global_ref(callback) {
+    let global_ref = match env.new_global_ref(&callback) {
         Ok(g) => g,
         Err(e) => {
             error!("jni new_global_ref failed for pcm callback: {e}");
@@ -128,6 +168,23 @@ pub extern "system" fn Java_cc_tomko_outify_playback_AudioEngine_registerPcmCall
             }
         }
     }
+
+    // Cache onPcmReady's method ID once.
+    let class = match env.get_object_class(&callback) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("jni get_object_class failed for pcm callback: {e}");
+            return;
+        }
+    };
+    let method_id = match env.get_method_id(&class, "onPcmReady", "(III)V") {
+        Ok(mid) => mid.into_raw(),
+        Err(e) => {
+            error!("jni get_method_id failed for onPcmReady: {e}");
+            return;
+        }
+    };
+    let _ = PCM_METHOD.set(JniMethodId(method_id));
 
     let ptr = match env.get_direct_buffer_address(&buffer) {
         Ok(p) => p,

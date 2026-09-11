@@ -26,6 +26,7 @@ import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.notifications.InAppNotificationController
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -110,7 +112,9 @@ class MainViewModel @Inject constructor(
     }
 
     fun playNext(uri: String) {
-        spirc.playNext(uri)
+        viewModelScope.launch(Dispatchers.IO) {
+            spirc.playNext(uri)
+        }
         InAppNotificationController.show(
             "Inserted to queue",
             { Icon(Icons.Default.Queue, contentDescription = "Inserted to queue") },
@@ -119,7 +123,9 @@ class MainViewModel @Inject constructor(
     }
 
     fun startRadio(track: Track) {
-        spirc.startRadio(track.toSpotifyUri(), false)
+        viewModelScope.launch(Dispatchers.IO) {
+            spirc.startRadio(track.toSpotifyUri(), false)
+        }
         playbackStateHolder.setAudio(track.toPlayableAudio())
         InAppNotificationController.show(
             "Radio started",
@@ -167,10 +173,12 @@ class MainViewModel @Inject constructor(
                 if (isTrack) likedRepository.addLiked(id) else likedRepository.addLikedEpisode(id)
             }
 
-            val success = if (wasLiked) {
-                spClient.deleteItems(arrayOf(rawUri))
-            } else {
-                spClient.saveItems(arrayOf(rawUri))
+            val success = withContext(Dispatchers.IO) {
+                if (wasLiked) {
+                    spClient.deleteItems(arrayOf(rawUri))
+                } else {
+                    spClient.saveItems(arrayOf(rawUri))
+                }
             }
 
             if (!success) {

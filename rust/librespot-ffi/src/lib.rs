@@ -33,10 +33,15 @@ use jni::sys::jint;
 use tokio::runtime::Runtime;
 
 static TOKIO_RUNTIME: OnceCell<Runtime> = OnceCell::new();
+static NETWORK_RUNTIME: OnceCell<Runtime> = OnceCell::new();
 static JVM: OnceCell<JavaVM> = OnceCell::new();
 
 static FILES_DIR: OnceCell<PathBuf> = OnceCell::new();
 static CACHE_DIR: OnceCell<PathBuf> = OnceCell::new();
+
+pub(crate) fn network_rt() -> &'static Runtime {
+    NETWORK_RUNTIME.get().expect("NETWORK_RUNTIME not initialized")
+}
 
 #[unsafe(no_mangle)]
 pub extern "system" fn JNI_OnLoad(vm: JavaVM, _reserved: *mut std::os::raw::c_void) -> jint {
@@ -58,12 +63,28 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
     TOKIO_RUNTIME.get_or_init(|| {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
+            .thread_name("outify-core")
+            .worker_threads(4)
+            .max_blocking_threads(8)
             .build()
             .expect("Failed to create Tokio runtime!")
     });
 
+    NETWORK_RUNTIME.get_or_init(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_name("outify-net")
+            .worker_threads(2)
+            .max_blocking_threads(32)
+            .build()
+            .expect("Failed to create network runtime!")
+    });
+
     // Initialize logger
     crate::jni_utils::logger::AndroidLogger::init(jvm, log::LevelFilter::Debug).unwrap();
+
+    // Start the single JNI callback dispatcher thread
+    crate::jni_utils::jni_bridge::start_dispatcher();
     unsafe {
         std::env::set_var("RUST_BACKTRACE", "1");
     }

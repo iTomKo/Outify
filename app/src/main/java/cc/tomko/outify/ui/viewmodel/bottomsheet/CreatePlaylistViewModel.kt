@@ -39,7 +39,7 @@ class CreatePlaylistViewModel @Inject constructor(
                     PlaylistEntity(
                         id = playlistId,
                         uri = "spotify:playlist:$playlistId",
-                        ownerUsername = spClient.username() ?: "",
+                        ownerUsername = withContext(Dispatchers.IO) { spClient.username() } ?: "",
                         revision = "",
                         name = name,
                         description = description ?: "",
@@ -79,7 +79,7 @@ class CreatePlaylistViewModel @Inject constructor(
                         PlaylistEntity(
                             id = playlistId,
                             uri = "spotify:playlist:$playlistId",
-                            ownerUsername = spClient.username() ?: "",
+                            ownerUsername = withContext(Dispatchers.IO) { spClient.username() } ?: "",
                             revision = "",
                             name = name,
                             description = description ?: "",

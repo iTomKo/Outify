@@ -18,12 +18,14 @@ import cc.tomko.outify.services.OAuthService
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -67,10 +69,12 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun checkAuthState() {
-        _isAccountLoggedIn.value = spClient.isOAuthAuthenticated()
-        _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
-
-        _scopes.value = spClient.getOAuthScope()?.split(" ") ?: emptyList()
+        viewModelScope.launch {
+            _isAccountLoggedIn.value = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
+            _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
+            _scopes.value =
+                withContext(Dispatchers.IO) { spClient.getOAuthScope() }?.split(" ") ?: emptyList()
+        }
     }
 
     private fun loadSavedUserProfile() {
@@ -108,42 +112,44 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun startAccountAuth(context: Context) {
-        OAuthService.start(context)
+        viewModelScope.launch {
+            OAuthService.start(context)
 
-        serverManager.start(onCodeReceived = { code, state ->
-            OAuthService.stop(context)
-            val result = spClient.completeOAuthFlow(code)
-            val isSuccess = result.contains("\"success\":true")
-            val errorDetails = if (!isSuccess) parseErrorMessage(result) else null
-            if (!isSuccess) {
-                NativeErrorHandler.handleErrorJson(result, "account oauth")
-            }
-            GlobalPopupController.show(PopupSpec.AuthResult(isSuccess, errorDetails = errorDetails))
-            if (isSuccess) {
-                // Restart the Web API client so it picks up the fresh credentials
-                spClient.reset()
-                viewModelScope.launch {
-                    delay(100)
-                    var authenticated = spClient.isOAuthAuthenticated()
-                    if (!authenticated) {
-                        delay(300)
-                        authenticated = spClient.isOAuthAuthenticated()
-                    }
-                    _isAccountLoggedIn.value = authenticated
-                    checkAuthState()
-                    AuthStateEventBus.tryEmitAccountLoggedIn()
-                    if (authenticated) {
-                        fetchProfile()
+            serverManager.start(onCodeReceived = { code, state ->
+                OAuthService.stop(context)
+                val result = spClient.completeOAuthFlow(code)
+                val isSuccess = result.contains("\"success\":true")
+                val errorDetails = if (!isSuccess) parseErrorMessage(result) else null
+                if (!isSuccess) {
+                    NativeErrorHandler.handleErrorJson(result, "account oauth")
+                }
+                GlobalPopupController.show(PopupSpec.AuthResult(isSuccess, errorDetails = errorDetails))
+                if (isSuccess) {
+                    // Restart the Web API client so it picks up the fresh credentials
+                    spClient.reset()
+                    viewModelScope.launch {
+                        delay(100)
+                        var authenticated = spClient.isOAuthAuthenticated()
+                        if (!authenticated) {
+                            delay(300)
+                            authenticated = spClient.isOAuthAuthenticated()
+                        }
+                        _isAccountLoggedIn.value = authenticated
+                        checkAuthState()
+                        AuthStateEventBus.tryEmitAccountLoggedIn()
+                        if (authenticated) {
+                            fetchProfile()
+                        }
                     }
                 }
-            }
-        })
+            })
 
-        val url = spClient.startOAuthFlow()
+            val url = withContext(Dispatchers.IO) { spClient.startOAuthFlow() }
 
-        context.startActivity(
-            Intent(Intent.ACTION_VIEW, url.toUri())
-        )
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, url.toUri())
+            )
+        }
     }
 
     fun logoutPlayback() {
@@ -167,7 +173,7 @@ class AccountsViewModel @Inject constructor(
     fun fetchProfile() {
         viewModelScope.launch {
             try {
-                val profile = spClient.getCurrentUserProfile()
+                val profile = withContext(Dispatchers.IO) { spClient.getCurrentUserProfile() }
                 if (profile == null) {
                     return@launch
                 }

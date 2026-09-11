@@ -269,7 +269,7 @@ class LibraryViewModel @Inject constructor(
             _isLoadingAlbums.value = true
 
             runCatching {
-                val raw = spClient.getSavedItems(SpClient.ALBUMS)
+                val raw = withContext(Dispatchers.IO) { spClient.getSavedItems(SpClient.ALBUMS) }
                 raw.split(",").filter { it.isNotBlank() }
             }.onSuccess { uris ->
                 albumUris.value = uris
@@ -288,7 +288,7 @@ class LibraryViewModel @Inject constructor(
             _isLoadingShows.value = true
 
             runCatching {
-                val raw = spClient.getSavedItems(SpClient.SHOWS)
+                val raw = withContext(Dispatchers.IO) { spClient.getSavedItems(SpClient.SHOWS) }
                 raw.split(",").filter { it.isNotBlank() }
             }.onSuccess { uris ->
                 showUris.value = uris

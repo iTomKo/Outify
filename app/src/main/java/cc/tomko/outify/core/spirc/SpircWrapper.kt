@@ -82,24 +82,24 @@ class SpircWrapper @Inject constructor(
         Spirc.shutdown()
     }
 
-    override fun startRadio(trackUri: OutifyUri, shuffle: Boolean): Boolean {
-        val jsonResult = spClient.getRadioForTrack(trackUri.toUriString()) ?: return false
-        val result: RadioResult = json.decodeFromString(jsonResult)
+    override suspend fun startRadio(trackUri: OutifyUri, shuffle: Boolean): Boolean {
+        return withContext(Dispatchers.IO) {
+            val jsonResult = spClient.getRadioForTrack(trackUri.toUriString()) ?: return@withContext false
+            val result: RadioResult = json.decodeFromString(jsonResult)
 
-        if (result.total == 0 || result.mediaItems.isEmpty()) {
-            return false
+            if (result.total == 0 || result.mediaItems.isEmpty()) {
+                return@withContext false
+            }
+
+            val playlistUri = result.mediaItems.first().uri
+            val uri = OutifyUri.fromUriString(playlistUri)
+
+            if (shuffle) {
+                shuffleLoad(playlistUri)
+            } else {
+                load(uri, trackUri)
+            }
         }
-
-        val playlistUri = result.mediaItems.first().uri
-        val uri = OutifyUri.fromUriString(playlistUri)
-
-        if (shuffle) {
-            shuffleLoad(playlistUri)
-        } else {
-            load(uri, trackUri)
-        }
-
-        return true
     }
 
     @OptIn(UnstableApi::class)
@@ -337,11 +337,11 @@ class SpircWrapper @Inject constructor(
     /**
      * Gets the previous tracks from queue
      */
-    override fun previousTracks(): List<QueueTrackDto> {
+    override suspend fun previousTracks(): List<QueueTrackDto> = withContext(Dispatchers.IO) {
         val previousTracksJson = Spirc.nextTracks()
-        if (previousTracksJson.isEmpty() || previousTracksJson == "[]") return emptyList()
+        if (previousTracksJson.isEmpty() || previousTracksJson == "[]") return@withContext emptyList()
 
-        return try {
+        try {
             json.decodeFromString<List<QueueTrackDto>>(previousTracksJson)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -352,11 +352,11 @@ class SpircWrapper @Inject constructor(
     /**
      * Gets the next tracks from queue
      */
-    override fun nextTracks(): List<QueueTrackDto> {
+    override suspend fun nextTracks(): List<QueueTrackDto> = withContext(Dispatchers.IO) {
         val nextTracksJson = Spirc.nextTracks()
-        if (nextTracksJson.isEmpty() || nextTracksJson == "[]") return emptyList()
+        if (nextTracksJson.isEmpty() || nextTracksJson == "[]") return@withContext emptyList()
 
-        return try {
+        try {
             json.decodeFromString<List<QueueTrackDto>>(nextTracksJson)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -369,14 +369,16 @@ class SpircWrapper @Inject constructor(
      * @param trackUri the track URI to play next
      * @return `true` if successful
      */
-    override fun playNext(trackUri: String): Boolean {
+    override suspend fun playNext(trackUri: String): Boolean {
         return try {
-            val nextTracks: List<QueueTrackDto> = nextTracks()
+            withContext(Dispatchers.IO) {
+                val nextTracks: List<QueueTrackDto> = nextTracks()
 
-            val nextUris = nextTracks.map { it.uri }
-            val newQueue = arrayOf(trackUri) + nextUris.toTypedArray()
+                val nextUris = nextTracks.map { it.uri }
+                val newQueue = arrayOf(trackUri) + nextUris.toTypedArray()
 
-            setQueue(newQueue, trackUri)
+                setQueue(newQueue, trackUri)
+            }
         } catch (_: Exception) {
             false
         }

@@ -3,7 +3,6 @@ use std::{sync::{
     atomic::{AtomicBool, AtomicU8, AtomicU32},
 }, time::Duration};
 
-use jni::objects::JValue;
 use librespot_connect::{
     ConnectConfig, LoadContextOptions, LoadRequest, LoadRequestOptions, Options, PlayingTrack,
     Spirc,
@@ -440,10 +439,10 @@ fn handle_event(event: PlayerEvent) {
         }
         PlayerEvent::BufferStart {} => {
             info!("buffering started");
-            notify_buffer_state("started".to_string());
+            notify_buffer_state("started");
         }
         PlayerEvent::BufferStop {} => {
-            notify_buffer_state("stopped".to_string());
+            notify_buffer_state("stopped");
         }
         PlayerEvent::SessionClientChanged {
             client_id,
@@ -574,107 +573,47 @@ pub async fn initialize_spirc(
 }
 
 // Notifies UI of buffer state with given method
-// TODO: Optimize threads
-fn notify_buffer_state(method: String) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not available for buffer callback");
-            return;
-        }
+fn notify_buffer_state(method: &str) {
+    let cb = match crate::jni_impl::spirc::buffer_cb() {
+        Some(c) => c,
+        None => return,
     };
 
-    let callback_opt = {
-        let lock = crate::jni_impl::spirc::BUFFER_CALLBACK.lock().unwrap();
-        lock.clone()
+    let idx = match method {
+        "started" => crate::jni_impl::spirc::METHOD_BUFFER_STARTED,
+        "stopped" => crate::jni_impl::spirc::METHOD_BUFFER_STOPPED,
+        _ => return,
     };
 
-    if let Some(callback) = callback_opt {
-        let mut env = match jvm.attach_current_thread() {
-            Ok(env) => env,
-            Err(e) => {
-                error!("thread attach for buffer callback failed: {e}");
-                return;
-            }
-        };
-
-        if let Err(e) = env.call_method(callback.as_obj(), method, "()V", &[]) {
-            log::error!("buffer callback invocation failed: {e}");
-        }
-    }
+    crate::jni_utils::jni_bridge::dispatch(cb, idx, vec![]);
 }
 
 pub fn notify_device_state(is_active: bool) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not available for device callback");
-            return;
-        }
+    let cb = match crate::jni_impl::spirc::device_cb() {
+        Some(c) => c,
+        None => return,
     };
 
-    let callback_opt = {
-        let lock = crate::jni_impl::spirc::DEVICE_CALLBACK.lock().unwrap();
-        lock.clone()
+    let idx = if is_active {
+        crate::jni_impl::spirc::METHOD_DEVICE_ACTIVE
+    } else {
+        crate::jni_impl::spirc::METHOD_DEVICE_INACTIVE
     };
 
-    if let Some(callback) = callback_opt {
-        let method = if is_active {
-            "becameActive"
-        } else {
-            "becameInactive"
-        };
-
-        std::thread::spawn(move || {
-            let mut env = match jvm.attach_current_thread() {
-                Ok(env) => env,
-                Err(e) => {
-                    error!("jvm attach failed for device active callback: {e}");
-                    return;
-                }
-            };
-
-            if let Err(e) = env.call_method(callback.as_obj(), method, "()V", &[]) {
-                log::error!("device callback {method} invocation failed: {e}");
-            }
-        });
-    }
+    crate::jni_utils::jni_bridge::dispatch(cb, idx, vec![]);
 }
 
 pub fn notify_device_volume(volume: u16) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not available for volume callback");
-            return;
-        }
+    let cb = match crate::jni_impl::spirc::device_cb() {
+        Some(c) => c,
+        None => return,
     };
 
-    let callback_opt = {
-        let lock = crate::jni_impl::spirc::DEVICE_CALLBACK.lock().unwrap();
-        lock.clone()
-    };
-
-    if let Some(callback) = callback_opt {
-        std::thread::spawn(move || {
-            let mut env = match jvm.attach_current_thread() {
-                Ok(env) => env,
-                Err(e) => {
-                    error!("jvm attach failed for device volume callback: {e}");
-                    return;
-                }
-            };
-
-            if let Err(e) = env.call_method(
-                callback.as_obj(),
-                "volumeChanged",
-                "(I)V",
-                &[JValue::Int(volume as i32)],
-            ) {
-                log::error!("volume callback invocation failed: {e}");
-            }
-        });
-    }
+    crate::jni_utils::jni_bridge::dispatch(
+        cb,
+        crate::jni_impl::spirc::METHOD_DEVICE_VOLUME,
+        vec![crate::jni_utils::jni_bridge::BridgeArg::Int(volume as i32)],
+    );
 }
 
 pub fn current_track() -> Option<String> {

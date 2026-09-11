@@ -79,10 +79,10 @@ class PlaylistDetailViewModel @Inject constructor(
             } ?: return@launch
 
             if (_isSaved.value) {
-                spClient.deleteItems(arrayOf(playlistUri))
+                withContext(Dispatchers.IO) { spClient.deleteItems(arrayOf(playlistUri)) }
                 metadata.removeLikedPlaylist(playlistUri)
             } else {
-                spClient.saveItems(arrayOf(playlistUri))
+                withContext(Dispatchers.IO) { spClient.saveItems(arrayOf(playlistUri)) }
                 metadata.addLikedPlaylist(playlistUri)
             }
             _isSaved.value = !_isSaved.value

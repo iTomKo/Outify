@@ -3,6 +3,6 @@
 mod metadata;
 mod oauth;
 pub mod playback;
-mod session;
+pub mod session;
 mod spclient;
 pub mod spirc;

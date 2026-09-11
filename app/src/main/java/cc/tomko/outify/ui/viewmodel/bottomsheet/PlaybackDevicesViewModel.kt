@@ -39,7 +39,9 @@ class PlaybackDevicesViewModel @Inject constructor(
                 }
             }
 
-            val success = spClient.transferPlaybackDevice(deviceId)
+            val success = withContext(Dispatchers.IO) {
+                spClient.transferPlaybackDevice(deviceId)
+            }
 
             if (!success) {
                 _devices.value = previousState

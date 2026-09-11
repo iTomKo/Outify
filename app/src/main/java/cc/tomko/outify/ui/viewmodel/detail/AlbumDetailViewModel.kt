@@ -86,10 +86,10 @@ class AlbumDetailViewModel @Inject constructor(
             val album = _uiState.value.album ?: return@launch
             val uri = album.uri
             if (_isSaved.value) {
-                spClient.deleteItems(arrayOf(uri))
+                withContext(Dispatchers.IO) { spClient.deleteItems(arrayOf(uri)) }
                 metadata.removeLikedAlbum(uri)
             } else {
-                spClient.saveItems(arrayOf(uri))
+                withContext(Dispatchers.IO) { spClient.saveItems(arrayOf(uri)) }
                 metadata.addLikedAlbum(uri)
             }
             _isSaved.value = !_isSaved.value

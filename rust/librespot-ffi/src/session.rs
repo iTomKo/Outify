@@ -6,17 +6,14 @@ use std::{
 };
 
 use crate::{CACHE_DIR, FILES_DIR, TOKIO_RUNTIME};
-use jni::objects::GlobalRef;
 use librespot_core::{Session, SessionConfig, cache::Cache, config::KEYMASTER_CLIENT_ID};
 use once_cell::sync::OnceCell;
 
 pub static SESSION: OnceCell<RwLock<Option<Session>>> = OnceCell::new();
-pub static SESSION_CALLBACK: OnceCell<RwLock<Option<GlobalRef>>> = OnceCell::new();
 static IS_AUTO_RESTARTING: AtomicBool = AtomicBool::new(false);
 
 pub fn init_session_container() {
     SESSION.get_or_init(|| RwLock::new(None));
-    SESSION_CALLBACK.get_or_init(|| RwLock::new(None));
 }
 
 // Initializes the session work further usage
@@ -118,7 +115,7 @@ fn start_shutdown_listener(session: Session) {
             return;
         }
 
-        notify_callback("onShutdown".to_string());
+        notify_callback("onShutdown");
 
         cleanup().await;
 
@@ -151,53 +148,29 @@ fn start_shutdown_listener(session: Session) {
             spirc.resume_playback();
         });
 
-        notify_callback("onAutoRestart".to_string());
+        notify_callback("onAutoRestart");
 
         IS_AUTO_RESTARTING.store(false, Ordering::Release);
     });
 }
 
-fn notify_callback(method: String) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
+fn notify_callback(method: &str) {
+    let callback = match crate::jni_impl::session::session_cb() {
+        Some(c) => c,
         None => {
-            error!("jvm not available for session callback");
+            error!("session callback not set");
             return;
         }
     };
 
-    let mut env = match jvm.attach_current_thread() {
-        Ok(e) => e,
-        Err(e) => {
-            error!("thread attach for session callback failed: {e}");
-            return;
-        }
+    let idx = match method {
+        "onInitialized" => 0,
+        "onShutdown" => 1,
+        "onAutoRestart" => 2,
+        _ => return,
     };
 
-    if let Some(lock) = SESSION_CALLBACK.get() {
-        let guard = lock.read().unwrap();
-
-        if let Some(callback) = &*guard {
-            env.call_method(callback.as_obj(), method, "()V", &[]).ok();
-        }
-    }
-}
-
-// Sets the SessionCallback
-pub fn set_session_callback(global: GlobalRef) {
-    if let Some(lock) = SESSION_CALLBACK.get() {
-        let mut guard = lock.write().unwrap();
-        *guard = Some(global);
-    }
-}
-
-pub fn unregister_session_callback() {
-    if let Some(lock) = SESSION_CALLBACK.get() {
-        let mut guard = lock.write().unwrap();
-        if let Some(global) = guard.take() {
-            drop(global);
-        }
-    }
+    crate::jni_utils::jni_bridge::dispatch(callback, idx, vec![]);
 }
 
 async fn cleanup() {

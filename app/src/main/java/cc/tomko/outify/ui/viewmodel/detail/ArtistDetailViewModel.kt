@@ -119,10 +119,12 @@ class ArtistDetailViewModel @Inject constructor(
                 else -> null
             } ?: return@launch
 
-            if (_isSaved.value) {
-                spClient.deleteItems(arrayOf(artistUri))
-            } else {
-                spClient.saveItems(arrayOf(artistUri))
+            withContext(Dispatchers.IO) {
+                if (_isSaved.value) {
+                    spClient.deleteItems(arrayOf(artistUri))
+                } else {
+                    spClient.saveItems(arrayOf(artistUri))
+                }
             }
             _isSaved.value = !_isSaved.value
         }

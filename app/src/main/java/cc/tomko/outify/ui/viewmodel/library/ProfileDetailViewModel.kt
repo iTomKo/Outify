@@ -11,9 +11,11 @@ import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.playback.PlaybackStateHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
@@ -66,13 +68,16 @@ class ProfileDetailViewModel @Inject constructor(
             val uri = currentState.profile?.uri ?: return
             _uiState.value = currentState.copy(isFollowing = !currentState.isFollowing)
 
-            if (currentState.isFollowing) {
-                if (!spClient.saveItems(arrayOf(uri))) {
-                    _uiState.value = currentState.copy(isFollowing = false)
+            viewModelScope.launch {
+                val success = withContext(Dispatchers.IO) {
+                    if (currentState.isFollowing) {
+                        spClient.saveItems(arrayOf(uri))
+                    } else {
+                        spClient.deleteItems(arrayOf(uri))
+                    }
                 }
-            } else {
-                if (!spClient.deleteItems(arrayOf(uri))) {
-                    _uiState.value = currentState.copy(isFollowing = true)
+                if (!success) {
+                    _uiState.value = currentState.copy(isFollowing = currentState.isFollowing)
                 }
             }
         }

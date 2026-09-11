@@ -4,7 +4,7 @@ import cc.tomko.outify.core.model.OutifyUri
 
 interface ISpircWrapper {
     fun shutdown()
-    fun startRadio(track: OutifyUri, shuffle: Boolean = true): Boolean
+    suspend fun startRadio(track: OutifyUri, shuffle: Boolean = true): Boolean
     fun load(context: OutifyUri? = null, playingTrackUri: OutifyUri? = null): Boolean
     fun localLoad(uri: String): Boolean
     fun shuffle(enabled: Boolean): Boolean
@@ -23,7 +23,7 @@ interface ISpircWrapper {
     fun playerPlayPause(): Boolean
     fun playerNext(): Boolean
     fun playerPrevious(): Boolean
-    fun previousTracks(): List<QueueTrackDto>
-    fun nextTracks(): List<QueueTrackDto>
-    fun playNext(trackUri: String): Boolean
+    suspend fun previousTracks(): List<QueueTrackDto>
+    suspend fun nextTracks(): List<QueueTrackDto>
+    suspend fun playNext(trackUri: String): Boolean
 }

@@ -16,11 +16,13 @@ import cc.tomko.outify.services.OAuthService
 import cc.tomko.outify.services.SyncNotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed class SyncStatus {
@@ -77,19 +79,22 @@ class MiscSettingsViewModel @Inject constructor(
     }
 
     fun checkAuthState() {
-        _isAuthenticated.value = spClient.isOAuthAuthenticated()
+        viewModelScope.launch {
+            _isAuthenticated.value = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
+        }
     }
 
     fun syncLikedTracks() {
         if (_syncStatus.value is SyncStatus.Syncing || _syncStatus.value is SyncStatus.Progress) return
-        if (!spClient.isOAuthAuthenticated()) {
-            _syncStatus.value = SyncStatus.Error("Please log in to Spotify account first")
-            return
-        }
 
-        OAuthService.start(context)
-        syncNotificationManager.showIndeterminate()
         viewModelScope.launch {
+            if (!withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }) {
+                _syncStatus.value = SyncStatus.Error("Please log in to Spotify account first")
+                return@launch
+            }
+
+            OAuthService.start(context)
+            syncNotificationManager.showIndeterminate()
             _syncStatus.value = SyncStatus.Syncing
             try {
                 var totalTracks = 0

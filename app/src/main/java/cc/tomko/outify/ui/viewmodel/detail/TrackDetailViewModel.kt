@@ -121,10 +121,12 @@ class TrackDetailViewModel @Inject constructor(
                 likedRepository.addLiked(trackId)
             }
 
-            val success = if (wasLiked) {
-                spClient.deleteItems(arrayOf(trackUri))
-            } else {
-                spClient.saveItems(arrayOf(trackUri))
+            val success = withContext(Dispatchers.IO) {
+                if (wasLiked) {
+                    spClient.deleteItems(arrayOf(trackUri))
+                } else {
+                    spClient.saveItems(arrayOf(trackUri))
+                }
             }
 
             if (!success) {
