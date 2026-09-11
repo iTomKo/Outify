@@ -106,10 +106,10 @@ class ShowDetailViewModel @Inject constructor(
             val showId = show.id
             val uri = show.uri
             if (_isSaved.value) {
-                spClient.deleteItems(arrayOf(uri))
+                withContext(Dispatchers.IO) { spClient.deleteItems(arrayOf(uri)) }
                 likedRepository.removeLikedShow(showId)
             } else {
-                spClient.saveItems(arrayOf(uri))
+                withContext(Dispatchers.IO) { spClient.saveItems(arrayOf(uri)) }
                 likedRepository.addLikedShow(showId)
             }
             _isSaved.value = !_isSaved.value
