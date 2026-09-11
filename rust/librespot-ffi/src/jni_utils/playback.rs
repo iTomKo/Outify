@@ -1,37 +1,60 @@
-use jni::{
-    objects::{GlobalRef, JValue},
-    sys::jboolean,
-};
+use std::sync::Mutex;
+
 use librespot_core::SpotifyUri;
 use librespot_metadata::Metadata;
+use once_cell::sync::OnceCell;
 
 use crate::session::with_session;
 
-// TODO: Optimize thread attachments, JNI calls in total
+use super::jni_bridge::{BridgeArg, dispatch};
+use crate::jni_impl::playback::{
+    METHOD_PLAYING_STATUS, METHOD_POSITION_UPDATE, METHOD_TRACK_CHANGE, player_cb,
+};
+
+static TRACK_JSON_CACHE: OnceCell<Mutex<Option<(String, String)>>> = OnceCell::new();
+
+fn cache_track_json(uri: &str, json: &str) {
+    let m = TRACK_JSON_CACHE.get_or_init(|| Mutex::new(None));
+    *m.lock().unwrap() = Some((uri.to_string(), json.to_string()));
+}
+
+fn cached_track_json(uri: &str) -> Option<String> {
+    let m = TRACK_JSON_CACHE.get()?;
+    let guard = m.lock().ok()?;
+    guard
+        .as_ref()
+        .filter(|(cached_uri, _)| cached_uri == uri)
+        .map(|(_, json)| json.clone())
+}
+
+async fn render_track_json(session: &librespot_core::Session, audio_id: &SpotifyUri) -> Option<String> {
+    match audio_id {
+        SpotifyUri::Track { .. } => {
+            let metadata = librespot_metadata::Track::get(session, audio_id).await.ok()?;
+            let track = crate::metadata::track::TrackJson::from(&metadata);
+            serde_json::to_string(&track).ok()
+        }
+        SpotifyUri::Episode { .. } => {
+            let metadata = librespot_metadata::Episode::get(session, audio_id).await.ok()?;
+            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
+            serde_json::to_string(&episode).ok()
+        }
+        _ => None,
+    }
+}
 
 // Updates the Outify track
 pub fn on_player_track_update(track_id: SpotifyUri) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not initialized for on_player_track_update");
-            return;
-        }
-    };
-
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
-        .lock()
-        .unwrap();
-    let listener_ref: GlobalRef = match &*guard {
-        Some(r) => r.clone(),
+    let cb = match player_cb() {
+        Some(c) => c,
         None => {
             error!("listener not set for on_player_track_update");
             return;
         }
     };
-    drop(guard);
 
-    tokio::spawn({
+    let track_uri = track_id.to_uri();
+    tokio::spawn(async move {
         let session = match with_session(|s| s.clone()) {
             Ok(s) => s,
             Err(e) => {
@@ -39,117 +62,51 @@ pub fn on_player_track_update(track_id: SpotifyUri) {
                 return;
             }
         };
-        async move {
-            let json = match &track_id {
-                SpotifyUri::Track { .. } => {
-                    match librespot_metadata::Track::get(&session, &track_id).await {
-                        Ok(metadata) => {
-                            let track = crate::metadata::track::TrackJson::from(&metadata);
-                            match serde_json::to_string(&track) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    error!(
-                                        "serde for track json failed on on_player_track_update: {e}"
-                                    );
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!("track metadata fetch failed for on_player_track_update: {e}");
-                            return;
-                        }
-                    }
-                }
-                SpotifyUri::Episode { .. } => {
-                    match librespot_metadata::Episode::get(&session, &track_id).await {
-                        Ok(metadata) => {
-                            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
-                            match serde_json::to_string(&episode) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    error!(
-                                        "serde for episode json failed on on_player_track_update: {e}"
-                                    );
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!("episode metadata fetch failed for on_player_track_update: {e}");
-                            return;
-                        }
-                    }
-                }
-                _ => {
-                    warn!("on_player_track_update: unsupported uri type for {track_id}");
-                    return;
-                }
-            };
 
-            let mut env = match jvm.attach_current_thread() {
-                Ok(e) => e,
-                Err(e) => {
-                    error!("jvm attach failed for on_player_track_update: {e}");
-                    return;
-                }
-            };
-
-            let j_uri = match env.new_string(&track_id.to_uri()) {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("jni new_string for uri failed on on_player_track_update: {e}");
-                    return;
-                }
-            };
-            let j_json = match env.new_string(&json) {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("jni new_string for json failed on on_player_track_update: {e}");
-                    return;
-                }
-            };
-
-            if let Err(e) = env.call_method(
-                listener_ref.as_obj(),
-                "onTrackChange",
-                "(Ljava/lang/String;Ljava/lang/String;)V",
-                &[JValue::Object(&j_uri), JValue::Object(&j_json)],
-            ) {
-                error!("on_track_change callback failed: {e:?}");
+        let json = match render_track_json(&session, &track_id).await {
+            Some(j) => j,
+            None => {
+                error!("metadata render failed for on_player_track_update: {track_id}");
+                return;
             }
+        };
 
-            if let Ok(true) = env.exception_check() {
-                env.exception_describe().ok();
-                env.exception_clear().ok();
-            }
-        }
+        cache_track_json(&track_uri, &json);
+        dispatch(
+            cb,
+            METHOD_TRACK_CHANGE,
+            vec![BridgeArg::Str(track_uri), BridgeArg::Str(json)],
+        );
     });
 }
 
 // Updates the Outify player position
 pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not initialized for on_player_position_update");
-            return;
-        }
-    };
-
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
-        .lock()
-        .unwrap();
-    let listener_ref: GlobalRef = match &*guard {
-        Some(r) => r.clone(),
+    let cb = match player_cb() {
+        Some(c) => c,
         None => {
             error!("listener not set for on_player_position_update");
             return;
         }
     };
-    drop(guard);
 
-    tokio::spawn({
+    let track_uri = audio_id.to_uri();
+
+    // Fast path: metadata already rendered for this track, no network involved
+    if let Some(json) = cached_track_json(&track_uri) {
+        dispatch(
+            cb,
+            METHOD_POSITION_UPDATE,
+            vec![
+                BridgeArg::Str(track_uri),
+                BridgeArg::Long(position_ms as i64),
+                BridgeArg::Str(json),
+            ],
+        );
+        return;
+    }
+
+    tokio::spawn(async move {
         let session = match with_session(|s| s.clone()) {
             Ok(s) => s,
             Err(e) => {
@@ -158,146 +115,36 @@ pub fn on_player_position_update(position_ms: u32, audio_id: SpotifyUri) {
             }
         };
 
-        async move {
-            let json = match &audio_id {
-                SpotifyUri::Track { .. } => {
-                    match librespot_metadata::Track::get(&session, &audio_id).await {
-                        Ok(metadata) => {
-                            let track = crate::metadata::track::TrackJson::from(&metadata);
-                            match serde_json::to_string(&track) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    error!(
-                                        "serde for track json failed on on_player_position_update: {e}"
-                                    );
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!(
-                                "track metadata fetch failed for on_player_position_update: {e}"
-                            );
-                            return;
-                        }
-                    }
-                }
-                SpotifyUri::Episode { .. } => {
-                    match librespot_metadata::Episode::get(&session, &audio_id).await {
-                        Ok(metadata) => {
-                            let episode = crate::metadata::podcast::EpisodeJson::from(&metadata);
-                            match serde_json::to_string(&episode) {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    error!(
-                                        "serde for episode json failed on on_player_position_update: {e}"
-                                    );
-                                    return;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!(
-                                "episode metadata fetch failed for on_player_position_update: {e}"
-                            );
-                            return;
-                        }
-                    }
-                }
-                _ => {
-                    warn!("on_player_position_update: unsupported uri type for {audio_id}");
-                    return;
-                }
-            };
-
-            let mut env = match jvm.attach_current_thread() {
-                Ok(e) => e,
-                Err(e) => {
-                    error!("jvm attach failed for on_player_position_update: {e}");
-                    return;
-                }
-            };
-
-            let j_uri = match env.new_string(&audio_id.to_uri()) {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("jni new_string for uri failed on on_player_position_update: {e}");
-                    return;
-                }
-            };
-            let j_json = match env.new_string(&json) {
-                Ok(s) => s,
-                Err(e) => {
-                    error!("jni new_string for json failed on on_player_position_update: {e}");
-                    return;
-                }
-            };
-
-            if let Err(e) = env.call_method(
-                listener_ref.as_obj(),
-                "onPositionUpdate",
-                "(Ljava/lang/String;JLjava/lang/String;)V",
-                &[
-                    JValue::Object(&j_uri),
-                    JValue::Long(position_ms as i64),
-                    JValue::Object(&j_json),
-                ],
-            ) {
-                error!("on_position_update callback failed: {e:?}");
+        let json = match render_track_json(&session, &audio_id).await {
+            Some(j) => j,
+            None => {
+                error!("metadata render failed for on_player_position_update: {audio_id}");
+                return;
             }
+        };
 
-            if let Ok(true) = env.exception_check() {
-                env.exception_describe().ok();
-                env.exception_clear().ok();
-            }
-        }
+        cache_track_json(&track_uri, &json);
+        dispatch(
+            cb,
+            METHOD_POSITION_UPDATE,
+            vec![
+                BridgeArg::Str(track_uri),
+                BridgeArg::Long(position_ms as i64),
+                BridgeArg::Str(json),
+            ],
+        );
     });
 }
 
 // Updates the Outify playing status
 pub fn on_player_status(playing: bool) {
-    let jvm = match crate::JVM.get() {
-        Some(j) => j,
-        None => {
-            error!("jvm not initialized for on_player_status");
-            return;
-        }
-    };
-
-    let guard = crate::jni_impl::playback::PLAYER_EVENT_LISTENER
-        .lock()
-        .unwrap();
-    let listener_ref: GlobalRef = match &*guard {
-        Some(r) => r.clone(),
+    let cb = match player_cb() {
+        Some(c) => c,
         None => {
             error!("listener not set for on_player_status");
             return;
         }
     };
 
-    drop(guard);
-
-    tokio::spawn(async move {
-        let mut env = match jvm.attach_current_thread() {
-            Ok(e) => e,
-            Err(e) => {
-                error!("jvm attach failed for on_player_status: {e}");
-                return;
-            }
-        };
-
-        if let Err(e) = env.call_method(
-            listener_ref.as_obj(),
-            "onPlayingStatus",
-            "(Z)V",
-            &[JValue::Bool(playing as jboolean)],
-        ) {
-            error!("on_player_status callback failed: {e:?}");
-        }
-
-        if let Ok(true) = env.exception_check() {
-            env.exception_describe().ok();
-            env.exception_clear().ok();
-        }
-    });
+    dispatch(cb, METHOD_PLAYING_STATUS, vec![BridgeArg::Bool(playing)]);
 }
