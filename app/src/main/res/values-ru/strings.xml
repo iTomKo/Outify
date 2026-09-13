@@ -1,3 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="audio_playback_attribution">Это приложение воспроизводит аудио</string>
+    <string name="media_notificationn_channel">Воспроизведение мультимедиа</string>
+    <string name="media_notification_channel_description">Управление воспроизведением аудио</string>
+    <string name="search_section_tracks">Треки</string>
+    <string name="search_section_artists">Исполнители</string>
+    <string name="search_section_albums">Альбомы</string>
+    <string name="search_section_playlists">Плейлисты</string>
+    <string name="search_section_episodes">Эпизоды</string>
+    <string name="search_section_shows">Шоу</string>
+    <string name="start_radio">Запустить радио</string>
+    <string name="repeat_mode_all">Повторить всё</string>
+    <string name="repeat_mode_one">Повторить один трек</string>
+    <string name="repeat_mode_off">Без повтора</string>
+    <string name="like">Нравится</string>
+    <string name="outify_playback_widget_description">Быстрый способ воспроизводить любимые треки</string>
 </resources>
