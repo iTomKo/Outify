@@ -644,8 +644,6 @@ fun SharedTransitionScope.QueueBottomSheet(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-
-                Spacer(modifier = Modifier.height(6.dp))
             }
 
             this@ModalBottomSheet.AnimatedVisibility(
