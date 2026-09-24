@@ -382,7 +382,7 @@ class MainActivity : ComponentActivity() {
                                         NavigationRoot(
                                             backStack,
                                             modifier = Modifier.matchParentSize(),
-                                            bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
+//                                            bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                         )
 
                                         PredictiveBackHandler(enabled = playerSheetState.isExpanded) { progress ->
@@ -546,7 +546,7 @@ class MainActivity : ComponentActivity() {
                                                     sheetState = playerSheetState,
                                                     listState = playerListState,
                                                     miniPlayerHeight = 88.dp,
-                                                    collapsedBottomInset = if (interfaceSettings.experimentalFloatingNav) 78.dp else 68.dp,
+                                                    collapsedBottomInset = 68.dp,
                                                     miniContent = { progress ->
                                                         MiniPlayer(
                                                             viewModel = miniPlayerViewModel,
