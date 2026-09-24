@@ -236,6 +236,16 @@ fun SharedTransitionScope.HomeScreen(
                     }
 
                     item {
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Note, that these data are fetched from Spotify. Outify doesn't track your top artists nor tracks and therefore this data shows data retrieved by official Spotify applications.",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                        )
+                    }
+
+                    item {
                         Spacer(Modifier.height(ScreenBottomPadding))
                     }
                 }
