@@ -5,8 +5,10 @@ import android.os.Debug
 import android.os.Process
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.BuildConfig
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.components.PreferenceHeader
 import cc.tomko.outify.ui.viewmodel.settings.DebugViewModel
 
@@ -167,6 +170,10 @@ fun DebugScreen(
 
                 Information("Thread count", threadCount.toString())
                 Information("CPU time (ns)", cpuTimeNanos.toString())
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
     }

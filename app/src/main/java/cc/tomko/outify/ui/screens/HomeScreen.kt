@@ -60,6 +60,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.SmartImage
@@ -232,6 +233,10 @@ fun SharedTransitionScope.HomeScreen(
                         is HomeUiState.Error -> {
                             // handled above
                         }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(ScreenBottomPadding))
                     }
                 }
             }

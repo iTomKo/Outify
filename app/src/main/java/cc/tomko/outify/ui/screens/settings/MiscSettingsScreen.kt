@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.data.repository.OutifyBackup
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.PreferenceHeader
@@ -365,6 +366,10 @@ fun MiscSettingsScreen(
                         }
                     )
                 }
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
     }

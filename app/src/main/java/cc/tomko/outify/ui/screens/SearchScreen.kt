@@ -83,6 +83,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
@@ -821,6 +822,10 @@ fun SharedTransitionScope.SearchScreen(
                         }
                     }
                 }
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
 

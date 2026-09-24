@@ -62,6 +62,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.OutifyUri
@@ -270,6 +271,10 @@ fun SharedTransitionScope.LikedScreen(
                     },
                     modifier = Modifier.animateItem(),
                 )
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
 

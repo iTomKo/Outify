@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.PreferenceHeader
 import cc.tomko.outify.ui.components.SmartImage
@@ -539,6 +540,10 @@ fun AccountsScreen(
                         )
                     }
                 }
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
     }

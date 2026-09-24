@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
@@ -217,7 +218,7 @@ fun SharedTransitionScope.TrackDetailScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(48.dp))
+                        Spacer(Modifier.height(ScreenBottomPadding))
                     }
                 }
 

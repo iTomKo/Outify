@@ -4,6 +4,7 @@ import android.app.Application
 import android.system.Os
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.media3.common.util.UnstableApi
@@ -21,6 +22,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 const val ALBUM_COVER_URL: String = "https://i.scdn.co/image/"
+
+val ScreenBottomPadding = 48.dp;
+
 fun widgetMediaPreference(id: GlanceId) =
     stringPreferencesKey("widget_media_$id")
 

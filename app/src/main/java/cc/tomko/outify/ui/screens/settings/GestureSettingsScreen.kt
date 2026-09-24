@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.setting.DisplayIcon
 import cc.tomko.outify.data.setting.GestureSetting
@@ -186,6 +187,10 @@ fun SharedTransitionScope.GestureSettingsScreen(
                 SwipeableTrackRowConfigured(
                     track = Track.dummy()
                 )
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
     }

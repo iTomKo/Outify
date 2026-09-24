@@ -61,6 +61,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
@@ -294,6 +295,10 @@ fun SharedTransitionScope.PlaylistScreen(
                                 }
                             }
                         )
+                    }
+
+                    item {
+                        Spacer(Modifier.height(ScreenBottomPadding))
                     }
                 }
 

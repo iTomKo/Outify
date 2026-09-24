@@ -1,8 +1,10 @@
 package cc.tomko.outify.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.SwitchPreferenceEntry
@@ -117,6 +120,10 @@ fun InterfaceSettingScreen(
                         )
                     }
                 }
+            }
+
+            item {
+                Spacer(Modifier.height(ScreenBottomPadding))
             }
         }
     }

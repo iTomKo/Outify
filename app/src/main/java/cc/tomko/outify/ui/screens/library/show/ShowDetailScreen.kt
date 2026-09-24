@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.ConsumptionOrder
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
@@ -218,6 +221,10 @@ fun SharedTransitionScope.ShowDetailScreen(
                         ) {
                             SwipeableEpisodeRowConfigured(episode = null)
                         }
+                    }
+
+                    item {
+                        Spacer(Modifier.height(ScreenBottomPadding))
                     }
                 }
 
