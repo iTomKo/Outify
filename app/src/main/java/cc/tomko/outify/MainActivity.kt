@@ -368,7 +368,7 @@ class MainActivity : ComponentActivity() {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(bottom = innerPadding.calculateBottomPadding())
+                                            .padding(bottom = if(interfaceSettings.showSystemNavigationPadding) innerPadding.calculateBottomPadding() else 0.dp)
                                             .consumeWindowInsets(WindowInsets(bottom = innerPadding.calculateBottomPadding()))
                                     ) {
                                         val notificationPaddingBottom by animateDpAsState(

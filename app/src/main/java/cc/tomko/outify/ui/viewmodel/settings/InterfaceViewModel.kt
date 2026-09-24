@@ -27,4 +27,10 @@ class InterfaceViewModel @Inject constructor(
             settingsRepository.setNavbarHistoryOnEnd(enabled)
         }
     }
+
+    fun setShowSystemNavigationPadding(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setShowSystemNavigationPadding(enabled)
+        }
+    }
 }

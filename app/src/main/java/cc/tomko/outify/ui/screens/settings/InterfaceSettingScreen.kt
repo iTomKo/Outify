@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowRight
 import androidx.compose.material.icons.filled.DesignServices
 import androidx.compose.material.icons.filled.Gesture
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Padding
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ fun InterfaceSettingScreen(
     val settings by viewModel.settings.collectAsState(initial = InterfaceSettings())
     val showNavbarHistory = settings.showNavbarHistory
     val showNavbarHistoryOnEnd = settings.navbarHistoryOnEnd
+    val showSystemNavigationPadding = settings.showSystemNavigationPadding
 
     Scaffold(
         topBar = {
@@ -119,6 +121,21 @@ fun InterfaceSettingScreen(
                             }
                         )
                     }
+                }
+            }
+
+            item {
+                ElevatedCard(
+                    modifier = modifier
+                        .fillMaxWidth()
+                ) {
+                    SwitchPreferenceEntry(
+                        title = { Text("System navigation padding") },
+                        description = "Leave room for system navigation to show - mainly button navigation.",
+                        isChecked = showSystemNavigationPadding,
+                        onCheckedChange = { viewModel.setShowSystemNavigationPadding(it) },
+                        icon = { Icon(Icons.Default.Padding, contentDescription = null) }
+                    )
                 }
             }
 

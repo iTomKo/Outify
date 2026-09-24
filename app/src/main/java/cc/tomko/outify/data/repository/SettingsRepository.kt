@@ -90,6 +90,7 @@ class SettingsRepository @Inject constructor(
             val SHOW_NAVBAR_HISTORY = booleanPreferencesKey("show_navbar_history")
             val NAVBAR_HISTORY_ON_END = booleanPreferencesKey("navbar_history_on_end")
             val NAVBAR_SHOW_SELECTED_LABEL = booleanPreferencesKey("navbar_show_selected_label")
+            val SHOW_SYSTEM_NAVIGATION_PADDING = booleanPreferencesKey("show_system_navigation_padding")
         }
 
         object Queue {
@@ -164,6 +165,7 @@ class SettingsRepository @Inject constructor(
             showNavbarHistory = prefs[Keys.Interface.SHOW_NAVBAR_HISTORY] ?: true,
             navbarHistoryOnEnd = prefs[Keys.Interface.NAVBAR_HISTORY_ON_END] ?: true,
             navbarShowLabel = prefs[Keys.Interface.NAVBAR_SHOW_SELECTED_LABEL] ?: true,
+            showSystemNavigationPadding = prefs[Keys.Interface.SHOW_SYSTEM_NAVIGATION_PADDING] ?: true,
         )
     }
 
@@ -417,6 +419,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setNavbarShowLabel(enabled: Boolean) =
         dataStore.edit { it[Keys.Interface.NAVBAR_SHOW_SELECTED_LABEL] = enabled }
 
+    suspend fun setShowSystemNavigationPadding(enabled: Boolean) =
+        dataStore.edit { it[Keys.Interface.SHOW_SYSTEM_NAVIGATION_PADDING] = enabled }
+
     suspend fun setRomanizeLyrics(enabled: Boolean) {
         dataStore.edit { it[Keys.Lyrics.ROMANIZE_LYRICS] = enabled }
     }
@@ -611,6 +616,8 @@ data class InterfaceSettings(
     // Should the history icon be on the start/end of the navbar
     val navbarHistoryOnEnd: Boolean = true,
     val navbarShowLabel: Boolean = true,
+
+    val showSystemNavigationPadding: Boolean = true,
 )
 
 data class PlaybackSettings(
