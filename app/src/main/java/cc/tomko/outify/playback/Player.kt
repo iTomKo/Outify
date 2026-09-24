@@ -98,6 +98,9 @@ class Player @Inject constructor(
                         val artworkUrl = cover?.let { ALBUM_COVER_URL + it.uri }
                         currentArtworkUri = artworkUrl
 
+                        currentArtworkBitmap = null;
+                        currentArtworkBytes = null;
+
                         invalidateState()
 
                         artworkJob?.cancel()
