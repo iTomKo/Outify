@@ -52,10 +52,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
@@ -109,11 +111,11 @@ fun TrackInfoBottomSheet(
     val defaultCopy: () -> Unit = {
         scope.launch {
             val clipData = ClipData.newPlainText(
-                "${track.name} - Outify",
+                context.getString(R.string.title_with_app, track.name),
                 "https://open.spotify.com/track/${track.id}"
             )
             clipboardManager.setClipEntry(ClipEntry(clipData))
-            InAppNotificationController.show("Copied to clipboard")
+            InAppNotificationController.show(context.getString(R.string.toast_copied_to_clipboard))
         }
     }
 
@@ -146,7 +148,7 @@ fun TrackInfoBottomSheet(
                 ) {
                     SmartImage(
                         url = artworkUrl,
-                        contentDescription = "Artwork",
+                        contentDescription = stringResource(R.string.common_artwork),
                         modifier = Modifier.fillMaxSize(),
                         monochrome = LocalUiSettings.current.monochromeTracks
                     )
@@ -202,7 +204,7 @@ fun TrackInfoBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Widgets,
-                            contentDescription = "Add to widget"
+                            contentDescription = stringResource(R.string.cd_add_to_widget)
                         )
                     }
 
@@ -215,7 +217,7 @@ fun TrackInfoBottomSheet(
                     ) {
                         Icon(
                             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = "Like",
+                            contentDescription = stringResource(R.string.like),
                             tint = if (isLiked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -224,14 +226,14 @@ fun TrackInfoBottomSheet(
                         onClick = { onShare?.invoke() ?: defaultShare() },
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.common_share))
                     }
 
                     IconButton(
                         onClick = { onCopyUri?.invoke() ?: defaultCopy() },
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy link")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.common_copy_link))
                     }
                 }
             }
@@ -240,7 +242,7 @@ fun TrackInfoBottomSheet(
 
             // Open section
             Text(
-                text = "Open",
+                text = stringResource(R.string.common_open),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -248,7 +250,7 @@ fun TrackInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.Album,
-                title = "Album",
+                title = stringResource(R.string.common_album),
                 subtitle = track.album?.name ?: "",
                 onClick = {
                     onOpenAlbum?.invoke()
@@ -258,7 +260,7 @@ fun TrackInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.Person,
-                title = "Artist",
+                title = stringResource(R.string.common_artist),
                 subtitle = track.artists.joinToString { it.name },
                 onClick = {
                     onOpenArtist?.invoke()
@@ -270,7 +272,7 @@ fun TrackInfoBottomSheet(
 
             // Queue section
             Text(
-                text = "Queue",
+                text = stringResource(R.string.common_queue),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -282,8 +284,8 @@ fun TrackInfoBottomSheet(
             ) {
                 ActionCard(
                     icon = Icons.Default.Queue,
-                    title = "Add to Queue",
-                    subtitle = "End of queue",
+                    title = stringResource(R.string.common_add_to_queue),
+                    subtitle = stringResource(R.string.common_end_of_queue),
                     onClick = {
                         onAddToQueue?.invoke()
                         onDismiss()
@@ -293,8 +295,8 @@ fun TrackInfoBottomSheet(
 
                 ActionCard(
                     icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-                    title = "Play Next",
-                    subtitle = "Up next",
+                    title = stringResource(R.string.common_play_next),
+                    subtitle = stringResource(R.string.common_up_next),
                     onClick = {
                         onPlayNext?.invoke()
                         onDismiss()
@@ -305,8 +307,8 @@ fun TrackInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-                title = "Add to Playlist",
-                subtitle = "Save to a playlist",
+                title = stringResource(R.string.menu_add_to_playlist),
+                subtitle = stringResource(R.string.menu_save_to_playlist),
                 onClick = {
                     onAddToPlaylist?.invoke()
                     onDismiss()
@@ -317,7 +319,7 @@ fun TrackInfoBottomSheet(
 
             // Playback section
             Text(
-                text = "Playback",
+                text = stringResource(R.string.common_playback),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -329,8 +331,8 @@ fun TrackInfoBottomSheet(
             ) {
                 ActionCard(
                     icon = Icons.Default.Favorite,
-                    title = "Like",
-                    subtitle = if (likedTrackIndex != null && likedTrackIndex >= 0) "In liked songs" else "Add to liked",
+                    title = stringResource(R.string.like),
+                    subtitle = if (likedTrackIndex != null && likedTrackIndex >= 0) stringResource(R.string.liked_in_liked_songs) else stringResource(R.string.liked_add_to_liked),
                     onClick = {
                         onToggleLike?.invoke()
                         onDismiss()
@@ -342,8 +344,8 @@ fun TrackInfoBottomSheet(
 
                 ActionCard(
                     icon = Icons.Default.Radio,
-                    title = "Start Radio",
-                    subtitle = "Play similar tracks",
+                    title = stringResource(R.string.menu_start_radio),
+                    subtitle = stringResource(R.string.menu_play_similar),
                     onClick = {
                         onStartRadio?.invoke()
                         onDismiss()
@@ -356,8 +358,8 @@ fun TrackInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.AutoAwesome,
-                title = "Use as Recommendation Seed",
-                subtitle = "Discover tracks using this song",
+                title = stringResource(R.string.menu_recommendation_seed),
+                subtitle = stringResource(R.string.menu_discover_tracks),
                 onClick = {
                     onUseAsRecommendationSeed?.invoke()
                     onDismiss()
@@ -366,8 +368,8 @@ fun TrackInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.Radio,
-                title = "Open Radio",
-                subtitle = "View radio playlist",
+                title = stringResource(R.string.menu_open_radio),
+                subtitle = stringResource(R.string.menu_view_radio_playlist),
                 onClick = {
                     onOpenRadio?.invoke()
                     onDismiss()
@@ -380,8 +382,8 @@ fun TrackInfoBottomSheet(
 
                 ActionCard(
                     icon = Icons.Default.Favorite,
-                    title = "In Liked Songs",
-                    subtitle = "Position #${likedTrackIndex + 1}",
+                    title = stringResource(R.string.menu_in_liked_songs),
+                    subtitle = stringResource(R.string.liked_position, likedTrackIndex + 1),
                     onClick = {
                         onScrollToLiked?.invoke()
                         onDismiss()

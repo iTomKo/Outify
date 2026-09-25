@@ -40,10 +40,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
@@ -101,12 +103,12 @@ fun AddToWidgetBottomSheet(
                     }
                     Column {
                         Text(
-                            text = "Pin to a widget",
+                            text = stringResource(R.string.widget_pin),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Choose which home screen widget to add this track to",
+                            text = stringResource(R.string.widget_choose),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -153,7 +155,7 @@ fun AddToWidgetBottomSheet(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f),
                         ) {
                             Text(
-                                text = "Adding",
+                                text = stringResource(R.string.widget_adding),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -165,7 +167,7 @@ fun AddToWidgetBottomSheet(
 
             item {
                 Text(
-                    text = "YOUR WIDGETS",
+                    text = stringResource(R.string.widget_your_widgets),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     letterSpacing = 1.2.sp,
@@ -197,14 +199,14 @@ fun AddToWidgetBottomSheet(
                         }
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            text = "No widgets on your home screen",
+                            text = stringResource(R.string.widget_none),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "Long-press your home screen and add an Outify widget first.",
+                            text = stringResource(R.string.widget_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.outline,
                         )
@@ -214,9 +216,9 @@ fun AddToWidgetBottomSheet(
 
             items(glanceWidgets) { glanceWidget ->
                 val slotLabel = when (val slotCount = glanceWidget.uris.size) {
-                    0 -> "Empty"
-                    1 -> "1 track"
-                    else -> "$slotCount tracks"
+                    0 -> stringResource(R.string.widget_slot_empty)
+                    1 -> stringResource(R.string.widget_slot_one_track)
+                    else -> stringResource(R.string.count_tracks, slotCount)
                 }
 
                 Surface(
@@ -254,7 +256,7 @@ fun AddToWidgetBottomSheet(
                                 }
                                 Column {
                                     Text(
-                                        text = "Widget",
+                                        text = stringResource(R.string.widget_name),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
                                     )
@@ -284,7 +286,7 @@ fun AddToWidgetBottomSheet(
                                 )
                                 Spacer(Modifier.width(4.dp))
                                 Text(
-                                    text = "Add here",
+                                    text = stringResource(R.string.widget_add_here),
                                     style = MaterialTheme.typography.labelMedium,
                                 )
                             }
@@ -298,7 +300,7 @@ fun AddToWidgetBottomSheet(
                             )
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                text = "Current tracks — tap to remove",
+                                text = stringResource(R.string.widget_current_tracks),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -342,7 +344,7 @@ fun AddToWidgetBottomSheet(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
-                                                contentDescription = "Remove track",
+                                                contentDescription = stringResource(R.string.cd_remove_track),
                                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                                 modifier = Modifier.size(11.dp),
                                             )

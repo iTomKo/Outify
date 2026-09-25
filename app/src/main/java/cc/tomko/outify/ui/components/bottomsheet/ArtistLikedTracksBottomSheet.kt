@@ -36,8 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Track
@@ -96,7 +98,7 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    Text(text = "Error", style = MaterialTheme.typography.titleMedium)
+                    Text(text = stringResource(R.string.common_error), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(text = msg, color = MaterialTheme.colorScheme.error)
                 }
@@ -135,7 +137,7 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
                                 if (artworkUrl.isNotBlank()) {
                                     SmartImage(
                                         url = artworkUrl,
-                                        contentDescription = "Artist artwork",
+                                        contentDescription = stringResource(R.string.common_artist_artwork),
                                         modifier = Modifier.fillMaxSize(),
                                         monochrome = LocalUiSettings.current.monochromeArtists
                                     )
@@ -150,7 +152,7 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text(
-                                    text = "• ${likedTracks.size} liked songs",
+                                    text = stringResource(R.string.count_liked_songs_bullet, likedTracks.size),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -159,10 +161,10 @@ fun SharedTransitionScope.ArtistLikedTracksBottomSheet(
 
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = { spirc.shuffleLoad(context.toUriString()) }) {
-                                Icon(Icons.Rounded.Shuffle, contentDescription = "Shuffle")
+                                Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.common_shuffle))
                             }
                             IconButton(onClick = { spirc.load(context) }) {
-                                Icon(Icons.Rounded.PlayArrow, contentDescription = "Play in order")
+                                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.common_play_in_order))
                             }
                         }
                     }

@@ -78,6 +78,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -478,7 +479,7 @@ private fun PlayerControlsContent(
                     inactiveContentColor = inactiveContentColor,
                     onClick = onShuffleToggle,
                     iconId = R.drawable.shuffle,
-                    contentDesc = "Shuffle"
+                    contentDesc = stringResource(R.string.common_shuffle)
                 )
 
                 ToggleSegmentButton(
@@ -499,7 +500,7 @@ private fun PlayerControlsContent(
                     inactiveContentColor = inactiveContentColor,
                     onClick = onRepeatToggle,
                     imageVector = if (!repeatMode.repeatTrack) Icons.Default.Repeat else Icons.Default.RepeatOne,
-                    contentDesc = "Repeat"
+                    contentDesc = stringResource(R.string.common_repeat)
                 )
 
                 ToggleSegmentButton(
@@ -520,7 +521,7 @@ private fun PlayerControlsContent(
                     inactiveContentColor = inactiveContentColor,
                     onClick = onFavoriteToggle,
                     imageVector = Icons.Default.Favorite,
-                    contentDesc = "Favorite"
+                    contentDesc = stringResource(R.string.cd_favorite)
                 )
             }
         }
@@ -553,7 +554,7 @@ private fun MoreActionsSection(
             IconButton(onClick = onLyricsClick) {
                 Icon(
                     imageVector = Icons.Default.Lyrics,
-                    contentDescription = "Lyrics",
+                    contentDescription = stringResource(R.string.common_lyrics),
                     tint = contentColor
                 )
             }
@@ -561,7 +562,7 @@ private fun MoreActionsSection(
             IconButton(onClick = onQueueClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                    contentDescription = "Queue",
+                    contentDescription = stringResource(R.string.common_queue),
                     tint = contentColor
                 )
             }
@@ -569,7 +570,7 @@ private fun MoreActionsSection(
             IconButton(onClick = onMoreClick) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More Information",
+                    contentDescription = stringResource(R.string.about_more_information),
                     tint = contentColor
                 )
             }
@@ -663,7 +664,7 @@ private fun PlaybackControls(
         ) {
             Icon(
                 Icons.Default.SkipPrevious,
-                contentDescription = "Previous"
+                contentDescription = stringResource(R.string.common_previous)
             )
         }
 
@@ -692,7 +693,7 @@ private fun PlaybackControls(
             ) {
                 Icon(
                     Icons.Default.FastRewind,
-                    contentDescription = "FR 15s",
+                    contentDescription = stringResource(R.string.player_fr),
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -750,7 +751,7 @@ private fun PlaybackControls(
                     PlaybackIconState.Playing -> {
                         Icon(
                             Icons.Outlined.Pause,
-                            contentDescription = "Pause",
+                            contentDescription = stringResource(R.string.common_pause),
                             modifier = Modifier
                                 .padding(padding)
                                 .size(iconSize)
@@ -760,7 +761,7 @@ private fun PlaybackControls(
                     PlaybackIconState.Paused -> {
                         Icon(
                             Icons.Outlined.PlayArrow,
-                            contentDescription = "Play",
+                            contentDescription = stringResource(R.string.common_play),
                             modifier = Modifier
                                 .padding(padding)
                                 .size(iconSize)
@@ -770,7 +771,7 @@ private fun PlaybackControls(
                     PlaybackIconState.NotPlaying -> {
                         Icon(
                             Icons.Default.PlayDisabled,
-                            contentDescription = "Play not available",
+                            contentDescription = stringResource(R.string.player_play_not_available),
                             modifier = Modifier
                                 .padding(padding)
                                 .size(iconSize / 2)
@@ -805,7 +806,7 @@ private fun PlaybackControls(
             ) {
                 Icon(
                     Icons.Default.FastForward,
-                    contentDescription = "FF 15s",
+                    contentDescription = stringResource(R.string.player_ff),
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -835,7 +836,7 @@ private fun PlaybackControls(
         ) {
             Icon(
                 Icons.Default.SkipNext,
-                contentDescription = "Next"
+                contentDescription = stringResource(R.string.common_next)
             )
         }
     }
@@ -887,7 +888,7 @@ private fun AudioMetadataSection(
 
         val subtitle = audio?.artists?.joinToString { it.name }
             ?: audio?.showName
-            ?: "Unknown source"
+            ?: stringResource(R.string.player_unknown_source)
 
         if (audio?.isEpisode() ?: true) {
             AutoScrollingTextOnDemand(

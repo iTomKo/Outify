@@ -73,7 +73,7 @@ sealed class PopupSpec(
 
     data class AuthResult(
         val isSuccess: Boolean,
-        val message: String = if (isSuccess) "Login successful!" else "Login failed",
+        val message: String? = null,
         val errorDetails: String? = null,
         val onDismiss: (() -> Unit)? = null,
         override val id: String = UUID.randomUUID().toString(),

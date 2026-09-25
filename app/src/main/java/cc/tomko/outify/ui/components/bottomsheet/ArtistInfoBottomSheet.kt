@@ -47,10 +47,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
@@ -92,11 +94,11 @@ fun ArtistInfoBottomSheet(
     val defaultCopy: () -> Unit = {
         scope.launch {
             val clipData = ClipData.newPlainText(
-                "${artist.name} - Outify",
+                context.getString(R.string.title_with_app, artist.name),
                 "https://open.spotify.com/artist/${artist.id}"
             )
             clipboardManager.setClipEntry(ClipEntry(clipData))
-            InAppNotificationController.show("Copied to clipboard")
+            InAppNotificationController.show(context.getString(R.string.toast_copied_to_clipboard))
         }
     }
 
@@ -129,7 +131,7 @@ fun ArtistInfoBottomSheet(
                 ) {
                     SmartImage(
                         url = artworkUrl,
-                        contentDescription = "Artist artwork",
+                        contentDescription = stringResource(R.string.common_artist_artwork),
                         modifier = Modifier.fillMaxSize(),
                         monochrome = LocalUiSettings.current.monochromeAlbums
                     )
@@ -147,7 +149,7 @@ fun ArtistInfoBottomSheet(
                     )
 
                     Text(
-                        text = "Artist",
+                        text = stringResource(R.string.common_artist),
                         style = MaterialTheme.typography.bodyMedium.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         ),
@@ -167,7 +169,7 @@ fun ArtistInfoBottomSheet(
                     ) {
                         Icon(
                             imageVector = if (isSaved) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = if (isSaved) "Unfollow" else "Follow",
+                            contentDescription = if (isSaved) stringResource(R.string.common_unfollow) else stringResource(R.string.common_follow),
                             tint = if (isSaved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -176,14 +178,14 @@ fun ArtistInfoBottomSheet(
                         onClick = { onShare?.invoke() ?: defaultShare() },
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Share")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.common_share))
                     }
 
                     IconButton(
                         onClick = { onCopyUri?.invoke() ?: defaultCopy() },
                         modifier = Modifier.size(44.dp)
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy link")
+                        Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.common_copy_link))
                     }
                 }
             }
@@ -192,7 +194,7 @@ fun ArtistInfoBottomSheet(
 
             // Open section
             Text(
-                text = "Open",
+                text = stringResource(R.string.common_open),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -200,8 +202,8 @@ fun ArtistInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.Person,
-                title = "Artist",
-                subtitle = "View artist page",
+                title = stringResource(R.string.common_artist),
+                subtitle = stringResource(R.string.menu_view_artist_page),
                 onClick = {
                     onOpenArtist?.invoke()
                     onDismiss()
@@ -212,7 +214,7 @@ fun ArtistInfoBottomSheet(
 
             // Queue section
             Text(
-                text = "Queue",
+                text = stringResource(R.string.common_queue),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -224,8 +226,8 @@ fun ArtistInfoBottomSheet(
             ) {
                 ActionCard(
                     icon = Icons.Default.Queue,
-                    title = "Add to Queue",
-                    subtitle = "End of queue",
+                    title = stringResource(R.string.common_add_to_queue),
+                    subtitle = stringResource(R.string.common_end_of_queue),
                     onClick = {
                         onAddToQueue?.invoke()
                         onDismiss()
@@ -235,8 +237,8 @@ fun ArtistInfoBottomSheet(
 
                 ActionCard(
                     icon = Icons.AutoMirrored.Filled.PlaylistAdd,
-                    title = "Play Next",
-                    subtitle = "Up next",
+                    title = stringResource(R.string.common_play_next),
+                    subtitle = stringResource(R.string.common_up_next),
                     onClick = {
                         onPlayNext?.invoke()
                         onDismiss()
@@ -249,7 +251,7 @@ fun ArtistInfoBottomSheet(
 
             // Playback section
             Text(
-                text = "Playback",
+                text = stringResource(R.string.common_playback),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp)
@@ -257,8 +259,8 @@ fun ArtistInfoBottomSheet(
 
             ActionCard(
                 icon = Icons.Default.Favorite,
-                title = if (isSaved) "Unfollow" else "Follow",
-                subtitle = if (isSaved) "Following artist" else "Follow this artist",
+                title = if (isSaved) stringResource(R.string.common_unfollow) else stringResource(R.string.common_follow),
+                subtitle = if (isSaved) stringResource(R.string.follow_following_artist) else stringResource(R.string.follow_this_artist),
                 onClick = {
                     onToggleSave?.invoke()
                     onDismiss()

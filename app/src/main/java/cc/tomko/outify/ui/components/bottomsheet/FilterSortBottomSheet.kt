@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ui.viewmodel.library.ExplicitFilter
@@ -59,11 +62,11 @@ fun FilterSortBottomSheet(
             ) {
                 Icon(
                     Icons.Default.FilterAlt,
-                    contentDescription = "Filter and Sort",
+                    contentDescription = stringResource(R.string.common_filter_and_sort),
                     modifier = Modifier.padding(end = 8.dp)
                 )
                 Text(
-                    text = "Filter & Sort",
+                    text = stringResource(R.string.filter_sort),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -71,7 +74,7 @@ fun FilterSortBottomSheet(
 
             // Filters Section
             Text(
-                text = "FILTERS",
+                text = stringResource(R.string.filter_filters),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -82,15 +85,15 @@ fun FilterSortBottomSheet(
                 modifier = Modifier.padding(bottom = 24.dp)
             ) {
                 Text(
-                    text = "Explicit Content",
+                    text = stringResource(R.string.filter_explicit),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 val explicitOptions = listOf(
-                    ExplicitFilter.BOTH to "Show All",
-                    ExplicitFilter.EXPLICIT_ONLY to "Explicit Only",
-                    ExplicitFilter.NON_EXPLICIT_ONLY to "Non-Explicit Only"
+                    ExplicitFilter.BOTH to stringResource(R.string.filter_show_all),
+                    ExplicitFilter.EXPLICIT_ONLY to stringResource(R.string.filter_explicit_only),
+                    ExplicitFilter.NON_EXPLICIT_ONLY to stringResource(R.string.filter_non_explicit_only)
                 )
                 explicitOptions.forEach { (option, label) ->
                     Row(
@@ -116,7 +119,7 @@ fun FilterSortBottomSheet(
             TextField(
                 value = artistNameFilter,
                 onValueChange = onArtistNameFilterChange,
-                label = { Text("Filter by Artist Name") },
+                label = { Text(stringResource(R.string.filter_artist_name)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
@@ -127,7 +130,7 @@ fun FilterSortBottomSheet(
             TextField(
                 value = trackNameFilter,
                 onValueChange = onTrackNameFilterChange,
-                label = { Text("Filter by Track Name") },
+                label = { Text(stringResource(R.string.filter_track_name)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 24.dp),
@@ -136,7 +139,7 @@ fun FilterSortBottomSheet(
 
             // Sort Section
             Text(
-                text = "SORT BY",
+                text = stringResource(R.string.filter_sort_by),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
@@ -144,10 +147,10 @@ fun FilterSortBottomSheet(
 
             // Sort Options
             val sortOptions = listOf(
-                SortBy.POSITION to "Added (Default Order)",
-                SortBy.ARTIST_NAME to "Artist Name",
-                SortBy.TRACK_NAME to "Track Name",
-                SortBy.DURATION to "Duration"
+                SortBy.POSITION to stringResource(R.string.sort_added_default),
+                SortBy.ARTIST_NAME to stringResource(R.string.sort_artist_name),
+                SortBy.TRACK_NAME to stringResource(R.string.sort_track_name),
+                SortBy.DURATION to stringResource(R.string.sort_duration)
             )
 
             Column(
@@ -182,7 +185,7 @@ fun FilterSortBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = if (sortAscending) "Ascending" else "Descending",
+                    text = if (sortAscending) stringResource(R.string.sort_ascending) else stringResource(R.string.sort_descending),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Switch(

@@ -50,6 +50,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.MainActivity
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.PlayableAudio
@@ -148,7 +149,7 @@ class PlaybackWidget : GlanceAppWidget() {
     ) {
         val size = LocalSize.current
         if (itemsList.isEmpty()) {
-            Text("No items to display", modifier = GlanceModifier.fillMaxSize())
+            Text(LocalContext.current.getString(R.string.widget_no_items), modifier = GlanceModifier.fillMaxSize())
             return
         }
 
@@ -236,7 +237,7 @@ class PlaybackWidget : GlanceAppWidget() {
 
                         val subtitle = currentAudio.artists?.joinToString { it.name }
                             ?: currentAudio.showName
-                            ?: "Unknown source"
+                            ?: LocalContext.current.getString(R.string.player_unknown_source)
 
                         Text(
                             text = subtitle,
@@ -252,7 +253,7 @@ class PlaybackWidget : GlanceAppWidget() {
                     Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
                         Image(
                             provider = ImageProvider(androidx.media3.session.R.drawable.media3_icon_previous),
-                            contentDescription = "Previous",
+                            contentDescription = LocalContext.current.getString(R.string.common_previous),
                             colorFilter = ColorFilter.tint(GlanceTheme.colors.onTertiaryContainer),
                             modifier = GlanceModifier.size(28.dp)
                                 .clickable { spirc.playerPrevious() }
@@ -263,7 +264,7 @@ class PlaybackWidget : GlanceAppWidget() {
 
                         Image(
                             provider = ImageProvider(playPauseIcon),
-                            contentDescription = "Play / Pause",
+                            contentDescription = LocalContext.current.getString(R.string.cd_play_pause),
                             colorFilter = ColorFilter.tint(GlanceTheme.colors.onTertiaryContainer),
                             modifier = GlanceModifier.size(32.dp)
                                 .clickable { spirc.playerPlayPause() }
@@ -271,7 +272,7 @@ class PlaybackWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.width(8.dp))
                         Image(
                             provider = ImageProvider(androidx.media3.session.R.drawable.media3_icon_next),
-                            contentDescription = "Next",
+                            contentDescription = LocalContext.current.getString(R.string.common_next),
                             colorFilter = ColorFilter.tint(GlanceTheme.colors.onTertiaryContainer),
                             modifier = GlanceModifier.size(28.dp).clickable { spirc.playerNext() }
                         )

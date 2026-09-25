@@ -35,7 +35,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.setting.DisplayIcon
@@ -65,10 +67,10 @@ fun SharedTransitionScope.GestureSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gestures") },
+                title = { Text(stringResource(R.string.common_gestures)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -88,8 +90,8 @@ fun SharedTransitionScope.GestureSettingsScreen(
                         .fillMaxWidth()
                 ) {
                     SwitchPreferenceEntry(
-                        title = { Text("Flip queue gestures") },
-                        description = "Right swipe to play next, left swipe to delete",
+                        title = { Text(stringResource(R.string.settings_flip_queue)) },
+                        description = stringResource(R.string.settings_gesture_row_desc),
                         icon = { Icon(Icons.Default.Flip, contentDescription = null) },
                         onCheckedChange = { viewModel.setFlipQueueGestures(it) },
                         isChecked = flipQueueGestures
@@ -103,8 +105,8 @@ fun SharedTransitionScope.GestureSettingsScreen(
                         .fillMaxWidth()
                 ) {
                     SwitchPreferenceEntry(
-                        title = { Text("Enable swipe gestures") },
-                        description = "Quick action on track row",
+                        title = { Text(stringResource(R.string.settings_enable_swipes)) },
+                        description = stringResource(R.string.settings_gesture_quick_action_desc),
                         icon = { Icon(Icons.Default.Gesture, contentDescription = null) },
                         onCheckedChange = { viewModel.setGesturesEnabled(it) },
                         isChecked = swipeEnabled
@@ -114,13 +116,13 @@ fun SharedTransitionScope.GestureSettingsScreen(
 
             // gestures list
             itemsIndexed(gestures) { index, gesture ->
-                val triggerLabel = gesture.trigger.getDisplayName()
-                val actionLabel = gesture.action.getDisplayName()
-                val directionLabel = gesture.side?.getDisplayName() ?: ""
+                val triggerLabel = stringResource(gesture.trigger.getDisplayName())
+                val actionLabel = stringResource(gesture.action.getDisplayName())
+                val directionLabel = gesture.side?.let { stringResource(it.getDisplayName()) } ?: ""
 
                 PreferenceEntry(
                     title = { Text(actionLabel) },
-                    description = if (gesture.enabled) "$triggerLabel • $directionLabel" else "Disabled",
+                    description = if (gesture.enabled) "$triggerLabel • $directionLabel" else stringResource(R.string.common_disabled),
                     icon = {
                         Box(
                             modifier = Modifier.size(24.dp),
@@ -134,7 +136,7 @@ fun SharedTransitionScope.GestureSettingsScreen(
                     trailingContent = {
                         if (!gesture.enabled) {
                             Text(
-                                "Off",
+                                stringResource(R.string.common_off),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -144,7 +146,7 @@ fun SharedTransitionScope.GestureSettingsScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete",
+                                contentDescription = stringResource(R.string.common_delete),
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
@@ -159,7 +161,7 @@ fun SharedTransitionScope.GestureSettingsScreen(
                             .fillMaxWidth()
                     ) {
                         PreferenceEntry(
-                            title = { Text("Add gesture") },
+                            title = { Text(stringResource(R.string.gesture_add)) },
                             icon = { Icon(Icons.Default.Add, contentDescription = null) },
                             onClick = {
                                 viewModel.addGesture()
@@ -167,7 +169,7 @@ fun SharedTransitionScope.GestureSettingsScreen(
                         )
 
                         PreferenceEntry(
-                            title = { Text("Reset to defaults") },
+                            title = { Text(stringResource(R.string.common_reset_to_defaults)) },
                             icon = { Icon(Icons.Default.RestartAlt, contentDescription = null) },
                             onClick = {
                                 viewModel.resetToDefaults()
@@ -181,7 +183,7 @@ fun SharedTransitionScope.GestureSettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Text(
-                    text = "Try it out"
+                    text = stringResource(R.string.gesture_try)
                 )
 
                 SwipeableTrackRowConfigured(

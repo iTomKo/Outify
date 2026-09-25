@@ -25,7 +25,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.data.repository.InterfaceSettings
 import cc.tomko.outify.ui.components.PreferenceEntry
@@ -49,10 +51,10 @@ fun InterfaceSettingScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Interface") },
+                title = { Text(stringResource(R.string.common_interface)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -72,8 +74,8 @@ fun InterfaceSettingScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Gestures") },
-                        description = "Personalize gestures",
+                        title = { Text(stringResource(R.string.common_gestures)) },
+                        description = stringResource(R.string.settings_gestures_desc),
                         icon = { Icon(Icons.Default.Gesture, contentDescription = null) },
                         onClick = openGestureSettings,
                     )
@@ -86,8 +88,8 @@ fun InterfaceSettingScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Appearance") },
-                        description = "Customize the design",
+                        title = { Text(stringResource(R.string.common_appearance)) },
+                        description = stringResource(R.string.settings_appearance_desc),
                         icon = { Icon(Icons.Default.DesignServices, contentDescription = null) },
                         onClick = openAppearanceSettings,
                     )
@@ -100,8 +102,8 @@ fun InterfaceSettingScreen(
                         .fillMaxWidth()
                 ) {
                     SwitchPreferenceEntry(
-                        title = { Text("Navigation history") },
-                        description = "Show last seen detail screen in the navbar",
+                        title = { Text(stringResource(R.string.settings_nav_history)) },
+                        description = stringResource(R.string.settings_nav_history_desc),
                         isChecked = showNavbarHistory,
                         onCheckedChange = { viewModel.setShowNavbarHistory(it) },
                         icon = { Icon(Icons.Default.History, contentDescription = null) }
@@ -109,8 +111,8 @@ fun InterfaceSettingScreen(
 
                     if (showNavbarHistory) {
                         SwitchPreferenceEntry(
-                            title = { Text("Show on right side") },
-                            description = "When enabled shows on right side, otherwise left",
+                            title = { Text(stringResource(R.string.settings_show_right)) },
+                            description = stringResource(R.string.settings_right_side_desc),
                             isChecked = showNavbarHistoryOnEnd,
                             onCheckedChange = { viewModel.setNavbarHistoryOnEnd(it) },
                             icon = {
@@ -130,8 +132,8 @@ fun InterfaceSettingScreen(
                         .fillMaxWidth()
                 ) {
                     SwitchPreferenceEntry(
-                        title = { Text("System navigation padding") },
-                        description = "Leave room for system navigation to show - mainly button navigation.",
+                        title = { Text(stringResource(R.string.settings_system_padding)) },
+                        description = stringResource(R.string.settings_padding_desc),
                         isChecked = showSystemNavigationPadding,
                         onCheckedChange = { viewModel.setShowSystemNavigationPadding(it) },
                         icon = { Icon(Icons.Default.Padding, contentDescription = null) }

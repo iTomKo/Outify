@@ -48,11 +48,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cc.tomko.outify.R
 import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -241,7 +243,7 @@ private fun CustomPill(
             )
             Spacer(Modifier.width(4.dp))
             Text(
-                text = "Custom",
+                text = stringResource(R.string.common_custom),
                 style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium),
                 color = content,
             )
@@ -293,7 +295,7 @@ fun CustomSpeedBottomSheet(
                 .padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "Playback speed",
+                text = stringResource(R.string.player_playback_speed),
                 style = TextStyle(fontSize = 20.sp, fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -310,13 +312,13 @@ fun CustomSpeedBottomSheet(
                         sliderValue = parsed
                     }
                 },
-                label = { Text("Speed") },
+                label = { Text(stringResource(R.string.player_speed)) },
                 suffix = { Text("x") },
                 singleLine = true,
                 isError = textIsInvalid,
                 supportingText = {
                     if (textIsInvalid) {
-                        Text("Enter a value between ${MIN_SPEED}x and ${MAX_SPEED.roundToInt()}x")
+                        Text(stringResource(R.string.player_speed_range_hint, MIN_SPEED, MAX_SPEED.roundToInt()))
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -343,12 +345,12 @@ fun CustomSpeedBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = "${MIN_SPEED}x",
+                    text = stringResource(R.string.player_speed_value, MIN_SPEED),
                     style = TextStyle(fontSize = 12.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "${MAX_SPEED.roundToInt()}x",
+                    text = stringResource(R.string.player_speed_value, MAX_SPEED.roundToInt()),
                     style = TextStyle(fontSize = 12.sp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -364,7 +366,7 @@ fun CustomSpeedBottomSheet(
                     .fillMaxWidth()
                     .height(52.dp),
             ) {
-                Text("Set speed \u2022 ${sliderValue.speedLabel()}")
+                Text(stringResource(R.string.player_speed_set, sliderValue.speedLabel()))
             }
 
             Spacer(Modifier.height(8.dp))

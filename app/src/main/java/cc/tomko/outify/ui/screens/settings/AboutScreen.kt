@@ -39,10 +39,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cc.tomko.outify.BuildConfig
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 
 private const val DEVELOPER = "TomKo"
@@ -58,10 +60,10 @@ fun AboutScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("About") },
+                title = { Text(stringResource(R.string.common_about)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -129,13 +131,13 @@ fun AboutScreen(
                 ) {
                     InfoChip(
                         modifier = Modifier.weight(1f),
-                        label = "Version",
+                        label = stringResource(R.string.about_version),
                         value = BuildConfig.VERSION_NAME,
                         icon = Icons.Default.Info,
                     )
                     InfoChip(
                         modifier = Modifier.weight(1f),
-                        label = "Build",
+                        label = stringResource(R.string.about_build),
                         value = "#${BuildConfig.VERSION_CODE}",
                         icon = Icons.Default.Code,
                     )
@@ -155,12 +157,12 @@ fun AboutScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         Text(
-                            text = "Have some idea or issue?",
+                            text = stringResource(R.string.about_have_idea),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = "Report the issue or idea on GitHub!",
+                            text = stringResource(R.string.about_report),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             lineHeight = 22.sp,
@@ -188,7 +190,7 @@ fun AboutScreen(
                             }
                             Column {
                                 Text(
-                                    text = "Made by",
+                                    text = stringResource(R.string.about_made_by),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -224,7 +226,7 @@ fun AboutScreen(
                     Column(modifier = Modifier.padding(8.dp)) {
                         LinkRow(
                             icon = Icons.Default.Code,
-                            label = "Source code",
+                            label = stringResource(R.string.about_source_code),
                             sub = "github.com/iTomKo/Outify",
                             onClick = { onOpenUrl(GITHUB_URL) },
                         )
@@ -327,7 +329,7 @@ private fun LinkRow(
         IconButton(onClick = onClick) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                contentDescription = "Open",
+                contentDescription = stringResource(R.string.common_open),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )

@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.core.model.PlaylistFolder
@@ -107,13 +110,13 @@ fun CreateFolderBottomSheet(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Folder name") },
+                label = { Text(stringResource(R.string.folder_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             Text(
-                text = "Folder color",
+                text = stringResource(R.string.folder_color),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
             )
@@ -140,7 +143,7 @@ fun CreateFolderBottomSheet(
                     },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
 
                 Button(
@@ -160,7 +163,7 @@ fun CreateFolderBottomSheet(
                     modifier = Modifier.weight(1f),
                     enabled = name.isNotBlank(),
                 ) {
-                    Text(if (isEditMode) "Save" else "Create")
+                    Text(if (isEditMode) stringResource(R.string.common_save) else stringResource(R.string.common_create))
                 }
             }
 

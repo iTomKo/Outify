@@ -28,8 +28,10 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.PlayableAudio
@@ -170,7 +172,7 @@ fun SharedTransitionScope.SwipeableTrackRowConfigured(
                     if (isLiked) {
                         Icon(
                             Icons.Default.Favorite,
-                            contentDescription = "Liked"
+                            contentDescription = stringResource(R.string.common_liked)
                         )
                     }
 

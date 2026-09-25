@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -88,7 +91,7 @@ private fun NotificationPermissionSheetContent(
         Spacer(Modifier.height(28.dp))
 
         Text(
-            text = "Stay in sync",
+            text = stringResource(R.string.notif_permission_title),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -97,7 +100,7 @@ private fun NotificationPermissionSheetContent(
         Spacer(Modifier.height(10.dp))
 
         Text(
-            text = "Get notified when your library finishes syncing tracks.",
+            text = stringResource(R.string.notif_permission_desc),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -116,7 +119,7 @@ private fun NotificationPermissionSheetContent(
             ),
         ) {
             Text(
-                text = "Allow notifications",
+                text = stringResource(R.string.notif_permission_action),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -129,7 +132,7 @@ private fun NotificationPermissionSheetContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "Not now",
+                text = stringResource(R.string.common_not_now),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

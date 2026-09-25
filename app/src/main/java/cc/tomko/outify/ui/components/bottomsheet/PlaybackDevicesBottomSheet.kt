@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -50,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ui.components.AudioBarsIndicator
@@ -96,7 +99,7 @@ fun PlaybackDevicesBottomSheet(
             ) {
                 Icon(
                     Icons.Default.Devices,
-                    contentDescription = "Devices",
+                    contentDescription = stringResource(R.string.cd_devices),
                     modifier = Modifier
                         .clip(MaterialShapes.Cookie9Sided.toShape())
                         .background(MaterialTheme.colorScheme.secondaryContainer)
@@ -108,13 +111,13 @@ fun PlaybackDevicesBottomSheet(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Playback devices",
+                        text = stringResource(R.string.devices_title),
                         style = MaterialTheme.typography.headlineMediumEmphasized,
                         fontWeight = FontWeight.Black,
                     )
 
                     Text(
-                        text = "${devices.size} devices",
+                        text = stringResource(R.string.count_devices, devices.size),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -127,7 +130,7 @@ fun PlaybackDevicesBottomSheet(
                         }
                     }
                 ) {
-                    Icon(Icons.Default.SwapHoriz, contentDescription = "Transfer playback")
+                    Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.cd_transfer_playback))
                 }
 
                 IconButton(
@@ -137,7 +140,7 @@ fun PlaybackDevicesBottomSheet(
                         }
                     }
                 ) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh devices")
+                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh_devices))
                 }
             }
 
@@ -161,7 +164,7 @@ fun PlaybackDevicesBottomSheet(
                                 Icon(Icons.Default.SearchOff, contentDescription = null)
 
                                 Text(
-                                    text = "No devices found..",
+                                    text = stringResource(R.string.devices_none),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -212,11 +215,11 @@ fun PlaybackDevicesBottomSheet(
                                         ) {
                                             Icon(
                                                 Icons.Default.Lock,
-                                                contentDescription = "Restricted",
+                                                contentDescription = stringResource(R.string.common_restricted),
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Text(
-                                                text = "Restricted",
+                                                text = stringResource(R.string.common_restricted),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
@@ -229,11 +232,11 @@ fun PlaybackDevicesBottomSheet(
                                         ) {
                                             Icon(
                                                 Icons.Default.Security,
-                                                contentDescription = "Private",
+                                                contentDescription = stringResource(R.string.common_private),
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Text(
-                                                text = "Private",
+                                                text = stringResource(R.string.common_private),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )

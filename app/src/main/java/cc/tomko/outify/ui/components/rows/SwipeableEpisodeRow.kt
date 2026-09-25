@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.getCover
@@ -251,7 +253,7 @@ fun SharedTransitionScope.EpisodeRow(
                 ) {
                     SmartImage(
                         url = artworkUrl,
-                        contentDescription = "Episode artwork",
+                        contentDescription = stringResource(R.string.cd_episode_artwork),
                         modifier = artworkModifier
                             .then(
                                 if (onArtworkClick != null) {
@@ -379,6 +381,7 @@ fun SharedTransitionScope.EpisodeRow(
     }
 }
 
+@Composable
 private fun formatEpisodeMeta(
     publishTimeMs: Long,
     durationMs: Long,
@@ -388,10 +391,10 @@ private fun formatEpisodeMeta(
     val now = System.currentTimeMillis()
     val daysAgo = TimeUnit.MILLISECONDS.toDays(now - publishTimeMs)
     val whenStr = when {
-        daysAgo <= 0 -> "Today"
-        daysAgo == 1L -> "Yesterday"
-        daysAgo < 30 -> "${daysAgo}d ago"
-        else -> "${daysAgo / 30}mo ago"
+        daysAgo <= 0 -> stringResource(R.string.time_today)
+        daysAgo == 1L -> stringResource(R.string.time_yesterday)
+        daysAgo < 30 -> stringResource(R.string.time_days_ago, daysAgo)
+        else -> stringResource(R.string.time_months_ago, daysAgo / 30)
     }
     val totalMinutes = TimeUnit.MILLISECONDS.toMinutes(durationMs)
     val hours = totalMinutes / 60
@@ -399,15 +402,15 @@ private fun formatEpisodeMeta(
     val durationStr = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
 
     return when {
-        fullyPlayed -> "$whenStr · $durationStr"
+        fullyPlayed -> stringResource(R.string.episode_meta, whenStr, durationStr)
         resumePositionMs > 0 -> {
             val resumeMin = TimeUnit.MILLISECONDS.toMinutes(resumePositionMs)
             val resumeSec = TimeUnit.MILLISECONDS.toSeconds(resumePositionMs) % 60
             val resumeStr = if (resumeMin > 0) "${resumeMin}m ${resumeSec}s" else "${resumeSec}s"
-            "$whenStr · $durationStr · Resume $resumeStr"
+            stringResource(R.string.episode_meta_resume, whenStr, durationStr, resumeStr)
         }
 
-        else -> "$whenStr · $durationStr"
+        else -> stringResource(R.string.episode_meta, whenStr, durationStr)
     }
 }
 

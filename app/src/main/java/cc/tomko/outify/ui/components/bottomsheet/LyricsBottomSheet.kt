@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -53,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -144,7 +147,7 @@ fun LyricsBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.common_close),
                             tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -181,7 +184,7 @@ fun LyricsBottomSheet(
                             .padding(horizontal = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        val tabs = listOf("Synced", "Static")
+                        val tabs = listOf(stringResource(R.string.lyrics_synced), stringResource(R.string.lyrics_static))
                         tabs.forEachIndexed { index, text ->
                             val isSelected = selectedTab == index
                             val tabBgColor by animateColorAsState(
@@ -227,7 +230,7 @@ fun LyricsBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No lyrics for episodes",
+                            text = stringResource(R.string.lyrics_no_episodes),
                             style = MaterialTheme.typography.bodyLarge,
                             color = inactiveTextColor,
                             textAlign = TextAlign.Center
@@ -274,7 +277,7 @@ fun LyricsBottomSheet(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SkipPrevious,
-                                    contentDescription = "Previous",
+                                    contentDescription = stringResource(R.string.common_previous),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.size(32.dp)
                                 )
@@ -309,7 +312,7 @@ fun LyricsBottomSheet(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.SkipNext,
-                                    contentDescription = "Next",
+                                    contentDescription = stringResource(R.string.common_next),
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.size(32.dp)
                                 )

@@ -49,9 +49,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.data.queue.SavedQueue
 import cc.tomko.outify.ui.viewmodel.player.MultiQueueViewModel
@@ -99,13 +102,13 @@ fun QueueSwitcherBottomSheet(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Saved queues",
+                        text = stringResource(R.string.common_saved_queues),
                         style = MaterialTheme.typography.headlineMediumEmphasized,
                         fontWeight = FontWeight.Black,
                     )
                     if (queues.isNotEmpty()) {
                         Text(
-                            text = "${queues.size} queue${if (queues.size != 1) "s" else ""}",
+                            text = pluralStringResource(R.plurals.queue_count, queues.size, queues.size),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -134,7 +137,7 @@ fun QueueSwitcherBottomSheet(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "No saved queues yet",
+                            text = stringResource(R.string.queue_no_saved),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -167,7 +170,7 @@ fun QueueSwitcherBottomSheet(
             ) {
                 Icon(Icons.AutoMirrored.Filled.PlaylistAdd, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Save current queue")
+                Text(stringResource(R.string.queue_save_current))
             }
 
             Spacer(Modifier.height(6.dp))
@@ -176,8 +179,8 @@ fun QueueSwitcherBottomSheet(
 
     if (showSaveDialog) {
         QueueNameDialog(
-            title = "Save queue",
-            confirmLabel = "Save",
+            title = stringResource(R.string.common_save_queue),
+            confirmLabel = stringResource(R.string.common_save),
             onConfirm = { name ->
                 viewModel.saveCurrentQueue(name, currentAudio)
                 showSaveDialog = false
@@ -188,8 +191,8 @@ fun QueueSwitcherBottomSheet(
 
     renameTarget?.let { target ->
         QueueNameDialog(
-            title = "Rename queue",
-            confirmLabel = "Rename",
+            title = stringResource(R.string.queue_rename),
+            confirmLabel = stringResource(R.string.common_rename),
             initialValue = target.name,
             onConfirm = { newName ->
                 viewModel.renameQueue(target.id, newName)
@@ -246,7 +249,7 @@ private fun SavedQueueRow(
                         MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "${queue.trackUris.size} tracks · ${relativeTime(queue.createdAt)}",
+                    text = stringResource(R.string.queue_tracks_created, queue.trackUris.size, relativeTime(queue.createdAt)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -255,7 +258,7 @@ private fun SavedQueueRow(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete queue",
+                    contentDescription = stringResource(R.string.cd_delete_queue),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -264,7 +267,7 @@ private fun SavedQueueRow(
             if (isActive) {
                 Icon(
                     Icons.Default.Check,
-                    contentDescription = "Active",
+                    contentDescription = stringResource(R.string.cd_active),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(36.dp)
@@ -274,7 +277,7 @@ private fun SavedQueueRow(
                 IconButton(onClick = onActivate) {
                     Icon(
                         Icons.Default.PlayArrow,
-                        contentDescription = "Activate queue",
+                        contentDescription = stringResource(R.string.cd_activate_queue),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -301,7 +304,7 @@ internal fun QueueNameDialog(
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Queue name") },
+                label = { Text(stringResource(R.string.queue_name)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
@@ -316,18 +319,19 @@ internal fun QueueNameDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )
 }
 
+@Composable
 private fun relativeTime(timestamp: Long): String {
     val diff = System.currentTimeMillis() - timestamp
     return when {
-        diff < 60_000L -> "just now"
-        diff < 3_600_000L -> "${diff / 60_000}m ago"
-        diff < 86_400_000L -> "${diff / 3_600_000}h ago"
-        diff < 7 * 86_400_000L -> "${diff / 86_400_000}d ago"
+        diff < 60_000L -> stringResource(R.string.time_just_now)
+        diff < 3_600_000L -> stringResource(R.string.time_minutes_ago, diff / 60_000)
+        diff < 86_400_000L -> stringResource(R.string.time_hours_ago, diff / 3_600_000)
+        diff < 7 * 86_400_000L -> stringResource(R.string.time_days_ago, diff / 86_400_000)
         else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(timestamp))
     }
 }

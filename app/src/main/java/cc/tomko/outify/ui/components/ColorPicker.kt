@@ -21,7 +21,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 
 data class HsvColor(
     val hue: Float,
@@ -121,7 +123,7 @@ fun ColorPicker(
 
         // Saturation
         NormalSlider(
-            label = "Saturation",
+            label = stringResource(R.string.color_saturation),
             value = hsv.saturation,
             onChange = {
                 hsv = hsv.copy(saturation = it)
@@ -131,7 +133,7 @@ fun ColorPicker(
 
         // Value / Lightness
         NormalSlider(
-            label = "Lightness",
+            label = stringResource(R.string.color_lightness),
             value = hsv.value,
             onChange = {
                 hsv = hsv.copy(value = it)

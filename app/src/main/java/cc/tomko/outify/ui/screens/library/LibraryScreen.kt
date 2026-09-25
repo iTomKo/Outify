@@ -67,10 +67,12 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.PlaylistFolder
@@ -235,10 +237,10 @@ fun SharedTransitionScope.LibraryScreen(
                         isLoading = false,
                         autoFocus = false,
                         placeholderText = when (selectedTab) {
-                            LibraryTab.Playlists -> "Search playlists..."
-                            LibraryTab.Albums -> "Search albums..."
-                            LibraryTab.Shows -> "Search shows..."
-                            LibraryTab.Episodes -> "Search episodes..."
+                            LibraryTab.Playlists -> stringResource(R.string.search_library_playlists)
+                            LibraryTab.Albums -> stringResource(R.string.search_library_albums)
+                            LibraryTab.Shows -> stringResource(R.string.search_library_shows)
+                            LibraryTab.Episodes -> stringResource(R.string.search_library_episodes)
                         },
                     )
                 }
@@ -310,7 +312,7 @@ fun SharedTransitionScope.LibraryScreen(
                     if (libraryState.isLoadingAlbums && filteredAlbums.isEmpty()) {
                         item(key = "albums_loading") {
                             Text(
-                                text = "Loading albums...",
+                                text = stringResource(R.string.search_loading_albums),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -353,7 +355,7 @@ fun SharedTransitionScope.LibraryScreen(
                     if (libraryState.isLoadingShows && filteredShows.isEmpty()) {
                         item(key = "shows_loading") {
                             Text(
-                                text = "Loading shows...",
+                                text = stringResource(R.string.search_loading_shows),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -393,7 +395,7 @@ fun SharedTransitionScope.LibraryScreen(
                     if (libraryState.isLoadingEpisodes && filteredEpisodes.isEmpty()) {
                         item(key = "episodes_loading") {
                             Text(
-                                text = "Loading episodes...",
+                                text = stringResource(R.string.search_loading_episodes),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -482,16 +484,16 @@ fun SharedTransitionScope.LibraryScreen(
             },
             titleContent = {
                 Text(
-                    text = "Your library",
+                    text = stringResource(R.string.library_your_library),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = when (selectedTab) {
-                        LibraryTab.Playlists -> "Account • ${libraryState.playlists.count()} playlists"
-                        LibraryTab.Albums -> "Account • ${libraryState.albums.count()} albums"
-                        LibraryTab.Shows -> "Account • ${libraryState.shows.count()} shows"
-                        LibraryTab.Episodes -> "Account • ${libraryState.episodes.count()} episodes"
+                        LibraryTab.Playlists -> stringResource(R.string.account_playlist_count, libraryState.playlists.count())
+                        LibraryTab.Albums -> stringResource(R.string.account_album_count, libraryState.albums.count())
+                        LibraryTab.Shows -> stringResource(R.string.account_show_count, libraryState.shows.count())
+                        LibraryTab.Episodes -> stringResource(R.string.account_episode_count, libraryState.episodes.count())
                     },
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -521,7 +523,7 @@ fun SharedTransitionScope.LibraryScreen(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Scroll to top")
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.common_scroll_to_top))
                     }
                 }
 
@@ -538,7 +540,7 @@ fun SharedTransitionScope.LibraryScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.PlaylistAdd,
-                                contentDescription = "Add playlist"
+                                contentDescription = stringResource(R.string.playlist_add)
                             )
                         }
                     }
@@ -555,7 +557,7 @@ fun SharedTransitionScope.LibraryScreen(
                         ) {
                             Icon(
                                 Icons.Default.CreateNewFolder,
-                                contentDescription = "Add folder"
+                                contentDescription = stringResource(R.string.library_add_folder)
                             )
                         }
                     }
@@ -626,21 +628,21 @@ fun SharedTransitionScope.LibraryScreen(
         val folder = libraryState.folders.find { it.id == folderId }
         AlertDialog(
             onDismissRequest = { deleteFolderId = null },
-            title = { Text("Delete folder") },
+            title = { Text(stringResource(R.string.folder_delete)) },
             text = {
-                Text("Are you sure you want to delete \"${folder?.name}\"? Playlists inside will remain intact but unorganized.")
+                Text(stringResource(R.string.folder_delete_confirm, folder?.name ?: ""))
             },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteFolder(folderId)
                     deleteFolderId = null
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { deleteFolderId = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
             }
         )
@@ -738,7 +740,7 @@ private fun FolderHeaderContent(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                "${folder.playlistIds.size} playlists",
+                stringResource(R.string.count_playlists, folder.playlistIds.size),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

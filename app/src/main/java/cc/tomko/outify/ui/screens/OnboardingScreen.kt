@@ -44,10 +44,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cc.tomko.outify.R
 import cc.tomko.outify.ui.viewmodel.OnboardingStep
 import cc.tomko.outify.ui.viewmodel.OnboardingViewModel
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
@@ -205,7 +207,7 @@ private fun PlaybackLoginContent(
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = "Playback login",
+            text = stringResource(R.string.common_playback_login),
             style = MaterialTheme.typography.headlineLargeEmphasized,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -215,7 +217,7 @@ private fun PlaybackLoginContent(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "A Spotify Premium subscription is required. This login is required to stream audio. Outify uses librespot with anonymous Spotify credentials to power playback - independent of your personal account.",
+            text = stringResource(R.string.onb_playback_login_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -239,15 +241,15 @@ private fun PlaybackLoginContent(
             ) {
                 LoginFeature(
                     icon = Icons.Default.GraphicEq,
-                    text = "Stream tracks from Outify"
+                    text = stringResource(R.string.onb_stream_tracks)
                 )
                 LoginFeature(
                     icon = Icons.Default.LibraryMusic,
-                    text = "View artists, albums and playlists"
+                    text = stringResource(R.string.onb_view_content)
                 )
                 LoginFeature(
                     icon = Icons.Default.AccountCircle,
-                    text = "Keep your listening synced"
+                    text = stringResource(R.string.onb_keep_synced)
                 )
             }
         }
@@ -265,7 +267,7 @@ private fun PlaybackLoginContent(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Playback login connected",
+                    text = stringResource(R.string.onb_playback_connected),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -319,7 +321,7 @@ private fun AccountLoginContent(
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = "Account login",
+            text = stringResource(R.string.common_account_login),
             style = MaterialTheme.typography.headlineLargeEmphasized,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -329,7 +331,7 @@ private fun AccountLoginContent(
         Spacer(Modifier.height(12.dp))
 
         Text(
-            text = "A Spotify Premium subscription is required. Connect your Spotify account to unlock library, playlists, likes and recommendations. This is handled securely via OAuth.",
+            text = stringResource(R.string.onb_account_login_desc),
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -353,15 +355,15 @@ private fun AccountLoginContent(
             ) {
                 LoginFeature(
                     icon = Icons.Default.ThumbUp,
-                    text = "Like and unlike tracks, albums and artists"
+                    text = stringResource(R.string.onb_like_tracks)
                 )
                 LoginFeature(
                     icon = Icons.Default.Recommend,
-                    text = "Search Spotify"
+                    text = stringResource(R.string.search_spotify)
                 )
                 LoginFeature(
                     icon = Icons.Default.LibraryMusic,
-                    text = "Create and manage your playlists"
+                    text = stringResource(R.string.onb_manage_playlists)
                 )
             }
         }
@@ -379,7 +381,7 @@ private fun AccountLoginContent(
                     tint = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Account connected",
+                    text = stringResource(R.string.onb_account_connected),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary
                 )

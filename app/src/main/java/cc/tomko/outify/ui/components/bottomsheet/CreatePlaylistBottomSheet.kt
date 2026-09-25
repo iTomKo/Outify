@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ui.notifications.InAppNotificationController
@@ -58,6 +62,7 @@ fun CreatePlaylistBottomSheet(
     initialPublic: Boolean = true,
     initialCollaborative: Boolean = false,
 ) {
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val coroutineScope = rememberCoroutineScope()
     val isEditMode = playlistId != null
@@ -74,13 +79,13 @@ fun CreatePlaylistBottomSheet(
             result.fold(
                 onSuccess = { id ->
                     if (isEditMode) {
-                        InAppNotificationController.show("Playlist updated", durationMillis = 2000L)
+                        InAppNotificationController.show(context.getString(R.string.toast_playlist_updated), durationMillis = 2000L)
                     }
                     onDismiss()
                     onCreated(id)
                 },
                 onFailure = { error ->
-                    val message = error.message ?: "Unknown error"
+                    val message = error.message ?: context.getString(R.string.error_unknown)
                     InAppNotificationController.show(message, durationMillis = 3000L)
                 }
             )
@@ -125,7 +130,7 @@ fun CreatePlaylistBottomSheet(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = if (isEditMode) "Edit Playlist" else "Create Playlist",
+                    text = if (isEditMode) stringResource(R.string.createplaylist_edit_title) else stringResource(R.string.createplaylist_create_title),
                     style = MaterialTheme.typography.headlineMediumEmphasized,
                     fontWeight = FontWeight.Black,
                 )
@@ -136,7 +141,7 @@ fun CreatePlaylistBottomSheet(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -144,7 +149,7 @@ fun CreatePlaylistBottomSheet(
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Description (optional)") },
+                label = { Text(stringResource(R.string.playlist_desc_optional)) },
                 maxLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -158,7 +163,7 @@ fun CreatePlaylistBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Public",
+                        text = stringResource(R.string.playlist_public),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
                     )
@@ -182,12 +187,12 @@ fun CreatePlaylistBottomSheet(
             ) {
                 Column {
                     Text(
-                        text = "Collaborative",
+                        text = stringResource(R.string.playlist_collaborative),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
                     )
                     Text(
-                        text = "Others can add and remove tracks",
+                        text = stringResource(R.string.playlist_others),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -217,7 +222,7 @@ fun CreatePlaylistBottomSheet(
                     modifier = Modifier.weight(1f),
                     enabled = !isSaving,
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_cancel))
                 }
 
                 Button(
@@ -245,10 +250,10 @@ fun CreatePlaylistBottomSheet(
                 ) {
                     Text(
                         when {
-                            isSaving && isEditMode -> "Saving..."
-                            isSaving -> "Creating..."
-                            isEditMode -> "Save"
-                            else -> "Create"
+                            isSaving && isEditMode -> stringResource(R.string.createplaylist_saving)
+                            isSaving -> stringResource(R.string.createplaylist_creating)
+                            isEditMode -> stringResource(R.string.common_save)
+                            else -> stringResource(R.string.common_create)
                         }
                     )
                 }

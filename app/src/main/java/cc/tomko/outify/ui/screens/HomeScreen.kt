@@ -55,11 +55,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.ui.components.ErrorScreen
@@ -133,7 +135,7 @@ fun SharedTransitionScope.HomeScreen(
                             item {
                                 Spacer(Modifier.height(24.dp))
                                 Text(
-                                    text = "Top Artists",
+                                    text = stringResource(R.string.homescreen_top_artists),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -143,7 +145,7 @@ fun SharedTransitionScope.HomeScreen(
                             item {
                                 Spacer(Modifier.height(16.dp))
                                 Text(
-                                    text = "Top Tracks",
+                                    text = stringResource(R.string.homescreen_top_tracks),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -172,7 +174,7 @@ fun SharedTransitionScope.HomeScreen(
                             item {
                                 Spacer(Modifier.height(24.dp))
                                 Text(
-                                    text = "Top Artists",
+                                    text = stringResource(R.string.homescreen_top_artists),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -202,7 +204,7 @@ fun SharedTransitionScope.HomeScreen(
                             item {
                                 Spacer(Modifier.height(16.dp))
                                 Text(
-                                    text = "Top Tracks",
+                                    text = stringResource(R.string.homescreen_top_tracks),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -238,7 +240,7 @@ fun SharedTransitionScope.HomeScreen(
                     item {
                         Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "Note, that these data are fetched from Spotify. Outify doesn't track your top artists nor tracks and therefore this data shows data retrieved by official Spotify applications.",
+                            text = stringResource(R.string.homescreen_most_listened_disclaimer),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier
                                 .padding(horizontal = 16.dp)
@@ -276,7 +278,7 @@ private fun HeaderSection(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Welcome back,\n${username ?: "User"}!",
+                text = stringResource(R.string.welcome_back, username ?: stringResource(R.string.home_user_fallback)),
                 style = MaterialTheme.typography.headlineLargeEmphasized,
                 fontWeight = FontWeight.Bold,
             )
@@ -343,13 +345,13 @@ private fun HeaderSection(
                 if (userAvatarUrl != null) {
                     SmartImage(
                         url = userAvatarUrl,
-                        contentDescription = "Account",
+                        contentDescription = stringResource(R.string.common_account),
                         shape = CircleShape,
                     )
                 } else {
                     Icon(
                         Icons.Default.NoAccounts,
-                        contentDescription = "Account",
+                        contentDescription = stringResource(R.string.common_account),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -358,7 +360,7 @@ private fun HeaderSection(
             if (!isPlaybackLoggedIn) {
                 Icon(
                     imageVector = Icons.Default.Warning,
-                    contentDescription = "Not logged in",
+                    contentDescription = stringResource(R.string.cd_not_logged_in),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier
                         .size(16.dp)
@@ -373,7 +375,7 @@ private fun HeaderSection(
             IconButton(onClick = onSettingsClick) {
                 Icon(
                     Icons.Default.Settings,
-                    contentDescription = "Settings"
+                    contentDescription = stringResource(R.string.common_settings)
                 )
             }
         }
@@ -394,7 +396,7 @@ private fun EmptyResultCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "No top data available",
+                text = stringResource(R.string.homescreen_no_top_data_available),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -402,7 +404,7 @@ private fun EmptyResultCard() {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "API request returned nothing",
+                text = stringResource(R.string.homescreen_api_request_returned_nothing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -426,7 +428,7 @@ private fun ConnectSpotifyCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Connect to Spotify",
+                text = stringResource(R.string.connect_to_spotify),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
@@ -434,7 +436,7 @@ private fun ConnectSpotifyCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Link your Spotify account to see your top artists and tracks.",
+                text = stringResource(R.string.homescreen_link_account_benefits),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -445,7 +447,7 @@ private fun ConnectSpotifyCard(
                 onClick = onConnectClick,
                 shape = RoundedCornerShape(50),
             ) {
-                Text("Connect Spotify")
+                Text(stringResource(R.string.connect_to_spotify))
             }
         }
     }

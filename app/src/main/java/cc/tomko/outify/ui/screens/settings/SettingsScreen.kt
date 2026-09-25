@@ -23,7 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.viewmodel.settings.SettingsViewModel
@@ -43,10 +45,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.common_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -66,8 +68,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Interface") },
-                        description = "Gestures, Appearance, ..",
+                        title = { Text(stringResource(R.string.common_interface)) },
+                        description = stringResource(R.string.settings_interface_desc),
                         icon = { Icon(Icons.Default.Interests, contentDescription = null) },
                         onClick = openInterfaceSettings,
                     )
@@ -80,8 +82,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Playback") },
-                        description = "Bitrate, Spotify Connect, Gapless, ..",
+                        title = { Text(stringResource(R.string.common_playback)) },
+                        description = stringResource(R.string.settings_playback_desc),
                         icon = { Icon(Icons.Default.Headphones, contentDescription = null) },
                         onClick = openPlaybackSettings,
                     )
@@ -94,15 +96,15 @@ fun SettingsScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Misc") },
-                        description = "Sync, Backup & restore",
+                        title = { Text(stringResource(R.string.common_misc)) },
+                        description = stringResource(R.string.settings_misc_desc),
                         icon = { Icon(Icons.Default.DeveloperMode, contentDescription = null) },
                         onClick = openMiscSettings,
                     )
 
                     PreferenceEntry(
-                        title = { Text("About") },
-                        description = "Build number",
+                        title = { Text(stringResource(R.string.common_about)) },
+                        description = stringResource(R.string.settings_about_desc),
                         icon = { Icon(Icons.Default.Info, contentDescription = null) },
                         onClick = openAboutSettings,
                     )
@@ -115,8 +117,8 @@ fun SettingsScreen(
                         .fillMaxWidth()
                 ) {
                     PreferenceEntry(
-                        title = { Text("Accounts") },
-                        description = "Playback & Account login",
+                        title = { Text(stringResource(R.string.common_accounts)) },
+                        description = stringResource(R.string.settings_accounts_desc),
                         icon = { Icon(Icons.Default.AccountCircle, contentDescription = null) },
                         onClick = openAccountSettings,
                     )

@@ -74,7 +74,6 @@ class PlaybackService : MediaLibraryService(),
 
         const val NOTIFICATION_ID = 4894
         const val CHANNEL_ID = "outify_channel_01"
-        const val CHANNEL_NAME = "Media Playback"
 
         val TAG = PlaybackService::class.simpleName.toString()
 
@@ -87,10 +86,10 @@ class PlaybackService : MediaLibraryService(),
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            CHANNEL_NAME,
+            getString(R.string.media_playback_channel),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Media playback controls"
+            description = getString(R.string.media_playback_channel_desc)
             setShowBadge(false)
         }
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -358,7 +357,7 @@ class PlaybackService : MediaLibraryService(),
 
         Toast.makeText(
             this@PlaybackService,
-            "plr: ${error.message} (${error.errorCode}): ${error.cause?.message ?: ""}",
+            getString(R.string.player_playback_error, error.message, error.errorCode, error.cause?.message ?: ""),
             Toast.LENGTH_LONG
         ).show()
     }

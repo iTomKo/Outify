@@ -47,10 +47,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
@@ -172,7 +174,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
                 ) {
                     item {
                         Text(
-                            text = "Tracks",
+                            text = stringResource(R.string.search_section_tracks),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(start = 16.dp, bottom = 8.dp)
                         )
@@ -228,7 +230,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
                         )
 
                         Text(
-                            text = "${album.artists.joinToString { it.name }} • ${tracks.size} songs",
+                            text = stringResource(R.string.album_song_count, album.artists.joinToString { it.name }, tracks.size),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     },
@@ -246,7 +248,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
                         FilledIconButton(onClick = { viewModel.toggleSave() }) {
                             Icon(
                                 imageVector = if (isSaved) Icons.Rounded.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = if (isSaved) "Unfavorite" else "Favorite"
+                                contentDescription = if (isSaved) stringResource(R.string.cd_unfavorite) else stringResource(R.string.cd_favorite)
                             )
                         }
                     }
@@ -275,7 +277,7 @@ fun SharedTransitionScope.AlbumDetailScreen(
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
-                                contentDescription = "Scroll to top"
+                                contentDescription = stringResource(R.string.common_scroll_to_top)
                             )
                         }
                     }

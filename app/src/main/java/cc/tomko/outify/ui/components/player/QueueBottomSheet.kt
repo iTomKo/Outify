@@ -71,9 +71,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.MyIcons
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.ui.components.rows.SwipeGesture
@@ -247,7 +249,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = "Queue",
+                        contentDescription = stringResource(R.string.common_queue),
                         modifier = Modifier
                             .clip(MaterialShapes.Cookie9Sided.toShape())
                             .background(MaterialTheme.colorScheme.secondaryContainer)
@@ -259,13 +261,13 @@ fun SharedTransitionScope.QueueBottomSheet(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Queue",
+                            text = stringResource(R.string.common_queue),
                             style = MaterialTheme.typography.headlineMediumEmphasized,
                             fontWeight = FontWeight.Black,
                         )
                         if (!queueState.isLoading && queueState.totalSize > 0) {
                             Text(
-                                text = "${queueState.totalSize} songs",
+                                text = stringResource(R.string.count_songs, queueState.totalSize),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -283,7 +285,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                     IconButton(onClick = { viewModel.toggleShuffle() }) {
                         Icon(
                             if (isShuffling) MyIcons.Shuffle else MyIcons.NoShuffle,
-                            contentDescription = "Shuffle queue",
+                            contentDescription = stringResource(R.string.cd_shuffle_queue),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp)
                         )
@@ -292,7 +294,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                     IconButton(onClick = { showSaveDialog = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.PlaylistAdd,
-                            contentDescription = "Save queue",
+                            contentDescription = stringResource(R.string.common_save_queue),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -300,7 +302,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                     IconButton(onClick = { showSwitcher = true }) {
                         Icon(
                             Icons.Default.LibraryMusic,
-                            contentDescription = "Saved queues",
+                            contentDescription = stringResource(R.string.common_saved_queues),
                             tint = if (activeQueueId != null)
                                 MaterialTheme.colorScheme.primary
                             else
@@ -329,7 +331,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                             ) {
                                 CircularProgressIndicator()
                                 Text(
-                                    text = "Loading queue…",
+                                    text = stringResource(R.string.player_loading_queue),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -355,7 +357,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 Text(
-                                    text = "The queue is empty",
+                                    text = stringResource(R.string.player_queue_empty),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -396,12 +398,12 @@ fun SharedTransitionScope.QueueBottomSheet(
                                 val showPreviousHeader = isPrevious && index == currentTrackIndex - 1
 
                                 if (isCurrentTrack) {
-                                    rawHeaderText = "Now playing"
+                                    rawHeaderText = stringResource(R.string.queue_now_playing)
                                     rawHeaderColor = MaterialTheme.colorScheme.primary
                                 } else if (isNext) {
                                     if (item.isQueue) {
                                         if (!prevIsNext || prevItem?.isQueue != true) {
-                                            rawHeaderText = "Next in queue"
+                                            rawHeaderText = stringResource(R.string.queue_next_in_queue)
                                             rawHeaderColor = MaterialTheme.colorScheme.secondary
                                         }
                                     } else {
@@ -506,7 +508,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                                                 ) {
                                                     Icon(
                                                         Icons.Default.DragIndicator,
-                                                        contentDescription = "Reorder",
+                                                        contentDescription = stringResource(R.string.cd_reorder),
                                                         tint = if (isCurrentTrack)
                                                             MaterialTheme.colorScheme.primary
                                                         else
@@ -615,7 +617,7 @@ fun SharedTransitionScope.QueueBottomSheet(
 
                                         if (showPreviousHeader) {
                                             Text(
-                                                text = "Previous tracks",
+                                                text = stringResource(R.string.player_previous_tracks),
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 fontWeight = FontWeight.Bold,
@@ -639,7 +641,7 @@ fun SharedTransitionScope.QueueBottomSheet(
 
                 queueState.error?.let { error ->
                     Text(
-                        text = "Error: $error",
+                        text = stringResource(R.string.error_format, error),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -668,7 +670,7 @@ fun SharedTransitionScope.QueueBottomSheet(
                 ) {
                     Icon(
                         if(scrollDirectionToCurrent ?: true) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Scroll to current track"
+                        contentDescription = stringResource(R.string.cd_scroll_to_current)
                     )
                 }
             }
@@ -685,8 +687,8 @@ fun SharedTransitionScope.QueueBottomSheet(
 
     if (showSaveDialog) {
         QueueNameDialog(
-            title = "Save queue",
-            confirmLabel = "Save",
+            title = stringResource(R.string.common_save_queue),
+            confirmLabel = stringResource(R.string.common_save),
             onConfirm = { name ->
                 multiQueueViewModel.saveCurrentQueue(name, currentTrack)
                 showSaveDialog = false

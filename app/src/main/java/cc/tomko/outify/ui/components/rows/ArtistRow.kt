@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.SmartImage
@@ -112,7 +114,7 @@ fun SharedTransitionScope.ArtistRow(
             ) {
                 SmartImage(
                     url = artworkUrl,
-                    contentDescription = "Artwork",
+                    contentDescription = stringResource(R.string.common_artwork),
                     modifier = modifierWithSharedBounds,
                     monochrome = LocalUiSettings.current.monochromeArtists
                 )
@@ -155,7 +157,7 @@ fun SharedTransitionScope.ArtistRow(
                     // Playing indicator
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Playing",
+                        contentDescription = stringResource(R.string.common_playing),
                         modifier = Modifier.size(20.dp)
                     )
                 } else if (isSelected) {

@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -89,7 +92,7 @@ private fun BatteryOptimizationSheetContent(
         Spacer(Modifier.height(28.dp))
 
         Text(
-            text = "Keep the music going",
+            text = stringResource(R.string.battery_title),
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -99,8 +102,7 @@ private fun BatteryOptimizationSheetContent(
         Spacer(Modifier.height(10.dp))
 
         Text(
-            text = "Exempt Outify from battery optimization so playback and " +
-                    "syncs don't get cut off in the background.",
+            text = stringResource(R.string.battery_desc),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -120,7 +122,7 @@ private fun BatteryOptimizationSheetContent(
             ),
         ) {
             Text(
-                text = "Disable battery optimization",
+                text = stringResource(R.string.battery_action),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -133,7 +135,7 @@ private fun BatteryOptimizationSheetContent(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
-                text = "Not now",
+                text = stringResource(R.string.common_not_now),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

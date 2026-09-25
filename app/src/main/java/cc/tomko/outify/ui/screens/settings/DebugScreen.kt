@@ -33,8 +33,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.BuildConfig
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.components.PreferenceHeader
 import cc.tomko.outify.ui.viewmodel.settings.DebugViewModel
@@ -78,10 +80,10 @@ fun DebugScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Debug") },
+                title = { Text(stringResource(R.string.common_debug)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -96,46 +98,46 @@ fun DebugScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                PreferenceHeader("General")
+                PreferenceHeader(stringResource(R.string.section_general))
 
-                Information("Build #", BuildConfig.VERSION_CODE.toString())
-                Information("Display density", LocalDensity.current.density.toString())
-                Information("Display DPI", LocalConfiguration.current.densityDpi.toString())
-                Information("Android version", Build.VERSION.RELEASE)
+                Information(stringResource(R.string.debug_build_number), BuildConfig.VERSION_CODE.toString())
+                Information(stringResource(R.string.debug_display_density), LocalDensity.current.density.toString())
+                Information(stringResource(R.string.debug_display_dpi), LocalConfiguration.current.densityDpi.toString())
+                Information(stringResource(R.string.debug_android_version), Build.VERSION.RELEASE)
             }
 
             item {
-                PreferenceHeader("Accounts")
+                PreferenceHeader(stringResource(R.string.common_accounts))
 
-                Availability("Playback logged in", playbackLoggedIn)
-                Availability("Accounts logged in", accountsLoggedIn)
+                Availability(stringResource(R.string.debug_playback_logged_in), playbackLoggedIn)
+                Availability(stringResource(R.string.debug_accounts_logged_in), accountsLoggedIn)
 
-                Availability("Playback credentials file exists", hasCredentials)
-                Availability("Account credentials file exists", hasAccountFile)
+                Availability(stringResource(R.string.debug_playback_creds_exists), hasCredentials)
+                Availability(stringResource(R.string.debug_account_creds_exists), hasAccountFile)
 
-                Information("User Id", userId)
-                Information("Username", username)
-                Availability("Spotify Premium", isPremium)
+                Information(stringResource(R.string.debug_user_id), userId)
+                Information(stringResource(R.string.debug_username), username)
+                Availability(stringResource(R.string.debug_spotify_premium), isPremium)
             }
 
             item {
-                PreferenceHeader("Spirc")
+                PreferenceHeader(stringResource(R.string.section_spirc))
 
-                Availability("Spirc usable", isSpircUsable)
-                Availability("Active device", isActiveDevice)
+                Availability(stringResource(R.string.debug_spirc_usable), isSpircUsable)
+                Availability(stringResource(R.string.debug_active_device), isActiveDevice)
             }
 
             item {
-                PreferenceHeader("Playback")
+                PreferenceHeader(stringResource(R.string.common_playback))
 
-                Availability("Playing", isPlaying)
-                Availability("Buffering", isBuffering)
-                Information("Current track", currentTrackName)
-                Information("Queue size", queueSize.toString())
+                Availability(stringResource(R.string.common_playing), isPlaying)
+                Availability(stringResource(R.string.debug_buffering), isBuffering)
+                Information(stringResource(R.string.debug_current_track), currentTrackName)
+                Information(stringResource(R.string.debug_queue_size), queueSize.toString())
             }
 
             item {
-                PreferenceHeader("Preferences")
+                PreferenceHeader(stringResource(R.string.section_preferences))
 
                 preferences.forEach { (key, value) ->
                     Information(key, value)
@@ -143,33 +145,33 @@ fun DebugScreen(
             }
 
             item {
-                PreferenceHeader("Exceptions (${exceptions.size})")
+                PreferenceHeader(stringResource(R.string.section_exceptions, exceptions.size))
 
                 if (exceptions.isEmpty()) {
-                    Information("No exceptions", null)
+                    Information(stringResource(R.string.debug_no_exceptions), null)
                 } else {
                     exceptions.reversed().forEachIndexed { i, ex ->
                         Information("#${exceptions.size - i} ${ex.timestamp}", ex.message)
-                        Information("Thread", ex.threadName)
+                        Information(stringResource(R.string.debug_thread), ex.threadName)
                     }
                 }
             }
 
             item {
-                PreferenceHeader("System")
+                PreferenceHeader(stringResource(R.string.section_system))
 
                 val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1048576
                 val maxMemory = runtime.maxMemory() / 1048576
 
-                Information("Used memory (MB)", usedMemory.toString())
-                Information("Max memory (MB)", maxMemory.toString())
+                Information(stringResource(R.string.debug_used_memory), usedMemory.toString())
+                Information(stringResource(R.string.debug_max_memory), maxMemory.toString())
 
-                Information("PSS (KB)", memoryInfo.totalPss.toString())
-                Information("Private dirty (KB)", memoryInfo.totalPrivateDirty.toString())
-                Information("Shared Dirty (KB)", memoryInfo.totalSharedDirty.toString())
+                Information(stringResource(R.string.debug_pss), memoryInfo.totalPss.toString())
+                Information(stringResource(R.string.debug_private_dirty), memoryInfo.totalPrivateDirty.toString())
+                Information(stringResource(R.string.debug_shared_dirty), memoryInfo.totalSharedDirty.toString())
 
-                Information("Thread count", threadCount.toString())
-                Information("CPU time (ns)", cpuTimeNanos.toString())
+                Information(stringResource(R.string.debug_thread_count), threadCount.toString())
+                Information(stringResource(R.string.debug_cpu_time), cpuTimeNanos.toString())
             }
 
             item {
@@ -197,7 +199,7 @@ private fun Availability(text: String, available: Boolean, modifier: Modifier = 
 
         Icon(
             imageVector = if (available) Icons.Default.CheckCircle else Icons.Outlined.Cancel,
-            contentDescription = if (available) "Available" else "Unavailable",
+            contentDescription = if (available) stringResource(R.string.state_available) else stringResource(R.string.state_unavailable),
             tint = if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error.copy(
                 alpha = 0.7f
             ),

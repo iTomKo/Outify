@@ -4,6 +4,7 @@ import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
+import cc.tomko.outify.R
 import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.spirc.SpircWrapper
@@ -33,10 +34,10 @@ class LikedTileService : TileService() {
     override fun onClick() {
         super.onClick()
 
-        qsTile.label = "Play liked tracks"
+        qsTile.label = getString(R.string.common_play_liked_tracks)
         qsTile.state = Tile.STATE_UNAVAILABLE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            qsTile.subtitle = "Loading..."
+            qsTile.subtitle = getString(R.string.common_loading)
         }
         qsTile.updateTile()
 
@@ -46,7 +47,7 @@ class LikedTileService : TileService() {
             }
             qsTile.state = if (success) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                qsTile.subtitle = if (success) "Playing ♫" else "Error"
+                qsTile.subtitle = if (success) getString(R.string.tile_playing) else getString(R.string.common_error)
             }
             if (!success) {
                 Log.w("LikedTileService", "shuffleLoad returned false")
@@ -57,13 +58,13 @@ class LikedTileService : TileService() {
 
     override fun onStartListening() {
         super.onStartListening()
-        qsTile.label = "Play liked tracks"
+        qsTile.label = getString(R.string.common_play_liked_tracks)
         qsTile.state = if (spircWrapper.isUsable) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             qsTile.subtitle = if (authManager.hasCachedCredentials())
-                "${likedRepository.likedCountState.value} songs"
+                getString(R.string.count_songs, likedRepository.likedCountState.value)
             else
-                "Login first"
+                getString(R.string.tile_login_first)
         }
         qsTile.updateTile()
     }

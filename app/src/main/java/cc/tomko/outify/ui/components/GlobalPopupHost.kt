@@ -14,9 +14,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
@@ -214,7 +216,9 @@ fun GlobalPopupHost(
             is PopupSpec.AuthResult -> {
                 AuthResultBottomSheet(
                     isSuccess = popup.isSuccess,
-                    message = popup.message,
+                    message = popup.message ?: stringResource(
+                        if (popup.isSuccess) R.string.toast_login_success else R.string.toast_login_failed
+                    ),
                     errorDetails = popup.errorDetails,
                     onDismiss = {
                         GlobalPopupController.dismiss(popup.id)

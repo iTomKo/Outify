@@ -13,6 +13,7 @@ import androidx.media3.common.audio.AudioFocusManager
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
@@ -45,7 +46,7 @@ import kotlin.time.toDuration
 @Singleton
 @UnstableApi
 class Player @Inject constructor(
-    application: Application,
+    private val application: Application,
     val stateHolder: PlaybackStateHolder,
     val spirc: SpircWrapper,
     val json: Json,
@@ -264,7 +265,7 @@ class Player @Inject constructor(
 
         val subtitle = audio.artists?.joinToString { it.name }
             ?: audio.showName
-            ?: "Unknown source"
+            ?: application.getString(R.string.player_unknown_source)
 
         val mediaMetadata = MediaMetadata.Builder()
             .setTitle(audio.name)

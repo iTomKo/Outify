@@ -36,10 +36,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Track
@@ -228,7 +230,7 @@ private fun TrackSelectionRow(
             if (artworkUrl.isNotBlank()) {
                 SmartImage(
                     url = artworkUrl,
-                    contentDescription = "Artwork",
+                    contentDescription = stringResource(R.string.common_artwork),
                     modifier = Modifier.fillMaxSize(),
                     monochrome = LocalUiSettings.current.monochromeTracks
                 )
@@ -280,7 +282,7 @@ private fun TrackSelectionRow(
 
         if (isAlreadyInPlaylist && !showCheckbox) {
             Text(
-                text = "In playlist",
+                text = stringResource(R.string.in_playlist),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

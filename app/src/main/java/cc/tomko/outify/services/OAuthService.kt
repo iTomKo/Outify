@@ -25,8 +25,8 @@ class OAuthService : Service() {
 
         fun createNotification(context: Context): Notification {
             return NotificationCompat.Builder(context, CHANNEL_ID)
-                .setContentTitle("Logging in...")
-                .setContentText("Please complete authentication in the browser")
+                .setContentTitle(context.getString(R.string.notif_logging_in))
+                .setContentText(context.getString(R.string.notif_oauth_complete))
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -46,10 +46,10 @@ class OAuthService : Service() {
         super.onCreate()
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Authentication",
+            getString(R.string.notif_oauth_channel),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Keeps authentication running"
+            description = getString(R.string.notif_oauth_channel_desc)
         }
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)

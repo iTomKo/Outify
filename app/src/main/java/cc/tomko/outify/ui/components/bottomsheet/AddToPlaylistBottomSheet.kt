@@ -45,10 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Track
@@ -117,13 +119,13 @@ fun AddToPlaylistBottomSheet(
                 // Action buttons
                 if (tracks.size == 1) {
                     Text(
-                        text = "Your Playlists",
+                        text = stringResource(R.string.queue_your_playlists),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                 } else {
                     Text(
-                        text = "${tracks.size} tracks",
+                        text = stringResource(R.string.count_tracks, tracks.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -201,7 +203,7 @@ fun TrackInfoHeader(tracks: List<Track>) {
                     }
                     SmartImage(
                         url = artworkUrl,
-                        contentDescription = "Artwork",
+                        contentDescription = stringResource(R.string.common_artwork),
                         modifier = Modifier.fillMaxSize(),
                         monochrome = LocalUiSettings.current.monochromeTracks
                     )
@@ -267,7 +269,7 @@ fun TrackInfoHeader(tracks: List<Track>) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "${tracks.size} tracks selected",
+                text = stringResource(R.string.queue_tracks_selected, tracks.size),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -355,11 +357,11 @@ private fun PlaylistItem(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Add,
-                                contentDescription = "Add",
+                                contentDescription = stringResource(R.string.common_add),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.common_add), style = MaterialTheme.typography.labelMedium)
                         }
                     } else {
                         Button(
@@ -372,11 +374,11 @@ private fun PlaylistItem(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Remove,
-                                contentDescription = "Remove",
+                                contentDescription = stringResource(R.string.common_remove),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Remove", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.common_remove), style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }

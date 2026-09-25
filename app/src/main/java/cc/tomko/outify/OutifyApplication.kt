@@ -66,7 +66,7 @@ class OutifyApplication : Application() {
         }
 
         if (!libraryLoaded) {
-            Toast.makeText(this, "Failed to load librespot!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_librespot_failed), Toast.LENGTH_LONG).show()
         }
 
         val spotifySecret = BuildConfig.SPOTIFY_CLIENT_SECRET
@@ -75,7 +75,7 @@ class OutifyApplication : Application() {
         if (spotifySecret.isEmpty() || spotifyId.isEmpty()) {
             Toast.makeText(
                 this,
-                "No Spotify credentials were supplied during build",
+                getString(R.string.toast_no_creds),
                 Toast.LENGTH_LONG
             ).show()
             throw Exception("No Spotify credentials were supplied during build! spotify.playback.clientId is${if (spotifyId.isEmpty()) "" else " not"} empty; spotify.playback.clientSecret is${if (spotifySecret.isEmpty()) "" else " not"} empty")

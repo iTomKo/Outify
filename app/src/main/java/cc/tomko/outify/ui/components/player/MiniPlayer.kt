@@ -53,11 +53,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.data.setting.LocalUiSettings
@@ -186,7 +188,7 @@ fun MiniPlayer(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ExpandLess,
-                        contentDescription = "Expand",
+                        contentDescription = stringResource(R.string.common_expand),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -224,7 +226,7 @@ fun MiniPlayer(
                     ) {
                         SmartImage(
                             url = artworkUrl,
-                            contentDescription = "Artwork",
+                            contentDescription = stringResource(R.string.common_artwork),
                             modifier = Modifier
                                 .fillMaxSize(),
                             monochrome = LocalUiSettings.current.monochromePlayer
@@ -246,7 +248,7 @@ fun MiniPlayer(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = currentAudio?.name ?: "Nothing playing",
+                        text = currentAudio?.name ?: stringResource(R.string.player_nothing_playing),
                         style = MaterialTheme.typography.bodyLargeEmphasized,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -257,7 +259,7 @@ fun MiniPlayer(
 
                     val subtitle = currentAudio?.artists?.joinToString { it.name }
                         ?: currentAudio?.showName
-                        ?: "Unknown source"
+                        ?: stringResource(R.string.player_unknown_source)
 
                     Text(
                         text = buildString {
@@ -297,7 +299,7 @@ fun MiniPlayer(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = "See queue",
+                            contentDescription = stringResource(R.string.common_see_queue),
                             modifier = Modifier.size(20.dp),
                         )
                     }

@@ -1,11 +1,13 @@
 package cc.tomko.outify.ui.viewmodel
 
+import android.app.Application
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Queue
 import androidx.compose.material.icons.filled.Radio
 import androidx.compose.material3.Icon
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import cc.tomko.outify.R
 import cc.tomko.outify.core.EpisodeDetails
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
@@ -40,13 +42,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
+    application: Application,
     private val playbackStateHolder: PlaybackStateHolder,
     private val spirc: SpircWrapper,
     private val settingsRepository: SettingsRepository,
     private val spClient: SpClient,
     private val likedRepository: LikedRepository,
     private val json: Json,
-) : ViewModel() {
+) : AndroidViewModel(application) {
     val swipeSettings: Flow<List<GestureSetting>> =
         settingsRepository.interfaceSettings.map { it.gestureSettings }
 
@@ -104,9 +107,10 @@ class MainViewModel @Inject constructor(
 
     fun addToQueue(uri: String) {
         spirc.addToQueue(uri)
+        val message = getApplication<Application>().getString(R.string.toast_added_to_queue)
         InAppNotificationController.show(
-            "Added to queue",
-            { Icon(Icons.Default.Queue, contentDescription = "Added to queue") },
+            message,
+            { Icon(Icons.Default.Queue, contentDescription = message) },
             1000L
         )
     }
@@ -115,9 +119,10 @@ class MainViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             spirc.playNext(uri)
         }
+        val message = getApplication<Application>().getString(R.string.toast_inserted_to_queue)
         InAppNotificationController.show(
-            "Inserted to queue",
-            { Icon(Icons.Default.Queue, contentDescription = "Inserted to queue") },
+            message,
+            { Icon(Icons.Default.Queue, contentDescription = message) },
             1000L
         )
     }
@@ -127,9 +132,10 @@ class MainViewModel @Inject constructor(
             spirc.startRadio(track.toSpotifyUri(), false)
         }
         playbackStateHolder.setAudio(track.toPlayableAudio())
+        val message = getApplication<Application>().getString(R.string.toast_radio_started)
         InAppNotificationController.show(
-            "Radio started",
-            { Icon(Icons.Default.Radio, contentDescription = "Radio started") },
+            message,
+            { Icon(Icons.Default.Radio, contentDescription = message) },
             1000L
         )
     }

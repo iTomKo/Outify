@@ -32,8 +32,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.core.model.toColor
 import kotlinx.coroutines.launch
@@ -86,7 +88,7 @@ fun MoveToFolderBottomSheet(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Text(
-                    text = "Move to folder",
+                    text = stringResource(R.string.folder_move),
                     style = MaterialTheme.typography.headlineMediumEmphasized,
                     fontWeight = FontWeight.Black,
                 )
@@ -119,7 +121,7 @@ fun MoveToFolderBottomSheet(
                         )
                         Spacer(modifier = Modifier.width(16.dp))
                         Text(
-                            text = "No folder (unorganized)",
+                            text = stringResource(R.string.folder_no_folder),
                             style = MaterialTheme.typography.bodyLarge,
                         )
                         if (currentFolderId == null) {

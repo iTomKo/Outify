@@ -59,9 +59,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Album
 import cc.tomko.outify.core.model.Artist
@@ -218,7 +220,7 @@ fun SharedTransitionScope.LikedScreen(
                         },
                         isLoading = false,
                         autoFocus = false,
-                        placeholderText = "Search liked",
+                        placeholderText = stringResource(R.string.search_liked_placeholder),
                         modifier = Modifier
                             .weight(1f)
                     )
@@ -227,7 +229,7 @@ fun SharedTransitionScope.LikedScreen(
                         onClick = { showFilterSheet = true },
                         modifier = Modifier.size(40.dp)
                     ) {
-                        Icon(Icons.Default.FilterAlt, contentDescription = "Filter and Sort")
+                        Icon(Icons.Default.FilterAlt, contentDescription = stringResource(R.string.common_filter_and_sort))
                     }
                 }
             }
@@ -296,13 +298,13 @@ fun SharedTransitionScope.LikedScreen(
             },
             titleContent = {
                 Text(
-                    text = "Your liked tracks",
+                    text = stringResource(R.string.library_liked_tracks),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold
                 )
 
                 Text(
-                    text = "Account • $totalCount songs",
+                    text = stringResource(R.string.account_song_count, totalCount),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -341,7 +343,7 @@ fun SharedTransitionScope.LikedScreen(
                 ) {
                     Icon(
                         Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Scroll to top"
+                        contentDescription = stringResource(R.string.common_scroll_to_top)
                     )
                 }
             }
@@ -391,7 +393,7 @@ private fun SyncProgressBanner(
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Syncing tracks...",
+                    text = stringResource(R.string.library_syncing_tracks),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )

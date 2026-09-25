@@ -50,7 +50,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import cc.tomko.outify.R
 
 @Composable
 fun PreferenceEntry(
@@ -424,7 +426,7 @@ fun ColorPreferenceEntry(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Choose color",
+                    text = stringResource(R.string.common_choose_color),
                     style = MaterialTheme.typography.titleLarge
                 )
 
@@ -438,7 +440,7 @@ fun ColorPreferenceEntry(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = { showPicker = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.common_cancel))
                     }
 
                     Spacer(Modifier.width(8.dp))
@@ -449,7 +451,7 @@ fun ColorPreferenceEntry(
                             showPicker = false
                         }
                     ) {
-                        Text("Done")
+                        Text(stringResource(R.string.common_done))
                     }
                 }
 

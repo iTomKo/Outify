@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.CoverSize
 import cc.tomko.outify.core.model.Show
 import cc.tomko.outify.core.model.ShowMediaType
@@ -113,7 +116,7 @@ fun ShowRow(
             ) {
                 SmartImage(
                     url = show.getCover(CoverSize.MEDIUM)?.uri?.let { ALBUM_COVER_URL + it },
-                    contentDescription = "Show artwork",
+                    contentDescription = stringResource(R.string.settings_show_artwork),
                     modifier = artworkModifier,
                     monochrome = LocalUiSettings.current.monochromeTracks
                 )
@@ -165,7 +168,7 @@ fun ShowRow(
 
                     val episodeCount = show.episodes.size
                     Text(
-                        text = " · $episodeCount ${if (episodeCount == 1) "episode" else "episodes"}",
+                        text = pluralStringResource(R.plurals.show_episode_count_plural, episodeCount, episodeCount),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodySmall,
@@ -183,7 +186,7 @@ fun ShowRow(
                 if (show.mediaType == ShowMediaType.VIDEO || show.mediaType == ShowMediaType.MIXED) {
                     Icon(
                         Icons.Default.Videocam,
-                        contentDescription = "Video episodes available"
+                        contentDescription = stringResource(R.string.library_video_episodes)
                     )
                 }
 

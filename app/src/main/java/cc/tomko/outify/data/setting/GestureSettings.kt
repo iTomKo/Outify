@@ -1,5 +1,6 @@
 package cc.tomko.outify.data.setting
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -15,7 +16,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import cc.tomko.outify.MyIcons
+import cc.tomko.outify.R
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.ui.components.rows.SwipeGesture
@@ -23,14 +26,15 @@ import kotlinx.serialization.Serializable
 
 // --- User-friendly display helpers ---
 
-fun GestureAction.getDisplayName(): String = when (this) {
-    GestureAction.ADD_TO_QUEUE -> "Add to queue"
-    GestureAction.PLAY_NEXT -> "Play next"
-    GestureAction.START_RADIO -> "Start radio"
-    GestureAction.ADD_TO_PLAYLIST -> "Add to playlist"
-    GestureAction.ADD_TO_FAVORITE -> "Add to favorites"
-    GestureAction.SHOW_TRACK_INFO -> "Show track info"
-    GestureAction.NONE -> "None"
+@StringRes
+fun GestureAction.getDisplayName(): Int = when (this) {
+    GestureAction.ADD_TO_QUEUE -> R.string.gesture_action_add_to_queue
+    GestureAction.PLAY_NEXT -> R.string.gesture_action_play_next
+    GestureAction.START_RADIO -> R.string.start_radio
+    GestureAction.ADD_TO_PLAYLIST -> R.string.gesture_action_add_to_playlist
+    GestureAction.ADD_TO_FAVORITE -> R.string.cd_add_to_favorites
+    GestureAction.SHOW_TRACK_INFO -> R.string.gesture_action_show_track_info
+    GestureAction.NONE -> R.string.gesture_action_none
 }
 
 @Composable
@@ -80,15 +84,17 @@ fun GestureAction.DisplayIcon(modifier: Modifier = Modifier) {
     }
 }
 
-fun GestureTrigger.getDisplayName(): String = when (this) {
-    GestureTrigger.SwipeStart -> "Threshold reached"
-    GestureTrigger.SwipeEnd -> "Swiped into"
-    GestureTrigger.LongPress -> "Long press"
+@StringRes
+fun GestureTrigger.getDisplayName(): Int = when (this) {
+    GestureTrigger.SwipeStart -> R.string.gesture_trigger_threshold
+    GestureTrigger.SwipeEnd -> R.string.gesture_trigger_swiped
+    GestureTrigger.LongPress -> R.string.gesture_trigger_long_press
 }
 
-fun Side.getDisplayName(): String = when (this) {
-    Side.Start -> "Right to left"
-    Side.End -> "Left to right"
+@StringRes
+fun Side.getDisplayName(): Int = when (this) {
+    Side.Start -> R.string.gesture_side_right_to_left
+    Side.End -> R.string.gesture_side_left_to_right
 }
 
 @Serializable
@@ -210,7 +216,7 @@ fun buildSwipeGesturesForTrack(
                 GestureAction.ADD_TO_FAVORITE -> {
                     Icon(
                         imageVector = if (isLiked) MyIcons.BrokenHeart else Icons.Default.Favorite,
-                        contentDescription = if (isLiked) "Remove from favorite" else "Add to favorite",
+                        contentDescription = if (isLiked) stringResource(R.string.cd_remove_from_favorite) else stringResource(R.string.cd_add_to_favorite),
                         modifier = Modifier.fillMaxSize(),
                         tint = Color.White,
                     )
@@ -379,7 +385,7 @@ fun buildSwipeGesturesForEpisode(
 
                     GestureAction.ADD_TO_FAVORITE -> Icon(
                         imageVector = if (isFavorited) MyIcons.BrokenHeart else Icons.Default.Favorite,
-                        contentDescription = if (isFavorited) "Remove from favorites" else "Add to favorites",
+                        contentDescription = if (isFavorited) stringResource(R.string.cd_remove_from_favorites) else stringResource(R.string.cd_add_to_favorites),
                         modifier = Modifier.fillMaxSize(),
                         tint = Color.White,
                     )

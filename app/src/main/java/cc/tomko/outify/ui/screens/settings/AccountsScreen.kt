@@ -43,11 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.PreferenceHeader
@@ -81,8 +83,8 @@ fun AccountsScreen(
 
     if (showPlaybackSheet) {
         AccountDetailBottomSheet(
-            title = "Playback login",
-            description = "This login is mandatory to allow for playback. It uses fake Spotify credentials to stream audio.",
+            title = stringResource(R.string.common_playback_login),
+            description = stringResource(R.string.settings_playback_login_desc),
             isLoggedIn = isPlaybackLoggedIn,
             onLogout = { viewModel.logoutPlayback() },
             onDismiss = { showPlaybackSheet = false }
@@ -91,8 +93,8 @@ fun AccountsScreen(
 
     if (showAccountSheet) {
         AccountDetailBottomSheet(
-            title = "Account login",
-            description = "This login allows for manipulation of your Spotify account: liking tracks, creating playlists, accessing recommendations, and managing your library.",
+            title = stringResource(R.string.common_account_login),
+            description = stringResource(R.string.settings_account_login_desc),
             isLoggedIn = isAccountLoggedIn,
             username = username,
             userImageUrl = userImageUrl,
@@ -104,10 +106,10 @@ fun AccountsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Accounts") },
+                title = { Text(stringResource(R.string.common_accounts)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 }
             )
@@ -164,14 +166,14 @@ fun AccountsScreen(
 
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "Spotify Premium required",
+                                    text = stringResource(R.string.onb_premium_required),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = "Outify only works with a Spotify Premium account. Tap to learn why.",
+                                    text = stringResource(R.string.onb_premium_learn),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                                 )
@@ -192,18 +194,18 @@ fun AccountsScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Why two logins?",
+                            text = stringResource(R.string.onb_why_two),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "Outify uses librespot to stream audio. librespot authenticates with Spotify's streaming protocol using anonymous credentials — it operates independently of your Spotify account and cannot access your personal data.",
+                            text = stringResource(R.string.onb_librespot_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Text(
-                            text = "Your Spotify account login is separate and handled via OAuth. It grants access to your library, playlists, and social features — but is not involved in audio streaming.",
+                            text = stringResource(R.string.onb_oauth_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -216,8 +218,8 @@ fun AccountsScreen(
                     modifier = modifier.fillMaxWidth(),
                 ) {
                     PreferenceEntry(
-                        title = { Text("Playback login") },
-                        description = "librespot · anonymous streaming credentials",
+                        title = { Text(stringResource(R.string.common_playback_login)) },
+                        description = stringResource(R.string.settings_librespot_creds),
                         icon = {
                             if (isPlaybackLoggedIn) {
                                 Icon(
@@ -264,12 +266,12 @@ fun AccountsScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Required for audio streaming.",
+                            text = stringResource(R.string.onb_required_streaming),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "Uses anonymous credentials embedded in librespot to authenticate with Spotify's streaming protocol. Not linked to your personal Spotify account.",
+                            text = stringResource(R.string.onb_anon_creds),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -309,7 +311,7 @@ fun AccountsScreen(
                                     ) {
                                         SmartImage(
                                             url = userImageUrl,
-                                            contentDescription = "Profile picture",
+                                            contentDescription = stringResource(R.string.common_profile_picture),
                                             modifier = Modifier.fillMaxSize(),
                                         )
                                     }
@@ -317,14 +319,14 @@ fun AccountsScreen(
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = username ?: "Account",
+                                        text = username ?: stringResource(R.string.common_account),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
                                     Text(
-                                        text = if (isPremium) "Logged in" else "Logged in (Free)",
+                                        text = if (isPremium) stringResource(R.string.common_logged_in) else stringResource(R.string.account_logged_in_free),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = if (isPremium) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                                     )
@@ -332,7 +334,7 @@ fun AccountsScreen(
 
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Logged in",
+                                    contentDescription = stringResource(R.string.common_logged_in),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -369,7 +371,7 @@ fun AccountsScreen(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Spotify Premium required for playback",
+                                        text = stringResource(R.string.settings_premium_playback),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.error,
                                     )
@@ -377,8 +379,8 @@ fun AccountsScreen(
                             }
                         } else {
                             PreferenceEntry(
-                                title = { Text("Account login") },
-                                description = "Your Spotify account · OAuth",
+                                title = { Text(stringResource(R.string.common_account_login)) },
+                                description = stringResource(R.string.settings_oauth_creds),
                                 icon = {
                                     Icon(
                                         Icons.AutoMirrored.Filled.Login,
@@ -414,7 +416,7 @@ fun AccountsScreen(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = "Your real Spotify account, connected via OAuth.",
+                                    text = stringResource(R.string.onb_real_account),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
@@ -436,7 +438,7 @@ fun AccountsScreen(
             }
 
             item {
-                PreferenceHeader("Feature availability")
+                PreferenceHeader(stringResource(R.string.section_feature_availability))
             }
 
             item {
@@ -450,7 +452,7 @@ fun AccountsScreen(
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
-                            text = "Features available based on your login status:",
+                            text = stringResource(R.string.onb_features_by_login),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -528,7 +530,7 @@ fun AccountsScreen(
                         Spacer(Modifier.height(12.dp))
 
                         Text(
-                            text = "Available scopes:",
+                            text = stringResource(R.string.onb_available_scopes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -585,7 +587,7 @@ private fun FeatureAvailability(
     ) {
         Icon(
             imageVector = if (available) Icons.Default.CheckCircle else Icons.Outlined.Cancel,
-            contentDescription = if (available) "Available" else "Unavailable",
+            contentDescription = if (available) stringResource(R.string.state_available) else stringResource(R.string.state_unavailable),
             tint = if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error.copy(
                 alpha = 0.7f
             ),

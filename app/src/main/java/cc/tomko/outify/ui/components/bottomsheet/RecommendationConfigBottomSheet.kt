@@ -1,5 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import cc.tomko.outify.R
+
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,7 +86,7 @@ fun RecommendationConfigBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tune Recommendations",
+                        text = stringResource(R.string.recommend_tune),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -106,14 +109,14 @@ fun RecommendationConfigBottomSheet(
                             )
                         },
                     ) {
-                        Text("Apply")
+                        Text(stringResource(R.string.common_apply))
                     }
                 }
             }
 
             item {
                 EmojiSlider(
-                    text = "Acousticness",
+                    text = stringResource(R.string.recommend_acousticness),
                     value = acousticness,
                     onValueChange = { acousticness = it },
                     minEmoji = "🎸",
@@ -123,7 +126,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Danceability",
+                    text = stringResource(R.string.recommend_danceability),
                     value = danceability,
                     onValueChange = { danceability = it },
                     minEmoji = "🕴️",
@@ -133,7 +136,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Energy",
+                    text = stringResource(R.string.recommend_energy),
                     value = energy,
                     onValueChange = { energy = it },
                     minEmoji = "🛌",
@@ -143,7 +146,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Instrumentalness",
+                    text = stringResource(R.string.recommend_instrumentalness),
                     value = instrumentalness,
                     onValueChange = { instrumentalness = it },
                     minEmoji = "🎤",
@@ -153,7 +156,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Liveness",
+                    text = stringResource(R.string.recommend_liveness),
                     value = liveness,
                     onValueChange = { liveness = it },
                     minEmoji = "🎛️",
@@ -163,7 +166,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Loudness",
+                    text = stringResource(R.string.recommend_loudness),
                     value = loudness,
                     onValueChange = { loudness = it },
                     minEmoji = "🤫",
@@ -174,7 +177,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Speechiness",
+                    text = stringResource(R.string.recommend_speechiness),
                     value = speechiness,
                     onValueChange = { speechiness = it },
                     minEmoji = "🎶",
@@ -184,7 +187,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Tempo",
+                    text = stringResource(R.string.recommend_tempo),
                     value = tempo,
                     onValueChange = { tempo = it },
                     minEmoji = "🐢",
@@ -195,7 +198,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Valence (Mood)",
+                    text = stringResource(R.string.recommend_valence),
                     value = valence,
                     onValueChange = { valence = it },
                     minEmoji = "😭",
@@ -205,7 +208,7 @@ fun RecommendationConfigBottomSheet(
 
             item {
                 EmojiSlider(
-                    text = "Feature Weight",
+                    text = stringResource(R.string.recommend_feature_weight),
                     value = featureWeight,
                     onValueChange = { featureWeight = it },
                     minEmoji = "🍃",
