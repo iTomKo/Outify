@@ -63,6 +63,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.fabBottomPadding
 import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Album
@@ -338,7 +339,7 @@ fun SharedTransitionScope.LikedScreen(
                     shape = CircleShape,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(end = 16.dp, bottom = fabBottomPadding(currentAudio != null))
                         .size(40.dp)
                 ) {
                     Icon(

@@ -12,6 +12,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -82,6 +83,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.fabBottomPadding
 import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.EpisodeDetails
@@ -177,7 +179,8 @@ fun SharedTransitionScope.SearchScreen(
         LazyColumn(
             state = listState,
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 120.dp)
         ) {
             if (!showSearchUi) {
                 item {
@@ -847,7 +850,7 @@ fun SharedTransitionScope.SearchScreen(
                     shape = CircleShape,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .padding(16.dp)
+                        .padding(end = 16.dp, bottom = fabBottomPadding(currentTrack != null))
                         .size(40.dp)
                 ) {
                     Icon(

@@ -62,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import cc.tomko.outify.fabBottomPadding
 import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Artist
@@ -412,7 +413,7 @@ fun SharedTransitionScope.PlaylistScreen(
                             shape = CircleShape,
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             modifier = Modifier
-                                .padding(16.dp)
+                                .padding(end = 16.dp, bottom = fabBottomPadding(currentTrack != null))
                                 .size(40.dp)
                         ) {
                             Icon(

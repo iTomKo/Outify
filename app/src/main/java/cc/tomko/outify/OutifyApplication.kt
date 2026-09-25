@@ -25,6 +25,9 @@ const val ALBUM_COVER_URL: String = "https://i.scdn.co/image/"
 
 val ScreenBottomPadding = 48.dp;
 
+fun fabBottomPadding(isMediaPlaying: Boolean) =
+    if (isMediaPlaying) 160.dp else 60.dp
+
 fun widgetMediaPreference(id: GlanceId) =
     stringPreferencesKey("widget_media_$id")
 

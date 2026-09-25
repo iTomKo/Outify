@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
+import cc.tomko.outify.fabBottomPadding
 import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.Playlist
@@ -116,6 +117,7 @@ fun SharedTransitionScope.LibraryScreen(
     modifier: Modifier = Modifier,
 ) {
     val libraryState by viewModel.libraryState.collectAsState()
+    val currentAudio by viewModel.currentAudio.collectAsState(initial = null)
 
     LaunchedEffect(Unit) { viewModel.loadPlaylistUris() }
 
@@ -510,7 +512,7 @@ fun SharedTransitionScope.LibraryScreen(
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(end = 16.dp, bottom = fabBottomPadding(currentAudio != null))
             ) {
                 AnimatedVisibility(
                     visible = showScrollToTop,

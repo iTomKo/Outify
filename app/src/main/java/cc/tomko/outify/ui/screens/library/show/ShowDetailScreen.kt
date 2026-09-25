@@ -59,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import cc.tomko.outify.ALBUM_COVER_URL
+import cc.tomko.outify.fabBottomPadding
 import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.ConsumptionOrder
@@ -304,7 +305,7 @@ fun SharedTransitionScope.ShowDetailScreen(
                             shape = CircleShape,
                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
                             modifier = Modifier
-                                .padding(16.dp)
+                                .padding(end = 16.dp, bottom = fabBottomPadding(currentAudio != null))
                                 .size(40.dp)
                         ) {
                             Icon(
