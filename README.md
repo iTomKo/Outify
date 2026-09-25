@@ -35,6 +35,7 @@
 
   [![GitHub License](https://img.shields.io/github/license/iTomKo/Outify?style=for-the-badge&label=%20)](https://www.gnu.org/licenses/gpl-3.0)
   [![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/iTomKo/Outify?style=for-the-badge)](https://github.com/iTomKo/Outify/issues)
+  [![Weblate project translated](https://img.shields.io/weblate/progress/outify?server=https%3A%2F%2Ftranslate.codeberg.org&style=for-the-badge)](https://translate.codeberg.org/engage/outify/)
 </div>
 
 ### Information
