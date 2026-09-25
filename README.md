@@ -90,6 +90,10 @@ Contact us through Github:
 
 [View entire gallery](./docs/images/)
 
+### Translation
+We use Weblate to translate *Outify*. For more details or to submit translations, visit our [Weblate page](https://translate.codeberg.org/engage/outify/).
+[![Translation status](https://translate.codeberg.org/widget/outify/multi-auto.svg)](https://translate.codeberg.org/engage/outify/)
+
 ### Attribution
 [librespot-org/librespot](https://github.com/librespot-org/librespot) for providing the required backend
 
