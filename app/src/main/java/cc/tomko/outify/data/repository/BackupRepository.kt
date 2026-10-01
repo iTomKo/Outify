@@ -59,6 +59,7 @@ data class BackupPreferences(
     val gesturesJson: String? = null,
     val alwaysShowLyrics: Boolean? = null,
     val romanizeLyrics: Boolean? = null,
+    val lyricsFallbackEnabled: Boolean? = null,
     val dynamicTheme: Boolean? = null,
     val dynamicSystem: Boolean? = null,
     val accentColor: Long? = null,
@@ -119,6 +120,7 @@ class BackupRepository @Inject constructor(
                 gesturesJson = prefs[SettingsRepository.Keys.Gesture.GESTURES],
                 alwaysShowLyrics = prefs[SettingsRepository.Keys.Lyrics.SHOW_LYRICS_ALWAYS],
                 romanizeLyrics = prefs[SettingsRepository.Keys.Lyrics.ROMANIZE_LYRICS],
+                lyricsFallbackEnabled = prefs[SettingsRepository.Keys.Lyrics.FALLBACK_ENABLED],
                 dynamicTheme = prefs[SettingsRepository.Keys.Interface.DYNAMIC_THEME],
                 dynamicSystem = prefs[SettingsRepository.Keys.Interface.DYNAMIC_SYSTEM],
                 accentColor = prefs[SettingsRepository.Keys.Interface.ACCENT_COLOR],
@@ -191,6 +193,9 @@ class BackupRepository @Inject constructor(
             }
             prefs.romanizeLyrics?.let {
                 data[SettingsRepository.Keys.Lyrics.ROMANIZE_LYRICS] = it
+            }
+            prefs.lyricsFallbackEnabled?.let {
+                data[SettingsRepository.Keys.Lyrics.FALLBACK_ENABLED] = it
             }
             prefs.dynamicTheme?.let { data[SettingsRepository.Keys.Interface.DYNAMIC_THEME] = it }
             prefs.dynamicSystem?.let { data[SettingsRepository.Keys.Interface.DYNAMIC_SYSTEM] = it }
