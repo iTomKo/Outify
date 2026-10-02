@@ -362,7 +362,7 @@
     <string name="settings_normalize_desc">Every track will be the same loudness</string>
     <string name="settings_gapless_desc">Smooth playback without gaps</string>
     <string name="settings_crossfade_desc">Length of fading and overlap in between tracks</string>
-    <string name="settings_restart_spirc_desc">Required to apply playback related settings</string>
+    <string name="settings_restart_spirc_desc">Required to apply playback related settings. Full app restart is advised</string>
     <string name="settings_resurrect_desc">Allow resurrection from notification</string>
     <string name="settings_romanize_desc">Show romanized text beneath original lyrics</string>
     <string name="settings_lyrics_fallback_desc">When Spotify has no lyrics, look for synced lyrics on lrclib.net. Sends the track title, artist, album and duration to LRCLIB.</string>
