@@ -68,6 +68,7 @@ class SettingsRepository @Inject constructor(
              */
             val SHOW_LYRICS_ALWAYS = booleanPreferencesKey("always_show_lyrics")
             val ROMANIZE_LYRICS = booleanPreferencesKey("romanize_lyrics")
+            val FALLBACK_ENABLED = booleanPreferencesKey("lyrics_fallback_enabled")
         }
 
         object Interface {
@@ -285,6 +286,10 @@ class SettingsRepository @Inject constructor(
         it[Keys.Lyrics.ROMANIZE_LYRICS] ?: false
     }
 
+    val lyricsFallbackEnabled: Flow<Boolean> = dataStore.data.map {
+        it[Keys.Lyrics.FALLBACK_ENABLED] ?: false
+    }
+
     val lastTrackUri = dataStore.data.map { it[Keys.Playback.LAST_TRACK_URI] }
     val lastContextUri = dataStore.data.map { it[Keys.Playback.LAST_CONTEXT_URI] }
     val lastPositionMs = dataStore.data.map { it[Keys.Playback.LAST_POSITION_MS]?.toLongOrNull() }
@@ -424,6 +429,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setRomanizeLyrics(enabled: Boolean) {
         dataStore.edit { it[Keys.Lyrics.ROMANIZE_LYRICS] = enabled }
+    }
+
+    suspend fun setLyricsFallbackEnabled(enabled: Boolean) {
+        dataStore.edit { it[Keys.Lyrics.FALLBACK_ENABLED] = enabled }
     }
 
     suspend fun removeUserProfile() {

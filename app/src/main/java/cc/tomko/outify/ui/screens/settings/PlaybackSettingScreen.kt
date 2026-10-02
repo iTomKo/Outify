@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeDown
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Healing
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Translate
@@ -71,6 +72,7 @@ fun PlaybackSettingScreen(
     val settings by viewModel.settings.collectAsState(initial = PlaybackSettings.Default)
     val restartNeeded by viewModel.needsRestart.collectAsState()
     val romanizeLyrics by viewModel.romanizeLyrics.collectAsState(initial = false)
+    val lyricsFallbackEnabled by viewModel.lyricsFallbackEnabled.collectAsState(initial = false)
     val savedClientId by viewModel.clientId.collectAsState(initial = null)
     val savedClientSecret by viewModel.clientSecret.collectAsState(initial = null)
 
@@ -272,13 +274,23 @@ fun PlaybackSettingScreen(
                 ElevatedCard(
                     modifier = modifier.fillMaxWidth()
                 ) {
-                    SwitchPreferenceEntry(
-                        title = { Text(stringResource(R.string.settings_romanize)) },
-                        description = stringResource(R.string.settings_romanize_desc),
-                        icon = { Icon(Icons.Default.Translate, contentDescription = null) },
-                        onCheckedChange = { viewModel.setRomanizeLyrics(it) },
-                        isChecked = romanizeLyrics
-                    )
+                    Column {
+                        SwitchPreferenceEntry(
+                            title = { Text(stringResource(R.string.settings_romanize)) },
+                            description = stringResource(R.string.settings_romanize_desc),
+                            icon = { Icon(Icons.Default.Translate, contentDescription = null) },
+                            onCheckedChange = { viewModel.setRomanizeLyrics(it) },
+                            isChecked = romanizeLyrics
+                        )
+
+                        SwitchPreferenceEntry(
+                            title = { Text(stringResource(R.string.settings_lyrics_fallback)) },
+                            description = stringResource(R.string.settings_lyrics_fallback_desc),
+                            icon = { Icon(Icons.Default.Lyrics, contentDescription = null) },
+                            onCheckedChange = { viewModel.setLyricsFallbackEnabled(it) },
+                            isChecked = lyricsFallbackEnabled
+                        )
+                    }
                 }
             }
 

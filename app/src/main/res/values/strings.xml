@@ -365,6 +365,7 @@
     <string name="settings_restart_spirc_desc">Required to apply playback related settings</string>
     <string name="settings_resurrect_desc">Allow resurrection from notification</string>
     <string name="settings_romanize_desc">Show romanized text beneath original lyrics</string>
+    <string name="settings_lyrics_fallback_desc">When Spotify has no lyrics, look for synced lyrics on lrclib.net. Sends the track title, artist, album and duration to LRCLIB.</string>
     <string name="settings_connect_desc">Make Outify the active device to stream from</string>
     <string name="settings_playback_login_desc">This login is mandatory to allow for playback. It uses fake Spotify credentials to stream audio.</string>
     <string name="settings_account_login_desc">This login allows for manipulation of your Spotify account: liking tracks, creating playlists, accessing recommendations, and managing your library.</string>
@@ -376,6 +377,7 @@
     <string name="settings_keepalive">Keepalive</string>
     <string name="settings_auto_transfer">Auto transfer</string>
     <string name="settings_romanize">Romanize lyrics</string>
+    <string name="settings_lyrics_fallback">Fallback lyrics from LRCLIB</string>
     <string name="settings_advanced">Advanced settings</string>
     <string name="settings_restart_spirc">Restart Spirc</string>
     <string name="settings_bitrate">Bitrate (Quality)</string>
