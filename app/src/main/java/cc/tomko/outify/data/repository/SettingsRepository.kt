@@ -22,6 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
@@ -501,9 +502,8 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    val searchHistory: Flow<List<SearchHistoryItem>> = dataStore.data.map { prefs ->
-        decodeSearchHistory(prefs[Keys.Search.SEARCH_HISTORY])
-    }
+    val searchHistory: Flow<List<SearchHistoryItem>> = dataStore.data.map { prefs -> decodeSearchHistory(prefs[Keys.Search.SEARCH_HISTORY]) }
+        .distinctUntilChanged()
 
     suspend fun addSearchHistoryItems(items: List<SearchHistoryItem>) {
         dataStore.edit { prefs ->
