@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -43,6 +44,7 @@ fun SmartImage(
     imageSize: Dp? = null,
     contentDescription: String? = null,
     shape: Shape = RoundedCornerShape(6.dp),
+    alignment: Alignment = Alignment.Center,
 
     monochrome: Boolean? = null,
 ) {
@@ -76,6 +78,7 @@ fun SmartImage(
                 .fillMaxSize()
                 .clip(shape),
             contentScale = ContentScale.Crop,
+            alignment = alignment,
             colorFilter = colorFilter
         )
     }
