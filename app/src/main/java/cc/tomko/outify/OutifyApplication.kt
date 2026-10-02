@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.database.AppDatabase
+import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
 import cc.tomko.outify.ui.viewmodel.detail.setDetailViewModelStore
 import cc.tomko.outify.utils.ExceptionCollector
@@ -18,6 +19,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -47,6 +49,9 @@ class OutifyApplication : Application() {
     lateinit var detailViewModelStore: DetailViewModelStore
 
     @Inject
+    lateinit var settingsRepository: SettingsRepository
+
+    @Inject
     lateinit var exceptionCollector: ExceptionCollector
 
     @UnstableApi
@@ -72,19 +77,20 @@ class OutifyApplication : Application() {
             Toast.makeText(this, getString(R.string.toast_librespot_failed), Toast.LENGTH_LONG).show()
         }
 
-        val spotifySecret = BuildConfig.SPOTIFY_CLIENT_SECRET
-        val spotifyId = BuildConfig.SPOTIFY_CLIENT_ID
-
-        if (spotifySecret.isEmpty() || spotifyId.isEmpty()) {
-            Toast.makeText(
-                this,
-                getString(R.string.toast_no_creds),
-                Toast.LENGTH_LONG
-            ).show()
-            throw Exception("No Spotify credentials were supplied during build! spotify.playback.clientId is${if (spotifyId.isEmpty()) "" else " not"} empty; spotify.playback.clientSecret is${if (spotifySecret.isEmpty()) "" else " not"} empty")
-        }
-
         appScope.launch {
+            val spotifyId = settingsRepository.clientId.firstOrNull() ?: BuildConfig.SPOTIFY_CLIENT_ID
+            val spotifySecret = settingsRepository.clientSecret.firstOrNull() ?: BuildConfig.SPOTIFY_CLIENT_ID
+
+            if (spotifySecret.isEmpty() || spotifyId.isEmpty()) {
+                Toast.makeText(
+                    this@OutifyApplication,
+                    getString(R.string.toast_no_creds),
+                    Toast.LENGTH_LONG
+                ).show()
+                
+                return@launch
+            }
+
             LibrespotFfi.libInit(applicationContext, spotifyId, spotifySecret)
 
             spircController.start()
