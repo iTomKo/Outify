@@ -25,7 +25,7 @@ import javax.inject.Inject
 
 const val ALBUM_COVER_URL: String = "https://i.scdn.co/image/"
 
-val ScreenBottomPadding = 48.dp;
+val ScreenBottomPadding = 160.dp;
 
 fun fabBottomPadding(isMediaPlaying: Boolean) =
     if (isMediaPlaying) 160.dp else 60.dp

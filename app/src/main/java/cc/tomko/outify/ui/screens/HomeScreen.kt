@@ -537,5 +537,9 @@ private fun SkeletonArtistRow() {
                 ) {}
             }
         }
+
+        item {
+            Spacer(Modifier.height(ScreenBottomPadding))
+        }
     }
 }
