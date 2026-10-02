@@ -1,11 +1,16 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
+import androidx.compose.animation.AnimatedVisibility
 import cc.tomko.outify.R
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
@@ -31,6 +36,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import cc.tomko.outify.core.model.LyricLine
 import cc.tomko.outify.ui.components.WavyMusicSlider
 import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
+import cc.tomko.outify.utils.RomanizationUtil
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +92,7 @@ fun LyricsBottomSheet(
     val displayedTrack by viewModel.displayedTrack.collectAsState()
     val isEpisode by viewModel.isEpisode.collectAsState()
     val hasSyncedContent by viewModel.hasSyncedContent.collectAsState()
+    val shouldRomanize by viewModel.shouldRomanize.collectAsState()
 
     val showPlaybackControls = hasSyncedContent && isCurrentTrack
 
@@ -214,6 +222,31 @@ fun LyricsBottomSheet(
                                 )
                             }
                         }
+
+                        val tabBgColor by animateColorAsState(
+                            targetValue = if (shouldRomanize) activeTabColor else inactiveTabColor,
+                            label = "tabBg"
+                        )
+                        val tabTextColor by animateColorAsState(
+                            targetValue = if (shouldRomanize) onActiveTabColor else onInactiveTabColor,
+                            label = "tabText"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .weight(0.5f)
+                                .height(48.dp)
+                                .clip(CircleShape)
+                                .background(tabBgColor)
+                                .clickable { viewModel.setRomanize(!shouldRomanize) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Translate,
+                                contentDescription = null,
+                                tint = tabTextColor
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -243,7 +276,8 @@ fun LyricsBottomSheet(
                         isSynced = isSynced,
                         activeLineColor = activeLineColor,
                         inactiveTextColor = inactiveTextColor,
-                        onLineClick = if (showPlaybackControls) onSeekToTimestamp else { _ -> }
+                        onLineClick = if (showPlaybackControls) onSeekToTimestamp else { _ -> },
+                        romanize = shouldRomanize
                     )
                 }
             }
@@ -375,7 +409,8 @@ private fun LyricsList(
     isSynced: Boolean,
     activeLineColor: Color,
     inactiveTextColor: Color,
-    onLineClick: (Long) -> Unit
+    onLineClick: (Long) -> Unit,
+    romanize: Boolean,
 ) {
     val listState = rememberLazyListState()
 
@@ -434,14 +469,13 @@ private fun LyricsList(
                 mutableStateOf(if (isActive) FontWeight.Bold else FontWeight.Medium)
             }
 
-            Text(
-                text = line.text,
-                style = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = fontWeight,
-                    fontSize = 22.sp // always measured at the largest size
-                ),
-                color = textColor,
-                textAlign = TextAlign.Start,
+            val romanizedText = remember(line.text, romanize) {
+                if(romanize) {
+                    RomanizationUtil.romanize(line.text)
+                } else null
+            }
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onLineClick(line.timestampMs) }
@@ -449,8 +483,54 @@ private fun LyricsList(
                         scaleX = scale
                         scaleY = scale
                         transformOrigin = TransformOrigin(0f, 0.5f)
-                    }
-            )
+                    },
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = line.text,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = fontWeight,
+                        fontSize = 22.sp,
+                        lineHeight = 27.sp
+                    ),
+                    color = textColor,
+                    textAlign = TextAlign.Start,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val isRomanized = romanizedText != null && romanizedText != line.text
+
+                AnimatedVisibility(
+                    visible = isRomanized,
+                    enter = fadeIn(
+                        animationSpec = tween(250)
+                    ) + expandVertically(
+                        animationSpec = tween(
+                            durationMillis = 250,
+                            easing = FastOutSlowInEasing
+                        )
+                    ),
+                    exit = fadeOut(
+                        animationSpec = tween(200)
+                    ) + shrinkVertically(
+                        animationSpec = tween(
+                            durationMillis = 200,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                ) {
+                    Text(
+                        text = romanizedText ?: "",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                            fontSize = 17.sp
+                        ),
+                        color = textColor,
+                        textAlign = TextAlign.Start,
+                    )
+                }
+
+            }
         }
     }
 }

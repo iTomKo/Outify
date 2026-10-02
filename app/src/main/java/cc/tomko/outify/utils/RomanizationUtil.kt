@@ -1,6 +1,7 @@
 package cc.tomko.outify.utils
 
 import android.icu.text.Transliterator
+import android.os.Build
 
 object RomanizationUtil {
     private val transliterator by lazy {
@@ -12,6 +13,10 @@ object RomanizationUtil {
             c.isLetter() && Character.UnicodeScript.of(c.code) != Character.UnicodeScript.LATIN
         }
         if (!hasNonLatin) return text
-        return transliterator.transliterate(text)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            transliterator.transliterate(text)
+        } else {
+            text
+        }
     }
 }
