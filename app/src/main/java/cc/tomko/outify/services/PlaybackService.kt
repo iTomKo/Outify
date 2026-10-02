@@ -129,7 +129,6 @@ class PlaybackService : MediaLibraryService(),
     private lateinit var audioManager: AudioManager
     private var hasAudioFocus = false
     private var mediaLibrarySession: MediaLibrarySession? = null
-    private var keepAlive: Boolean = true
     private val binder = MusicBinder()
 
     private val becomingNoisyListener = object : BroadcastReceiver() {
@@ -207,10 +206,6 @@ class PlaybackService : MediaLibraryService(),
                 .collect { _ ->
                     updateNotification()
                 }
-
-            settings.keepalive.collect {
-                keepAlive = it
-            }
         }
 
         registerReceiver(
