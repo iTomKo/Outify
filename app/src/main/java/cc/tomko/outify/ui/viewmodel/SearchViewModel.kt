@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -101,8 +102,13 @@ class SearchViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _historyResults = MutableStateFlow<List<SearchUiModel>>(emptyList())
-    val historyResults: StateFlow<List<SearchUiModel>> = _historyResults
+    val historyResults: StateFlow<List<SearchUiModel>> = searchHistory
+        .mapLatest { items -> resolveHistoryItems(items) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList()
+        )
 
     private val authorsCache = mutableMapOf<String, List<Profile>>()
     private val _authors = MutableStateFlow<Map<String, Profile>>(emptyMap())
@@ -218,62 +224,104 @@ class SearchViewModel @Inject constructor(
                     }
                 }
         }
+    }
 
-        viewModelScope.launch {
-            settingsRepository.searchHistory.collect { items ->
-                if (items.isEmpty()) {
-                    _historyResults.value = emptyList()
-                    return@collect
-                }
-                val results = withContext(Dispatchers.IO) {
-                    items.mapNotNull { item ->
-                        try {
-                            when (item.type) {
-                                SearchResultType.TRACK -> {
-                                    val tracks = metadata.getTrackMetadata(listOf(item.uri))
-                                    tracks.firstOrNull()?.let { track ->
-                                        SearchUiModel.TrackItem(item.uri, track)
-                                    }
-                                }
+    /**
+     * Resolves [items] into display models, preserving history order.
+     */
+    private suspend fun resolveHistoryItems(
+        items: List<SearchHistoryItem>
+    ): List<SearchUiModel> = coroutineScope {
+        if (items.isEmpty()) return@coroutineScope emptyList()
 
-                                SearchResultType.ARTIST -> {
-                                    val artist = metadata.getArtistMetadata(item.uri)
-                                    artist?.let { SearchUiModel.ArtistItem(item.uri, it) }
-                                }
+        val urisByType = items.groupBy { it.type }
 
-                                SearchResultType.ALBUM -> {
-                                    val album = metadata.getAlbumMetadata(item.uri)
-                                    album?.let { SearchUiModel.AlbumItem(item.uri, it) }
-                                }
-
-                                SearchResultType.PLAYLIST -> {
-                                    val playlist = metadata.getPlaylistMetadata(item.uri, true)
-                                    playlist?.let { SearchUiModel.PlaylistItem(item.uri, it) }
-                                }
-
-                                SearchResultType.SHOW -> {
-                                    val show = metadata.getShowMetadata(item.uri)
-                                    show?.let { SearchUiModel.ShowItem(item.uri, it) }
-                                }
-
-                                SearchResultType.EPISODE -> {
-                                    val episode = metadata.getEpisodeMetadata(item.uri)
-                                    episode?.let { SearchUiModel.EpisodeItem(item.uri, it) }
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.w(
-                                "SearchViewModel",
-                                "Failed to load history metadata for ${item.uri}",
-                                e
-                            )
-                            null
-                        }
-                    }
-                }
-                _historyResults.value = results
+        val trackModels = async(Dispatchers.IO) {
+            loadTrackHistoryModels(urisByType[SearchResultType.TRACK].orEmpty().map { it.uri })
+        }
+        val episodeModels = async(Dispatchers.IO) {
+            loadEpisodeHistoryModels(urisByType[SearchResultType.EPISODE].orEmpty().map { it.uri })
+        }
+        val artistModels = async(Dispatchers.IO) {
+            loadHistoryByType(urisByType, SearchResultType.ARTIST) { uri ->
+                metadata.getArtistMetadata(uri)?.let { SearchUiModel.ArtistItem(uri, it) }
             }
         }
+        val albumModels = async(Dispatchers.IO) {
+            loadHistoryByType(urisByType, SearchResultType.ALBUM) { uri ->
+                metadata.getAlbumMetadata(uri)?.let { SearchUiModel.AlbumItem(uri, it) }
+            }
+        }
+        val playlistModels = async(Dispatchers.IO) {
+            loadHistoryByType(urisByType, SearchResultType.PLAYLIST) { uri ->
+                metadata.getPlaylistMetadata(uri, true)?.let { SearchUiModel.PlaylistItem(uri, it) }
+            }
+        }
+        val showModels = async(Dispatchers.IO) {
+            loadHistoryByType(urisByType, SearchResultType.SHOW) { uri ->
+                metadata.getShowMetadata(uri)?.let { SearchUiModel.ShowItem(uri, it) }
+            }
+        }
+
+        val modelsByUri = buildMap<String, SearchUiModel> {
+            putAll(trackModels.await())
+            putAll(episodeModels.await())
+            putAll(artistModels.await())
+            putAll(albumModels.await())
+            putAll(playlistModels.await())
+            putAll(showModels.await())
+        }
+
+        items.mapNotNull { modelsByUri[it.uri] }
+    }
+
+    private suspend fun loadTrackHistoryModels(uris: List<String>): Map<String, SearchUiModel> {
+        if (uris.isEmpty()) return emptyMap()
+
+        val tracks = runCatching { metadata.getTrackMetadata(uris) }
+            .onFailure { Log.w("SearchViewModel", "Failed to load history tracks", it) }
+            .getOrDefault(emptyList())
+
+        return tracks.associate { track ->
+            val model: SearchUiModel = SearchUiModel.TrackItem(track.uri, track)
+            track.uri to model
+        }
+    }
+
+    private suspend fun loadEpisodeHistoryModels(uris: List<String>): Map<String, SearchUiModel> {
+        if (uris.isEmpty()) return emptyMap()
+
+        val episodes = runCatching { metadata.getEpisodeMetadata(uris) }
+            .onFailure { Log.w("SearchViewModel", "Failed to load history episodes", it) }
+            .getOrDefault(emptyList())
+
+        return episodes.associate { episode ->
+            val model: SearchUiModel = SearchUiModel.EpisodeItem(episode.uri, episode)
+            episode.uri to model
+        }
+    }
+
+    /**
+     * Resolves every history entry of [type] concurrently. Each failure is logged and dropped
+     */
+    private suspend fun loadHistoryByType(
+        urisByType: Map<SearchResultType, List<SearchHistoryItem>>,
+        type: SearchResultType,
+        load: suspend (String) -> SearchUiModel?
+    ): Map<String, SearchUiModel> = coroutineScope {
+        urisByType[type].orEmpty().map { item ->
+            async(Dispatchers.IO) {
+                item.uri to runCatching { load(item.uri) }
+                    .onFailure {
+                        Log.w(
+                            "SearchViewModel",
+                            "Failed to load history $type for ${item.uri}",
+                            it
+                        )
+                    }
+                    .getOrNull()
+            }
+        }.awaitAll().mapNotNull { (uri, model) -> model?.let { uri to it } }.toMap()
     }
 
     private suspend fun searchSection(
