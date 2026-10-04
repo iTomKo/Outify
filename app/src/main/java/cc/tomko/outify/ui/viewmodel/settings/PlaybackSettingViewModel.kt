@@ -25,6 +25,11 @@ class PlaybackSettingViewModel @Inject constructor(
     private val _needsRestart = MutableStateFlow(false)
     val needsRestart: StateFlow<Boolean> = _needsRestart
 
+    private val _isRestarting = MutableStateFlow(false)
+
+    /** `true` while a restart triggered from this screen is still running. */
+    val isRestarting: StateFlow<Boolean> = _isRestarting
+
     val settings: Flow<PlaybackSettings> =
         settingsRepository.playbackSettings
 
@@ -120,14 +125,29 @@ class PlaybackSettingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Rebuilds the spirc runtime so changed playback settings take effect.
+     *
+     * Waits for the runtime to come back so the button cannot be reported as
+     * done while the rebuild is still running.
+     */
     fun restartSpirc() {
+        if (_isRestarting.value) return
+
         viewModelScope.launch {
             val id = settingsRepository.clientId.firstOrNull() ?: BuildConfig.SPOTIFY_CLIENT_ID
             val secret = settingsRepository.clientSecret.first() ?: BuildConfig.SPOTIFY_CLIENT_SECRET
 
-            LibrespotFfi.updateClientCredentials(id, secret)
-            spirc.restart()
-            _needsRestart.value = false
+            _isRestarting.value = true
+            try {
+                LibrespotFfi.updateClientCredentials(id, secret)
+
+                if (spirc.restartAndAwaitReady("settings")) {
+                    _needsRestart.value = false
+                }
+            } finally {
+                _isRestarting.value = false
+            }
         }
     }
 }

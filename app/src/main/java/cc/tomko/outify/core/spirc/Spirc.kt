@@ -67,6 +67,23 @@ object Spirc {
     external fun shutdown()
 
     /**
+     * Rebuilds the Connect runtime, applying the given playback settings.
+     * @param reason short description used for logging
+     * @param autoTransfer whether playback may be transferred back to this device
+     * @return `true` if the restart was accepted
+     */
+    @JvmStatic
+    external fun requestRestart(
+        reason: String,
+        gapless: Boolean,
+        normalisation: Boolean,
+        bitrateSpeed: Int = Bitrate.KBPS320.getSpeed(),
+        crossfadeMillis: Int = 5_000,
+        deviceName: String = "Outify",
+        autoTransfer: Boolean = true,
+    ): Boolean
+
+    /**
      * Unregisters the buffer callback, freeing its JNI GlobalRef
      */
     @JvmStatic

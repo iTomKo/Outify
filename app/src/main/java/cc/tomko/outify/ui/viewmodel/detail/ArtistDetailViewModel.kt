@@ -9,6 +9,7 @@ import cc.tomko.outify.core.model.Artist
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
@@ -53,6 +54,7 @@ class ArtistDetailViewModel @Inject constructor(
     private val spClient: SpClient,
     private val playbackStateHolder: PlaybackStateHolder,
     val spirc: SpircWrapper,
+    private val spircController: SpircController,
     val likedDao: LikedDao,
     private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -199,7 +201,7 @@ class ArtistDetailViewModel @Inject constructor(
     fun retry() {
         val uri = _lastArtistUri ?: return
         viewModelScope.launch {
-            spirc.restart()
+            spircController.restartAndAwaitReady("artist retry")
             _uiState.value = ArtistUiState.Loading
             loadArtist(uri)
         }

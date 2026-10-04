@@ -11,6 +11,7 @@ import cc.tomko.outify.core.model.Playlist
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
@@ -39,6 +40,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val metadata: Metadata,
     private val playbackStateHolder: PlaybackStateHolder,
     val spirc: SpircWrapper,
+    private val spircController: SpircController,
     val userProfile: UserProfile,
     val likedDao: LikedDao,
     val spClient: SpClient,
@@ -151,7 +153,7 @@ class PlaylistDetailViewModel @Inject constructor(
         val uri = savedStateHandle.get<String>(PLAYLIST_URI_KEY)
         if (uri != null) {
             viewModelScope.launch {
-                spirc.restart()
+                spircController.restartAndAwaitReady("playlist retry")
                 loadPlaylist(uri, true)
             }
         }

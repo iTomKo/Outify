@@ -1,4 +1,7 @@
-use std::{sync::{Arc, Mutex}, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use jni::{
     JNIEnv,
@@ -12,8 +15,11 @@ use once_cell::sync::OnceCell;
 use serde::Serialize;
 
 use crate::{
-    jni_utils::jni_bridge::{JavaCallback, dispatch},
-    outifyuri::OutifyUri,
+    jni_utils::{
+        guard,
+        jni_bridge::{JavaCallback, dispatch},
+    },
+    outifyuri::{OutifyUri, UsernameCache, resolve_uri},
     spirc::{SpircError, with_spirc},
 };
 
@@ -50,63 +56,146 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
     crossfade: jint,
     device_name: JString,
 ) -> jboolean {
-    info!("initializing spirc");
+    guard("Spirc.initializeSpirc", 0, || {
+        info!("initializing spirc");
 
-    let rt = match crate::TOKIO_RUNTIME.get() {
-        Some(rt) => rt,
-        None => {
-            error!("tokio runtime not available for initialize_spirc");
+        let rt = match crate::TOKIO_RUNTIME.get() {
+            Some(rt) => rt,
+            None => {
+                error!("tokio runtime not available for initialize_spirc");
+                return 0;
+            }
+        };
+
+        let handle = rt.handle().clone();
+
+        let global_callback = match JavaCallback::register(
+            &mut env,
+            callback,
+            &[("initialized", "()V"), ("failed", "()V")],
+        ) {
+            Ok(c) => c,
+            Err(e) => {
+                error!("jni register failed for spirc callback: {e}");
+                return 0;
+            }
+        };
+
+        let name: String = match env.get_string(&device_name) {
+            Ok(s) => s.into(),
+            Err(e) => {
+                error!("jni get_string failed for device_name: {e}");
+                return 0;
+            }
+        };
+
+        let bitrate = match bitrate {
+            320 => Bitrate::Bitrate320,
+            160 => Bitrate::Bitrate160,
+            96 => Bitrate::Bitrate96,
+            _ => Bitrate::Bitrate320,
+        };
+
+        let crossfade = Duration::from_millis(crossfade as u64);
+
+        crate::spirc::store_settings(name, gapless != 0, normalisation != 0, bitrate, crossfade);
+
+        handle.spawn(async move {
+            // Startup path only. Later restarts go through `request_restart`.
+            match crate::spirc::start_runtime().await {
+                Ok(()) => {
+                    // `initialized` lets Kotlin register its playback callbacks
+                    // before it publishes readiness, so no command is accepted
+                    // before the callbacks are in place.
+                    crate::spirc::set_state(crate::spirc::SpircState::Ready);
+                    dispatch(global_callback, 0, vec![])
+                }
+                Err(e) => {
+                    error!("spirc startup failed: {e}");
+                    crate::spirc::set_state(crate::spirc::SpircState::Failed);
+                    dispatch(global_callback, 1, vec![])
+                }
+            }
+        });
+
+        1
+    })
+}
+
+/// Records new playback settings and rebuilds the session and Connect runtime.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_requestRestart(
+    mut env: JNIEnv,
+    _this: JClass,
+    reason: JString,
+    gapless: jboolean,
+    normalisation: jboolean,
+    bitrate: jint,
+    crossfade: jint,
+    device_name: JString,
+    auto_transfer: jboolean,
+) -> jboolean {
+    guard("Spirc.requestRestart", 0, || {
+        let reason: String = if reason.is_null() {
+            "unspecified".to_string()
+        } else {
+            match env.get_string(&reason) {
+                Ok(s) => s.into(),
+                Err(e) => {
+                    warn!("jni get_string failed for restart reason: {e}");
+                    "unspecified".to_string()
+                }
+            }
+        };
+
+        let name: String = match env.get_string(&device_name) {
+            Ok(s) => s.into(),
+            Err(e) => {
+                warn!("jni get_string failed for restart device name: {e}");
+                "Outify".to_string()
+            }
+        };
+
+        let bitrate = match bitrate {
+            320 => Bitrate::Bitrate320,
+            160 => Bitrate::Bitrate160,
+            96 => Bitrate::Bitrate96,
+            _ => Bitrate::Bitrate320,
+        };
+
+        // Settings are recorded before the rebuild starts, so the new runtime is
+        // built with exactly what the user just asked for.
+        crate::spirc::store_settings(
+            name,
+            gapless != 0,
+            normalisation != 0,
+            bitrate,
+            Duration::from_millis(crossfade.max(0) as u64),
+        );
+        crate::spirc::set_auto_transfer(auto_transfer != 0);
+
+        let Some(rt) = crate::TOKIO_RUNTIME.get() else {
+            error!("tokio runtime not available for restart");
             return 0;
-        }
-    };
+        };
 
-    let handle = rt.handle().clone();
+        rt.handle().spawn(async move {
+            // `rebuild_all` publishes every state transition itself.
+            if let Err(e) = crate::spirc::request_restart(&reason).await {
+                error!("restart request failed: {e}");
+            }
+        });
 
-    let global_callback = match JavaCallback::register(
-        &mut env,
-        callback,
-        &[("initialized", "()V"), ("failed", "()V")],
-    ) {
-        Ok(c) => c,
-        Err(e) => {
-            error!("jni register failed for spirc callback: {e}");
-            return 0;
-        }
-    };
-
-    let name: String = match env.get_string(&device_name) {
-        Ok(s) => s.into(),
-        Err(e) => {
-            error!("jni get_string failed for device_name: {e}");
-            return 0;
-        }
-    };
-
-    let bitrate = match bitrate {
-        320 => Bitrate::Bitrate320,
-        160 => Bitrate::Bitrate160,
-        96 => Bitrate::Bitrate96,
-        _ => Bitrate::Bitrate320,
-    };
-
-    let crossfade = Duration::from_millis(crossfade as u64);
-
-    handle.spawn(async move {
-        let result =
-            crate::spirc::initialize_spirc(name, gapless != 0, normalisation != 0, bitrate, crossfade).await;
-
-        match result {
-            Ok(_) => dispatch(global_callback, 0, vec![]),
-            Err(_) => dispatch(global_callback, 1, vec![]),
-        }
-    });
-
-    1
+        1
+    })
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_shutdown")]
 pub extern "system" fn shutdown(_env: JNIEnv, _this: JClass) {
-    crate::spirc::shutdown()
+    guard("Spirc.shutdown", (), || {
+        crate::spirc::set_state(crate::spirc::SpircState::Stopped);
+        crate::spirc::shutdown()
+    });
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_unregisterBufferCallback")]
@@ -130,8 +219,11 @@ pub extern "system" fn set_buffer_callback(
     _this: JClass,
     callback: JObject,
 ) -> jboolean {
-    let cb = match JavaCallback::register(&mut env, callback, &[("started", "()V"), ("stopped", "()V")])
-    {
+    let cb = match JavaCallback::register(
+        &mut env,
+        callback,
+        &[("started", "()V"), ("stopped", "()V")],
+    ) {
         Ok(c) => c,
         Err(e) => {
             error!("jni register failed for buffer callback: {e}");
@@ -181,43 +273,47 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_load(
     juri: JString,
     jplaying_track: JString,
 ) -> jboolean {
-    let uri = match resolve_uri_or_collection(&mut env, juri) {
-        Ok(u) => u,
-        Err(()) => return 0 as jboolean,
-    };
+    guard("Spirc.load", 0, || {
+        let uri = match resolve_uri_or_collection(&mut env, juri) {
+            Ok(u) => u,
+            Err(()) => return 0 as jboolean,
+        };
 
-    let playing_track = match jstring_to_option(&mut env, jplaying_track) {
-        Ok(opt) => opt.map(PlayingTrack::Uri),
-        Err(()) => return 0 as jboolean,
-    };
+        let playing_track = match jstring_to_option(&mut env, jplaying_track) {
+            Ok(opt) => opt.map(PlayingTrack::Uri),
+            Err(()) => return 0 as jboolean,
+        };
 
-    let options = LoadRequestOptions {
-        start_playing: true,
-        playing_track,
-        ..Default::default()
-    };
+        let options = LoadRequestOptions {
+            start_playing: true,
+            playing_track,
+            ..Default::default()
+        };
 
-    call_spirc_load(uri, options)
+        call_spirc_load(uri, options)
+    })
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_shuffleLoad")]
 pub extern "system" fn shuffle_load(mut env: JNIEnv, _this: JClass, juri: JString) -> jboolean {
-    let uri = match resolve_uri_or_collection(&mut env, juri) {
-        Ok(u) => u,
-        Err(()) => return 0 as jboolean,
-    };
+    guard("Spirc.shuffleLoad", 0, || {
+        let uri = match resolve_uri_or_collection(&mut env, juri) {
+            Ok(u) => u,
+            Err(()) => return 0 as jboolean,
+        };
 
-    let options = LoadRequestOptions {
-        start_playing: true,
-        context_options: Some(LoadContextOptions::Options(librespot_connect::Options {
-            shuffle: true,
-            repeat: true,
-            repeat_track: false,
-        })),
-        ..Default::default()
-    };
+        let options = LoadRequestOptions {
+            start_playing: true,
+            context_options: Some(LoadContextOptions::Options(librespot_connect::Options {
+                shuffle: true,
+                repeat: true,
+                repeat_track: false,
+            })),
+            ..Default::default()
+        };
 
-    call_spirc_load(uri, options)
+        call_spirc_load(uri, options)
+    })
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_localLoad")]
@@ -260,7 +356,10 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_addToQueue(
     };
 
     let outify_uri = OutifyUri::from_uri(&uri);
-    let uri_string = outify_uri.to_uri();
+    let uri_string = match resolve_uri(&outify_uri, &UsernameCache::new()) {
+        Ok(uri) => uri,
+        Err(()) => return 0,
+    };
 
     let spotify_uri = match SpotifyUri::from_uri(uri_string.as_str()) {
         Ok(uri) => uri,
@@ -299,6 +398,10 @@ pub extern "system" fn set_queue(
 
     let mut uris: Vec<SpotifyUri> = Vec::with_capacity(len as usize);
 
+    // Resolved lazily: a queue of plain Spotify uris keeps working even while
+    // the session is unavailable.
+    let username = UsernameCache::new();
+
     for i in 0..len {
         let obj = match env.get_object_array_element(&tracks_array, i) {
             Ok(o) => o,
@@ -310,7 +413,10 @@ pub extern "system" fn set_queue(
             Err(_) => return 0,
         };
         let outify_uri = OutifyUri::from_uri(&uri);
-        let uri_string = outify_uri.to_uri();
+        let uri_string = match resolve_uri(&outify_uri, &username) {
+            Ok(uri) => uri,
+            Err(()) => return 0,
+        };
         match SpotifyUri::from_uri(&uri_string) {
             Ok(s) => uris.push(s),
             Err(e) => {
@@ -327,7 +433,9 @@ pub extern "system" fn set_queue(
             Ok(j) => {
                 let uri: String = j.into();
                 let outify_uri = OutifyUri::from_uri(&uri);
-                Some(PlayingTrack::Uri(outify_uri.to_uri()))
+                resolve_uri(&outify_uri, &username)
+                    .ok()
+                    .map(PlayingTrack::Uri)
             }
             Err(e) => {
                 error!("jni get_string failed for set_queue playing_track: {e}");
@@ -666,24 +774,24 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_nextTracks(
     }
 }
 
-// Resolves passed in JString or fallbacks to users collection
+/// Resolves a passed-in JString to a Spotify URI
 fn resolve_uri_or_collection(env: &mut JNIEnv, juri: JString) -> Result<String, ()> {
-    if juri.is_null() {
-        let outify_uri = OutifyUri::Liked;
-        Ok(outify_uri.to_uri())
+    let outify_uri = if juri.is_null() {
+        OutifyUri::Liked
     } else {
         match env.get_string(&juri) {
             Ok(js) => {
                 let uri: String = js.into();
-                let outify_uri = OutifyUri::from_uri(&uri);
-                Ok(outify_uri.to_uri())
+                OutifyUri::from_uri(&uri)
             }
             Err(e) => {
                 warn!("jni get_string failed for resolve_uri: {e}");
-                Err(())
+                return Err(());
             }
         }
-    }
+    };
+
+    resolve_uri(&outify_uri, &UsernameCache::new())
 }
 
 // Optional JString
@@ -708,27 +816,13 @@ fn call_spirc_load(uri: String, options: LoadRequestOptions) -> jboolean {
             error!("with_spirc load failed: {e}");
             0 as jboolean
         }
-        Err(e) => match e {
-            SpircError::NotInitialized | SpircError::NotCreated => {
-                debug!("auto initializing spirc on load failure");
-                let rt = match crate::TOKIO_RUNTIME.get() {
-                    Some(rt) => rt,
-                    None => {
-                        error!("tokio runtime not available for auto_init on load: {e}");
-                        return 0;
-                    }
-                };
-                rt.spawn(async move {
-                    if let Err(e) = crate::spirc::auto_initialize_spirc().await {
-                        error!("auto_initialize_spirc failed: {e}");
-                    }
-                });
-                0
-            }
-            _ => {
-                error!("with_spirc session error for load: {e}");
-                0
-            }
-        },
+        Err(SpircError::NotInitialized | SpircError::NotCreated) => {
+            debug!("dropping load, spirc runtime is not available");
+            0 as jboolean
+        }
+        Err(e) => {
+            error!("with_spirc error for load: {e}");
+            0 as jboolean
+        }
     }
 }

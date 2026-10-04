@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.Profile
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
@@ -38,6 +39,7 @@ class ProfileDetailViewModel @Inject constructor(
     private val metadata: Metadata,
     private val playbackStateHolder: PlaybackStateHolder,
     val spirc: SpircWrapper,
+    private val spircController: SpircController,
     val spClient: SpClient,
     val json: Json,
     val likedDao: LikedDao,
@@ -52,7 +54,7 @@ class ProfileDetailViewModel @Inject constructor(
     fun retry() {
         val uri = _lastProfileUri ?: return
         viewModelScope.launch {
-            spirc.restart()
+            spircController.restartAndAwaitReady("profile retry")
             _uiState.value = ProfileUiState.Loading
             loadProfile(uri)
         }

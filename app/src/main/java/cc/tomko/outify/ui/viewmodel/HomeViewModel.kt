@@ -11,6 +11,7 @@ import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.metadata.NativeErrorHandler
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
@@ -79,6 +80,7 @@ class HomeViewModel @Inject constructor(
     private val json: Json,
     private val trackMetadataHelper: TrackMetadataHelper,
     private val spirc: SpircWrapper,
+    private val spircController: SpircController,
     private val playbackStateHolder: PlaybackStateHolder,
     private val userProfile: UserProfile,
     private val settingsRepository: SettingsRepository,
@@ -159,7 +161,7 @@ class HomeViewModel @Inject constructor(
     fun retry() {
         viewModelScope.launch {
             isRefreshing.value = true
-            spirc.restart()
+            spircController.restartAndAwaitReady("home retry")
             loadData()
             isRefreshing.value = false
         }

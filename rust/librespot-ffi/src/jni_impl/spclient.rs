@@ -8,7 +8,7 @@ use regex::Regex;
 
 use crate::{
     jni_utils::{optionable_string, throw_exception, vec_to_jstring_array},
-    outifyuri::OutifyUri,
+    outifyuri::{OutifyUri, UsernameCache},
     session::with_session,
     spotify::client::{SavedItemType, get_client},
     spotify::error::SpotifyApiError,
@@ -861,7 +861,10 @@ pub extern "system" fn get_radio_for_track(
     };
 
     let outify_uri = OutifyUri::from_uri(&track_uri_raw);
-    let uri_string = outify_uri.to_uri();
+    let uri_string = match crate::outifyuri::resolve_uri(&outify_uri, &UsernameCache::new()) {
+        Ok(uri) => uri,
+        Err(()) => return std::ptr::null_mut(),
+    };
 
     let track_uri = match SpotifyUri::from_uri(&uri_string.as_str()) {
         Ok(u) => u,

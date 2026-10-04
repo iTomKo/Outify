@@ -9,7 +9,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.spirc.SpircController
-import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
@@ -41,9 +40,6 @@ class OutifyApplication : Application() {
 
     @Inject
     lateinit var spircController: SpircController
-
-    @Inject
-    lateinit var spircWrapper: SpircWrapper
 
     @Inject
     lateinit var detailViewModelStore: DetailViewModelStore
@@ -94,7 +90,6 @@ class OutifyApplication : Application() {
             LibrespotFfi.libInit(applicationContext, spotifyId, spotifySecret)
 
             spircController.start()
-            spircWrapper.setRestartCallback { spircController.restart() }
         }
     }
 }

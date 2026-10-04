@@ -1,7 +1,10 @@
-use std::{sync::{
-    Arc, Mutex, RwLock,
-    atomic::{AtomicBool, AtomicU8, AtomicU32},
-}, time::Duration};
+use std::{
+    sync::{
+        Arc, Mutex, OnceLock, RwLock,
+        atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering},
+    },
+    time::Duration,
+};
 
 use librespot_connect::{
     ConnectConfig, LoadContextOptions, LoadRequest, LoadRequestOptions, Options, PlayingTrack,
@@ -34,6 +37,42 @@ pub enum SpircError {
     Other(String),
 }
 
+/// Lifecycle of the Connect runtime, mirrored into Kotlin so that callers can
+/// tell "not ready yet" apart from "broken".
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SpircState {
+    Stopped,
+    Starting,
+    Ready,
+    Rebuilding,
+    Failed,
+}
+
+impl SpircState {
+    fn from_u8(value: u8) -> Self {
+        match value {
+            1 => Self::Starting,
+            2 => Self::Ready,
+            3 => Self::Rebuilding,
+            4 => Self::Failed,
+            _ => Self::Stopped,
+        }
+    }
+
+    fn as_u8(self) -> u8 {
+        match self {
+            Self::Stopped => 0,
+            Self::Starting => 1,
+            Self::Ready => 2,
+            Self::Rebuilding => 3,
+            Self::Failed => 4,
+        }
+    }
+}
+
+/// `SpircState::Stopped.as_u8()`, usable in a `static` initializer.
+const STOPPED: u8 = 0;
+
 static SPIRC_RUNTIME: OnceCell<RwLock<Option<SpircRuntime>>> = OnceCell::new();
 static CURRENT_TRACK: OnceCell<Mutex<Option<String>>> = OnceCell::new();
 pub static BITRATE: OnceCell<Mutex<Bitrate>> = OnceCell::new();
@@ -42,12 +81,19 @@ pub static DEVICE_NAME: OnceCell<Mutex<String>> = OnceCell::new();
 pub static NORMALISE_AUDIO: AtomicBool = AtomicBool::new(false);
 pub static GAPLESS: AtomicBool = AtomicBool::new(false);
 pub static CROSSFADE: AtomicU32 = AtomicU32::new(0);
+static AUTO_TRANSFER: AtomicBool = AtomicBool::new(true);
 static CURRENT_CONTEXT: OnceCell<Mutex<Option<CurrentContext>>> = OnceCell::new();
 static IS_PLAYING: AtomicBool = AtomicBool::new(false);
 static IS_SHUFFLING: AtomicBool = AtomicBool::new(false);
 static REPEAT_MODE: AtomicU8 = AtomicU8::new(RepeatMode::Off as u8);
 static LAST_POSITION: AtomicU32 = AtomicU32::new(0);
 static IS_DEVICE_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+static STATE: AtomicU8 = AtomicU8::new(STOPPED);
+
+static RESTART_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
+
+static RESTART_PENDING: AtomicBool = AtomicBool::new(false);
 
 #[derive(Clone)]
 struct CurrentContext {
@@ -87,6 +133,24 @@ pub fn init_spirc_container() {
     CURRENT_CONTEXT.get_or_init(|| Mutex::new(None));
     BITRATE.get_or_init(|| Mutex::new(Bitrate::Bitrate320));
     DEVICE_NAME.get_or_init(|| Mutex::new("Outify".to_string()));
+    RESTART_LOCK.get_or_init(|| tokio::sync::Mutex::new(()));
+}
+
+/// Publishes a lifecycle transition. Kotlin mirrors this in its own state
+/// machine; the native value is the authoritative one for internal decisions.
+pub fn set_state(state: SpircState) {
+    let previous = STATE.swap(state.as_u8(), Ordering::AcqRel);
+    if previous != state.as_u8() {
+        debug!(
+            "spirc state: {:?} -> {:?}",
+            SpircState::from_u8(previous),
+            state
+        );
+    }
+}
+
+pub fn set_auto_transfer(enabled: bool) {
+    AUTO_TRANSFER.store(enabled, Ordering::Relaxed);
 }
 
 pub struct SpircRuntime {
@@ -159,12 +223,15 @@ impl SpircRuntime {
             info!("spirc runtime event receiver closed");
         });
 
-        GAPLESS.store(gapless, std::sync::atomic::Ordering::Relaxed);
-        NORMALISE_AUDIO.store(normalisation, std::sync::atomic::Ordering::Relaxed);
-        CROSSFADE.store(crossfade.as_millis() as u32, std::sync::atomic::Ordering::Relaxed);
+        GAPLESS.store(gapless, Ordering::Relaxed);
+        NORMALISE_AUDIO.store(normalisation, Ordering::Relaxed);
+        CROSSFADE.store(crossfade.as_millis() as u32, Ordering::Relaxed);
 
-        let bitrate_mutex = BITRATE.get().expect("BITRATE not initialized");
-        *bitrate_mutex.lock().unwrap() = bitrate;
+        if let Some(bitrate_mutex) = BITRATE.get()
+            && let Ok(mut guard) = bitrate_mutex.lock()
+        {
+            *guard = bitrate;
+        }
 
         info!(
             "spirc runtime initialized with bitrate {}, gapless {}, normalisation {}",
@@ -359,16 +426,6 @@ impl SpircRuntime {
             error!("resume after reconnect load failed: {e}");
         }
     }
-
-    pub fn cleanup(&self) {
-        self.shutdown();
-
-        let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
-        let mut guard = lock.write().unwrap();
-        if let Some(spirc) = guard.take() {
-            spirc.shutdown();
-        }
-    }
 }
 
 // Handles each player event accordingly
@@ -498,36 +555,68 @@ fn update_current_track(uri: SpotifyUri) {
     }
 }
 
-pub async fn auto_initialize_spirc() -> Result<(), SpircError> {
-    let gapless = GAPLESS.load(std::sync::atomic::Ordering::Relaxed);
-    let normalisation = NORMALISE_AUDIO.load(std::sync::atomic::Ordering::Relaxed);
-    let bitrate_mutex = BITRATE.get().expect("BITRATE not initialized");
-    let bitrate = *bitrate_mutex.lock().unwrap();
-    let crossfade = CROSSFADE.load(std::sync::atomic::Ordering::Relaxed);
-    let device_name = DEVICE_NAME
-        .get()
-        .map(|m| m.lock().unwrap().clone())
-        .unwrap_or("Outify".to_string());
-
-    initialize_spirc(device_name, gapless, normalisation, bitrate, Duration::from_millis(crossfade as u64)).await
-}
-
-pub async fn initialize_spirc(
+/// Playback-affecting settings currently applied to the runtime.
+struct RuntimeSettings {
     device_name: String,
     gapless: bool,
     normalisation: bool,
     bitrate: Bitrate,
     crossfade: Duration,
-) -> Result<(), SpircError> {
-    debug!("initializing spirc runtime");
+}
+
+fn current_settings() -> RuntimeSettings {
+    let bitrate = BITRATE
+        .get()
+        .and_then(|m| m.lock().ok())
+        .map(|b| *b)
+        .unwrap_or(Bitrate::Bitrate320);
+
+    RuntimeSettings {
+        device_name: DEVICE_NAME
+            .get()
+            .and_then(|m| m.lock().ok())
+            .map(|n| n.clone())
+            .unwrap_or_else(|| "Outify".to_string()),
+        gapless: GAPLESS.load(Ordering::Relaxed),
+        normalisation: NORMALISE_AUDIO.load(Ordering::Relaxed),
+        bitrate,
+        crossfade: Duration::from_millis(CROSSFADE.load(Ordering::Relaxed) as u64),
+    }
+}
+
+/// Records the requested playback settings so [`start_runtime`] can apply them.
+pub fn store_settings(
+    device_name: String,
+    gapless: bool,
+    normalisation: bool,
+    bitrate: Bitrate,
+    crossfade: Duration,
+) {
+    GAPLESS.store(gapless, Ordering::Relaxed);
+    NORMALISE_AUDIO.store(normalisation, Ordering::Relaxed);
+    CROSSFADE.store(crossfade.as_millis() as u32, Ordering::Relaxed);
+
+    if let Some(m) = BITRATE.get()
+        && let Ok(mut guard) = m.lock()
+    {
+        *guard = bitrate;
+    }
+    if let Some(m) = DEVICE_NAME.get()
+        && let Ok(mut guard) = m.lock()
+    {
+        *guard = device_name;
+    }
+}
+
+/// Builds the Connect runtime from the currently stored settings.
+pub async fn start_runtime() -> Result<(), SpircError> {
+    let settings = current_settings();
 
     let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
-
-    {
-        let read_guard = lock.read().unwrap();
-        if read_guard.is_some() {
-            warn!("spirc already initialized");
-        }
+    if lock.read().map(|g| g.is_some()).unwrap_or(true) {
+        return Err(SpircError::Other(
+            "spirc runtime slot is occupied".to_string(),
+        ));
     }
 
     let session = with_session(|s| s.clone()).map_err(|e| {
@@ -536,40 +625,118 @@ pub async fn initialize_spirc(
     })?;
 
     if session.cache().is_none() {
-        error!("session cache missing for spirc init");
         return Err(SpircError::Other(
             "session cache missing for spirc init".to_string(),
         ));
     }
 
-    let cache = session.cache().unwrap();
-    let credentials = cache.credentials().ok_or_else(|| {
-        error!("cached credentials missing for spirc init");
-        SpircError::Other("cached credentials missing for spirc init".to_string())
-    })?;
-
-    if let Some(name_mutex) = DEVICE_NAME.get() {
-        *name_mutex.lock().unwrap() = device_name.clone();
-    }
+    let credentials = session
+        .cache()
+        .and_then(|cache| cache.credentials())
+        .ok_or_else(|| {
+            SpircError::Other("cached credentials missing for spirc init".to_string())
+        })?;
 
     let runtime = SpircRuntime::new(
         &session,
         credentials,
-        device_name,
-        gapless,
-        normalisation,
-        bitrate,
-        crossfade,
+        settings.device_name,
+        settings.gapless,
+        settings.normalisation,
+        settings.bitrate,
+        settings.crossfade,
     )
     .await
     .map_err(|e| SpircError::Other(e.to_string()))?;
 
-    let mut guard = lock.write().unwrap();
+    let mut guard = lock
+        .write()
+        .map_err(|_| SpircError::Other("spirc lock poisoned".into()))?;
     *guard = Some(runtime);
+    drop(guard);
 
     debug!("spirc runtime initialized");
-
     Ok(())
+}
+
+/// Tears the Connect runtime down without touching the core session.
+pub fn teardown_runtime(reason: &str) {
+    let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
+
+    let taken = match lock.write() {
+        Ok(mut guard) => guard.take(),
+        Err(_) => {
+            error!("spirc lock poisoned, cannot tear down runtime");
+            return;
+        }
+    };
+
+    if let Some(runtime) = taken {
+        info!("tearing down spirc runtime ({reason})");
+        runtime.shutdown();
+    }
+}
+
+/// Requests a rebuild of the session and the Connect runtime.
+pub async fn request_restart(reason: &str) -> Result<(), String> {
+    RESTART_PENDING.store(true, Ordering::Release);
+
+    let lock = RESTART_LOCK.get_or_init(|| tokio::sync::Mutex::new(()));
+    let _guard = lock.lock().await;
+
+    let mut runs = 0;
+    let mut last_error = None;
+
+    while RESTART_PENDING.swap(false, Ordering::AcqRel) {
+        runs += 1;
+        if let Err(e) = crate::session::rebuild_all(reason).await {
+            last_error = Some(e);
+        }
+    }
+
+    if runs > 1 {
+        info!("coalesced restart requests into {runs} rebuilds");
+    }
+
+    match last_error {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
+}
+
+/// Re-establishes the Connect session and playback after a (re)build.
+pub fn reestablish_after_restart() {
+    let transferred = with_spirc(|spirc| {
+        let _ = spirc.activate();
+
+        if AUTO_TRANSFER.load(Ordering::Relaxed) {
+            match spirc.transfer() {
+                Ok(()) => {
+                    info!("transferred session after restart");
+                    true
+                }
+                Err(e) => {
+                    warn!("transfer after restart failed: {e}");
+                    false
+                }
+            }
+        } else {
+            info!("skipping transfer after restart, auto transfer disabled");
+            false
+        }
+    });
+
+    match transferred {
+        Ok(true) => {
+            let _ = with_spirc(|spirc| spirc.resume_playback());
+        }
+        Ok(false) => {
+            // Another device stayed active, so the server drives our state and
+            // reloading the queue here would fight it.
+            debug!("not restoring playback, session stayed with another device");
+        }
+        Err(e) => warn!("cannot inspect spirc runtime after restart: {e}"),
+    }
 }
 
 // Notifies UI of buffer state with given method
@@ -624,14 +791,7 @@ pub fn current_track() -> Option<String> {
 }
 
 pub fn shutdown() {
-    let _ = with_spirc(|spirc| {
-        spirc.shutdown();
-    });
-
-    let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
-    let mut guard = lock.write().unwrap();
-    *guard = None;
-
+    teardown_runtime("shutdown");
     info!("spirc runtime shut down");
 }
 
@@ -645,4 +805,29 @@ where
     let runtime = guard.as_ref().ok_or(SpircError::NotCreated)?;
 
     Ok(f(runtime))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_state_round_trips_through_its_encoding() {
+        let states = [
+            SpircState::Stopped,
+            SpircState::Starting,
+            SpircState::Ready,
+            SpircState::Rebuilding,
+            SpircState::Failed,
+        ];
+
+        for state in states {
+            assert_eq!(SpircState::from_u8(state.as_u8()), state);
+        }
+    }
+
+    #[test]
+    fn unknown_state_decodes_to_stopped() {
+        assert_eq!(SpircState::from_u8(200), SpircState::Stopped);
+    }
 }

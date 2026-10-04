@@ -10,6 +10,7 @@ import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.EpisodeDao
 import cc.tomko.outify.data.dao.LikedDao
@@ -41,6 +42,7 @@ class ShowDetailViewModel @Inject constructor(
     private val metadata: Metadata,
     private val playbackStateHolder: PlaybackStateHolder,
     val spirc: SpircWrapper,
+    private val spircController: SpircController,
     val spClient: SpClient,
     val json: Json,
     val likedDao: LikedDao,
@@ -121,7 +123,7 @@ class ShowDetailViewModel @Inject constructor(
     fun retry() {
         val uri = _lastShowUri ?: return
         viewModelScope.launch {
-            spirc.restart()
+            spircController.restartAndAwaitReady("show retry")
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             loadShow(uri)
         }

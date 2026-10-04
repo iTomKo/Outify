@@ -2,6 +2,7 @@ package cc.tomko.outify.core.spirc
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
@@ -18,6 +19,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -25,9 +29,10 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.concurrent.Volatile
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+
+private const val TAG = "SpircWrapper"
 
 @Serializable
 data class QueueTrackDto(
@@ -48,37 +53,25 @@ class SpircWrapper @Inject constructor(
         Dispatchers.Main.immediate + SupervisorJob()
     )
 
-    private var restartCallback: (() -> Unit)? = null
+    private val _isUsable = MutableStateFlow(false)
 
-    fun setRestartCallback(callback: () -> Unit) {
-        this.restartCallback = callback
-    }
+    /**
+     * Whether playback commands may be forwarded to the native runtime.
+     */
+    val isUsable: Boolean
+        get() = _isUsable.value
 
-    fun ensureUsable() {
-        if (!isUsable) {
-            scope.launch(Dispatchers.IO) {
-                restartCallback?.invoke()
-            }
-        }
-    }
+    val isUsableFlow: StateFlow<Boolean> = _isUsable.asStateFlow()
 
-    @Volatile
-    var isUsable = false
-        private set
-
-    fun setUsable(usable: Boolean) {
-        isUsable = usable
-    }
-
-    fun restart() {
-        setUsable(false)
-        scope.launch(Dispatchers.IO) {
-            restartCallback?.invoke()
-        }
+    /** Reflects a lifecycle state published by [SpircController]. */
+    fun onStateChanged(state: SpircState) {
+        _isUsable.value = state.isUsable
     }
 
     override fun shutdown() {
-        setUsable(false)
+        // Native teardown publishes no callback, so drop the gate here or the
+        // wrapper would keep reporting itself as usable.
+        _isUsable.value = false
         Spirc.shutdown()
     }
 
@@ -109,21 +102,18 @@ class SpircWrapper @Inject constructor(
     }
 
     @OptIn(UnstableApi::class)
-    fun startForegroundPlaybackService() {
+    private fun startForegroundPlaybackService() {
         val intent = Intent(context, PlaybackService::class.java)
         ContextCompat.startForegroundService(context, intent)
     }
 
-    private fun ensureServiceRunning() {
-        ensureUsable()
-        startPlaybackService()
-    }
+    /** Logs and rejects a command that arrived while the runtime is unavailable. */
+    private fun requireReady(command: String): Boolean {
+        if (isUsable) return true
 
-    private fun ensureForegroundServiceRunning() {
-        ensureUsable()
-        startForegroundPlaybackService()
+        Log.d(TAG, "dropping $command, spirc is not ready")
+        return false
     }
-
 
     /**
      * Loads a SpotifyURI
@@ -132,6 +122,8 @@ class SpircWrapper @Inject constructor(
      * @return `true` if loaded successfully
      */
     override fun load(context: OutifyUri?, playingTrackUri: OutifyUri?): Boolean {
+        if (!requireReady("load")) return false
+
         scope.launch {
             savedQueueRepository.setActiveQueueId(null)
 
@@ -143,21 +135,25 @@ class SpircWrapper @Inject constructor(
             )
         }
 
-        ensureForegroundServiceRunning()
+        startForegroundPlaybackService()
         return Spirc.load(context?.toUriString(), playingTrackUri?.toUriString())
     }
 
     override fun setQueue(uris: Array<String>, playingTrackUri: String?): Boolean {
-        ensureForegroundServiceRunning()
+        if (!requireReady("setQueue")) return false
+
+        startForegroundPlaybackService()
         return Spirc.setQueue(uris, playingTrackUri)
     }
 
     override fun localLoad(uri: String): Boolean {
+        if (!requireReady("localLoad")) return false
+
         scope.launch {
             savedQueueRepository.setActiveQueueId(null)
         }
 
-        ensureForegroundServiceRunning()
+        startForegroundPlaybackService()
         return Spirc.localLoad(uri)
     }
 
@@ -171,6 +167,7 @@ class SpircWrapper @Inject constructor(
             settingsRepository.setShuffle(enabled)
         }
 
+        if (!requireReady("shuffle")) return false
         return Spirc.shuffle(enabled)
     }
 
@@ -185,6 +182,8 @@ class SpircWrapper @Inject constructor(
             settingsRepository.setRepeat(repeat)
             settingsRepository.setRepeatTrack(repeatTrack)
         }
+
+        if (!requireReady("repeat")) return false
         return Spirc.repeat(repeat, repeatTrack)
     }
 
@@ -192,6 +191,8 @@ class SpircWrapper @Inject constructor(
      * Loads the context URI and starts playing randomly within it
      */
     override fun shuffleLoad(uri: String?): Boolean {
+        if (!requireReady("shuffleLoad")) return false
+
         scope.launch {
             savedQueueRepository.setActiveQueueId(null)
             settingsRepository.saveLastPlayback(
@@ -201,7 +202,7 @@ class SpircWrapper @Inject constructor(
             )
         }
 
-        ensureForegroundServiceRunning()
+        startForegroundPlaybackService()
         return Spirc.shuffleLoad(uri)
     }
 
@@ -211,6 +212,8 @@ class SpircWrapper @Inject constructor(
      * @return `true` if loaded successfully
      */
     override fun addToQueue(spotifyUri: String?): Boolean {
+        if (!requireReady("addToQueue")) return false
+
         // TODO: cache in kotlin, so we can have faster UX
         return Spirc.addToQueue(spotifyUri)
     }
@@ -220,6 +223,7 @@ class SpircWrapper @Inject constructor(
      * @return `true` if success
      */
     override fun activate(): Boolean {
+        if (!requireReady("activate")) return false
         return Spirc.activate()
     }
 
@@ -228,6 +232,7 @@ class SpircWrapper @Inject constructor(
      * @return `true` if success
      */
     override fun transfer(): Boolean {
+        if (!requireReady("transfer")) return false
         return Spirc.transfer()
     }
 
@@ -235,6 +240,8 @@ class SpircWrapper @Inject constructor(
      * Transfers current Spirc session only if no other session is streaming.
      */
     override fun smartTransfer(): Boolean {
+        if (!requireReady("smartTransfer")) return false
+
         val json = spClient.getDevices() ?: return false
         val devices = Json.decodeFromString<DevicesResponse>(json)
 
@@ -249,6 +256,7 @@ class SpircWrapper @Inject constructor(
      * Sets the volume for the current Spotify Connect session.
      */
     override fun setVolume(volume: Int): Boolean {
+        if (!requireReady("setVolume")) return false
         return Spirc.setVolume(volume)
     }
 
@@ -280,6 +288,10 @@ class SpircWrapper @Inject constructor(
             return false
         }
 
+        // Checked before the optimistic UI update below, so a seek that cannot be
+        // delivered does not leave the progress bar lying about the position.
+        if (!requireReady("seekTo")) return false
+
         // Assuming it went successfully - pre-updating the position
         playbackStateHolder.seekTo(positionMs.toDuration(DurationUnit.MILLISECONDS))
         playbackStateHolder.updatePosition(positionMs)
@@ -297,8 +309,9 @@ class SpircWrapper @Inject constructor(
      * Tells the player to start playing
      */
     override fun playerPlay(): Boolean {
-        ensureForegroundServiceRunning()
-        if (!isUsable) return false
+        if (!requireReady("playerPlay")) return false
+
+        startForegroundPlaybackService()
         return Spirc.playerPlay()
     }
 
@@ -306,8 +319,9 @@ class SpircWrapper @Inject constructor(
      * Tells the player to pause playing
      */
     override fun playerPause(): Boolean {
-        ensureServiceRunning()
-        if (!isUsable) return false
+        if (!requireReady("playerPause")) return false
+
+        startPlaybackService()
         return Spirc.playerPause()
     }
 
@@ -315,8 +329,9 @@ class SpircWrapper @Inject constructor(
      * Tells the player to toggle play status
      */
     override fun playerPlayPause(): Boolean {
-        ensureForegroundServiceRunning()
-        if (!isUsable) return false
+        if (!requireReady("playerPlayPause")) return false
+
+        startForegroundPlaybackService()
         return Spirc.playerPlayPause()
     }
 
@@ -324,6 +339,7 @@ class SpircWrapper @Inject constructor(
      * Tells the player to skip to the next track
      */
     override fun playerNext(): Boolean {
+        if (!requireReady("playerNext")) return false
         return Spirc.playerNext()
     }
 
@@ -331,6 +347,7 @@ class SpircWrapper @Inject constructor(
      * Tells the player to play the previous track, or return to the start of current track
      */
     override fun playerPrevious(): Boolean {
+        if (!requireReady("playerPrevious")) return false
         return Spirc.playerPrevious()
     }
 

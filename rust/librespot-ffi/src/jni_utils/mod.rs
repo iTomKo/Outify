@@ -5,6 +5,17 @@ pub mod jni_bridge;
 pub mod logger;
 pub mod playback;
 
+/// Runs `f` behind a panic boundary and returns `fallback` if it panics.
+pub fn guard<T>(name: &str, fallback: T, f: impl FnOnce() -> T) -> T {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+        Ok(value) => value,
+        Err(_) => {
+            error!("panic caught in jni entry point `{name}`, returning fallback");
+            fallback
+        }
+    }
+}
+
 pub fn vec_to_jstring_array(env: &mut jni::JNIEnv, vec: Vec<String>) -> jni::sys::jobjectArray {
     let string_class = env.find_class("java/lang/String").unwrap();
     let array = env

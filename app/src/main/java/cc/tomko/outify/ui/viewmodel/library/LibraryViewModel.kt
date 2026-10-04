@@ -20,6 +20,7 @@ import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toOutifyUri
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.model.toSpotifyUri
+import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.repository.LikedRepository
@@ -74,6 +75,7 @@ class LibraryViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val spClient: SpClient,
     private val spirc: SpircWrapper,
+    private val spircController: SpircController,
     private val playbackStateHolder: PlaybackStateHolder,
     private val likedRepository: LikedRepository,
 ) : ViewModel() {
@@ -382,7 +384,7 @@ class LibraryViewModel @Inject constructor(
 
     fun retry() {
         viewModelScope.launch {
-            spirc.restart()
+            spircController.restartAndAwaitReady("library retry")
             refresh()
         }
     }

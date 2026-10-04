@@ -395,10 +395,8 @@ class Player @Inject constructor(
     }
 
     override fun handlePrepare(): ListenableFuture<*> {
-        scope.launch(Dispatchers.IO) {
-            spirc.ensureUsable()
-        }
-
+        // Nothing to do: spirc commands are gated on the runtime state, so a
+        // prepare arriving during a rebuild is simply dropped.
         return super.handlePrepare()
     }
 
