@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.AuthManager
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.model.CurrentUserProfile
+import cc.tomko.outify.core.spirc.Spirc
+import cc.tomko.outify.core.spirc.SpircController
+import cc.tomko.outify.core.spirc.SpircState
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -13,16 +16,21 @@ import cc.tomko.outify.utils.ExceptionCollector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import javax.inject.Inject
+
+/** How often the native restart snapshot is re-read. */
+private const val DIAGNOSTICS_POLL_MS = 1_000L
 
 @HiltViewModel
 class DebugViewModel @Inject constructor(
@@ -30,6 +38,7 @@ class DebugViewModel @Inject constructor(
     val spClient: SpClient,
     val authManager: AuthManager,
     val json: Json,
+    val spircController: SpircController,
     val spircWrapper: SpircWrapper,
     val playbackStateHolder: PlaybackStateHolder,
     val settingsRepository: SettingsRepository,
@@ -59,8 +68,61 @@ class DebugViewModel @Inject constructor(
     //endregion
 
     //region Spirc
-    private val _isSpircUsable = MutableStateFlow(false)
-    val isSpircUsable: StateFlow<Boolean> = _isSpircUsable.asStateFlow()
+    /**
+     * Live lifecycle state from [SpircController], not a snapshot.
+     */
+    val spircState: StateFlow<SpircState> = spircController.state
+
+    /** Gate the command wrapper actually enforces; mirrors [spircState]. */
+    val isSpircUsable: StateFlow<Boolean> = spircWrapper.isUsableFlow
+
+    /** Reason of the last rebuild failure, or `null` while healthy. */
+    val spircLastError: StateFlow<String?> = spircController.lastError
+
+    /** Raw `key=value` snapshot read back from the native supervisor. */
+    private val _spircDiagnostics = MutableStateFlow<Map<String, String>>(emptyMap())
+    val spircDiagnostics: StateFlow<Map<String, String>> = _spircDiagnostics.asStateFlow()
+
+    private val _spircDiagnosticsError = MutableStateFlow<String?>(null)
+    val spircDiagnosticsError: StateFlow<String?> = _spircDiagnosticsError.asStateFlow()
+
+    private var diagnosticsPolling = false
+
+    private val _isRestarting = MutableStateFlow(false)
+
+    /** `true` while the debug-triggered restart is still in flight. */
+    val isRestarting: StateFlow<Boolean> = _isRestarting.asStateFlow()
+
+    /**
+     * Restarts the runtime on demand and waits for it to settle.
+     */
+    fun restartSpirc() {
+        if (_isRestarting.value) return
+
+        viewModelScope.launch {
+            _isRestarting.value = true
+            try {
+                spircController.restartAndAwaitReady("debug screen")
+            } finally {
+                _isRestarting.value = false
+            }
+        }
+    }
+
+    /**
+     * Polls the native snapshot on a fixed interval.
+     */
+    private fun startDiagnosticsPolling() {
+        if (diagnosticsPolling) return
+        diagnosticsPolling = true
+
+        viewModelScope.launch {
+            while (isActive) {
+                refreshSpircDiagnostics()
+                delay(DIAGNOSTICS_POLL_MS)
+            }
+        }
+    }
     //endregion
 
     //region Playback
@@ -80,7 +142,8 @@ class DebugViewModel @Inject constructor(
         _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
         _hasAccountsFile.value = File(context.filesDir, "account.json").exists()
         _hasPlaybackFile.value = File(context.filesDir, "credentials.json").exists()
-        _isSpircUsable.value = spircWrapper.isUsable
+
+        startDiagnosticsPolling()
 
         viewModelScope.launch {
             val authenticated = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
@@ -108,6 +171,35 @@ class DebugViewModel @Inject constructor(
         }
     }
 
+
+    /**
+     * Reads the native snapshot into a map, one entry per `key=value` line.
+     *
+     * Kept off the main thread because it crosses into JNI, and tolerant of a
+     * null result because the library may not be loaded.
+     */
+    private suspend fun refreshSpircDiagnostics() {
+        val raw = withContext(Dispatchers.IO) {
+            runCatching { Spirc.diagnostics() }.getOrNull()
+        }
+
+        if (raw.isNullOrEmpty()) {
+            _spircDiagnosticsError.value = "diagnostics unavailable"
+            return
+        }
+
+        _spircDiagnosticsError.value = null
+        _spircDiagnostics.value = raw.lineSequence()
+            .mapNotNull { line ->
+                val separator = line.indexOf('=')
+                if (separator <= 0) {
+                    null
+                } else {
+                    line.substring(0, separator) to line.substring(separator + 1)
+                }
+            }
+            .toMap()
+    }
 
     private fun fetchProfile() {
         viewModelScope.launch {

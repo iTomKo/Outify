@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Cancel
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -63,7 +64,12 @@ fun DebugScreen(
     val username by viewModel.username.collectAsState()
     val isPremium by viewModel.isPremium.collectAsState()
 
+    val spircState by viewModel.spircState.collectAsState()
     val isSpircUsable by viewModel.isSpircUsable.collectAsState()
+    val spircLastError by viewModel.spircLastError.collectAsState()
+    val spircDiagnostics by viewModel.spircDiagnostics.collectAsState()
+    val spircDiagnosticsError by viewModel.spircDiagnosticsError.collectAsState()
+    val isRestarting by viewModel.isRestarting.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isBuffering by viewModel.isBuffering.collectAsState(initial = true)
     val isActiveDevice by viewModel.isActiveDevice.collectAsState(initial = false)
@@ -123,8 +129,37 @@ fun DebugScreen(
             item {
                 PreferenceHeader(stringResource(R.string.section_spirc))
 
+                Information(stringResource(R.string.debug_spirc_state), spircState.name)
                 Availability(stringResource(R.string.debug_spirc_usable), isSpircUsable)
+                Information(stringResource(R.string.debug_spirc_last_error), spircLastError)
                 Availability(stringResource(R.string.debug_active_device), isActiveDevice)
+
+                OutlinedButton(
+                    onClick = viewModel::restartSpirc,
+                    enabled = !isRestarting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    Text(
+                        stringResource(
+                            if (isRestarting) R.string.debug_spirc_restarting
+                            else R.string.debug_spirc_restart
+                        )
+                    )
+                }
+            }
+
+            item {
+                PreferenceHeader(stringResource(R.string.debug_spirc_native))
+
+                if (spircDiagnosticsError != null) {
+                    Information(stringResource(R.string.state_unavailable), spircDiagnosticsError)
+                }
+
+                spircDiagnostics.forEach { (key, value) ->
+                    Information(key, value)
+                }
             }
 
             item {

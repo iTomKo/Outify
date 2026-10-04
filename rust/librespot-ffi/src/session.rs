@@ -1,6 +1,9 @@
 use std::{
     pin::Pin,
-    sync::{Mutex, RwLock},
+    sync::{
+        Mutex, RwLock,
+        atomic::{AtomicU32, Ordering},
+    },
     time::Duration,
 };
 
@@ -10,13 +13,10 @@ use once_cell::sync::OnceCell;
 
 pub static SESSION: OnceCell<RwLock<Option<Session>>> = OnceCell::new();
 
+/// How many attempts the last [`rebuild_all`] consumed, for the debug screen.
+static LAST_ATTEMPTS_USED: AtomicU32 = AtomicU32::new(0);
+
 /// Canonical username of the authenticated account.
-///
-/// `librespot_core::Session` only learns its username while connecting, and a
-/// restart replaces the session. The username itself does not change for a
-/// given account, so we keep the last known value around. That lets URI
-/// resolution keep working while no session is published, instead of failing
-/// (or panicking) during the restart window.
 static USERNAME: OnceCell<Mutex<Option<String>>> = OnceCell::new();
 
 /// How often a rebuild is attempted before giving up.
@@ -167,8 +167,10 @@ pub async fn rebuild_all(reason: &str) -> Result<(), String> {
 
     let mut delay = Duration::from_millis(500);
     let mut last_error = "rebuild never ran".to_string();
+    LAST_ATTEMPTS_USED.store(0, Ordering::Relaxed);
 
     for attempt in 1..=MAX_REBUILD_ATTEMPTS {
+        LAST_ATTEMPTS_USED.store(attempt, Ordering::Relaxed);
         if let Err(e) = initialize_session().await {
             warn!("session init attempt {attempt} failed: {e}");
             last_error = e.to_string();
@@ -199,6 +201,20 @@ pub async fn rebuild_all(reason: &str) -> Result<(), String> {
     error!("rebuild failed after {MAX_REBUILD_ATTEMPTS} attempts: {last_error}");
     notify_callback_with_arg("onFailed", &last_error);
     Err(last_error)
+}
+
+/// Attempts consumed by the last [`rebuild_all`]. `0` before the first one.
+pub fn last_rebuild_attempts() -> u32 {
+    LAST_ATTEMPTS_USED.load(Ordering::Relaxed)
+}
+
+/// Whether a session is currently published, without cloning it.
+pub fn session_present() -> bool {
+    SESSION
+        .get()
+        .and_then(|container| container.read().ok())
+        .map(|guard| guard.is_some())
+        .unwrap_or(false)
 }
 
 /// Whether `session_id` identifies the session currently in the container.

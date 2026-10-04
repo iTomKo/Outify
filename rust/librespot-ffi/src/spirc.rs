@@ -95,6 +95,15 @@ static RESTART_LOCK: OnceLock<tokio::sync::Mutex<()>> = OnceLock::new();
 
 static RESTART_PENDING: AtomicBool = AtomicBool::new(false);
 
+/// Restart telemetry, surfaced through [`diagnostics`].
+///
+/// `RESTART_REQUESTS` counts what Kotlin asked for, `REBUILDS` counts what the
+/// supervisor actually ran. The gap between them is how much coalescing did,
+/// which is the only way to tell a working rebuild apart from a restart loop.
+static RESTART_REQUESTS: AtomicU32 = AtomicU32::new(0);
+static REBUILDS: AtomicU32 = AtomicU32::new(0);
+static LAST_REBUILD_ATTEMPTS: AtomicU32 = AtomicU32::new(0);
+
 #[derive(Clone)]
 struct CurrentContext {
     uri: String, // Context uri
@@ -679,6 +688,7 @@ pub fn teardown_runtime(reason: &str) {
 
 /// Requests a rebuild of the session and the Connect runtime.
 pub async fn request_restart(reason: &str) -> Result<(), String> {
+    RESTART_REQUESTS.fetch_add(1, Ordering::Relaxed);
     RESTART_PENDING.store(true, Ordering::Release);
 
     let lock = RESTART_LOCK.get_or_init(|| tokio::sync::Mutex::new(()));
@@ -689,7 +699,10 @@ pub async fn request_restart(reason: &str) -> Result<(), String> {
 
     while RESTART_PENDING.swap(false, Ordering::AcqRel) {
         runs += 1;
-        if let Err(e) = crate::session::rebuild_all(reason).await {
+        REBUILDS.fetch_add(1, Ordering::Relaxed);
+        let outcome = crate::session::rebuild_all(reason).await;
+        LAST_REBUILD_ATTEMPTS.store(crate::session::last_rebuild_attempts(), Ordering::Relaxed);
+        if let Err(e) = outcome {
             last_error = Some(e);
         }
     }
@@ -702,6 +715,73 @@ pub async fn request_restart(reason: &str) -> Result<(), String> {
         Some(e) => Err(e),
         None => Ok(()),
     }
+}
+
+/// Snapshot of the restart lifecycle, for the debug screen.
+///
+/// Read-only and lock-bite: every field is an atomic or a best-effort read, so
+/// this is safe to call at any time, including mid-rebuild.
+pub fn diagnostics() -> Vec<(&'static str, String)> {
+    let state = SpircState::from_u8(STATE.load(Ordering::Acquire));
+    let settings = current_settings();
+
+    let requests = RESTART_REQUESTS.load(Ordering::Relaxed);
+    let rebuilds = REBUILDS.load(Ordering::Relaxed);
+
+    vec![
+        ("state", format!("{state:?}")),
+        ("session", presence(crate::session::session_present())),
+        ("runtime", presence(runtime_present())),
+        (
+            "username",
+            match crate::session::get_username() {
+                Ok(u) => u,
+                Err(_) => "unavailable".to_string(),
+            },
+        ),
+        (
+            "restart pending",
+            RESTART_PENDING.load(Ordering::Acquire).to_string(),
+        ),
+        ("restart requests", requests.to_string()),
+        ("rebuilds", rebuilds.to_string()),
+        (
+            "coalesced requests",
+            requests.saturating_sub(rebuilds).to_string(),
+        ),
+        (
+            "last rebuild attempts",
+            LAST_REBUILD_ATTEMPTS.load(Ordering::Relaxed).to_string(),
+        ),
+        (
+            "auto transfer",
+            AUTO_TRANSFER.load(Ordering::Relaxed).to_string(),
+        ),
+        ("applied gapless", settings.gapless.to_string()),
+        ("applied normalise", settings.normalisation.to_string()),
+        ("applied bitrate", format!("{:?}", settings.bitrate)),
+        (
+            "applied crossfade",
+            format!("{}ms", settings.crossfade.as_millis()),
+        ),
+        ("applied device name", settings.device_name),
+    ]
+}
+
+fn presence(present: bool) -> String {
+    if present {
+        "present".to_string()
+    } else {
+        "absent".to_string()
+    }
+}
+
+fn runtime_present() -> bool {
+    SPIRC_RUNTIME
+        .get()
+        .and_then(|c| c.read().ok())
+        .map(|guard| guard.is_some())
+        .unwrap_or(false)
 }
 
 /// Re-establishes the Connect session and playback after a (re)build.
@@ -829,5 +909,62 @@ mod tests {
     #[test]
     fn unknown_state_decodes_to_stopped() {
         assert_eq!(SpircState::from_u8(200), SpircState::Stopped);
+    }
+
+    #[test]
+    fn diagnostics_are_readable_without_a_session() {
+        // The debug screen must render rather than crash before login, so every
+        // lookup has to degrade instead of asserting.
+        let entries = diagnostics();
+        let keys: Vec<&str> = entries.iter().map(|(k, _)| *k).collect();
+
+        for expected in [
+            "state",
+            "session",
+            "runtime",
+            "username",
+            "restart pending",
+            "restart requests",
+            "rebuilds",
+            "coalesced requests",
+            "last rebuild attempts",
+            "applied gapless",
+            "applied bitrate",
+        ] {
+            assert!(
+                keys.contains(&expected),
+                "missing diagnostics key: {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn diagnostics_report_state_and_missing_runtime() {
+        let entries = diagnostics();
+        let get = |key: &str| {
+            entries
+                .iter()
+                .find(|(k, _)| *k == key)
+                .map(|(_, v)| v.clone())
+                .unwrap_or_else(|| panic!("missing key: {key}"))
+        };
+
+        assert_eq!(get("state"), format!("{:?}", SpircState::from_u8(0)));
+        // No runtime is published in a unit test.
+        assert_eq!(get("runtime"), "absent");
+    }
+
+    #[test]
+    fn coalescing_gap_is_never_negative() {
+        // A test that somehow rebuilt more than it requested must not report a
+        // nonsensical negative gap.
+        let entries = diagnostics();
+        let coalesced = entries
+            .iter()
+            .find(|(k, _)| *k == "coalesced requests")
+            .map(|(_, v)| v.clone())
+            .expect("missing coalesced requests");
+        let coalesced: u32 = coalesced.parse().expect("coalesced is numeric");
+        assert!(coalesced <= RESTART_REQUESTS.load(Ordering::Relaxed));
     }
 }

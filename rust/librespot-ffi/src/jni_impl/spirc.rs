@@ -190,6 +190,26 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_requestRestart(
     })
 }
 
+/// Returns the restart lifecycle snapshot as `key=value` lines.
+#[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_diagnostics")]
+pub extern "system" fn diagnostics(_env: JNIEnv, _this: JClass) -> jstring {
+    guard("Spirc.diagnostics", std::ptr::null_mut(), || {
+        let text = crate::spirc::diagnostics()
+            .into_iter()
+            .map(|(k, v)| format!("{k}={v}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        match _env.new_string(text) {
+            Ok(s) => s.into_raw(),
+            Err(e) => {
+                error!("jni new_string failed for diagnostics: {e}");
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_spirc_Spirc_shutdown")]
 pub extern "system" fn shutdown(_env: JNIEnv, _this: JClass) {
     guard("Spirc.shutdown", (), || {

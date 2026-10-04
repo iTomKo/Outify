@@ -514,6 +514,11 @@
     <string name="debug_username">Username</string>
     <string name="debug_spotify_premium">Spotify Premium</string>
     <string name="debug_spirc_usable">Spirc usable</string>
+    <string name="debug_spirc_state">Spirc state</string>
+    <string name="debug_spirc_last_error">Last error</string>
+    <string name="debug_spirc_native">Native supervisor</string>
+    <string name="debug_spirc_restart">Restart spirc</string>
+    <string name="debug_spirc_restarting">Restarting…</string>
     <string name="debug_active_device">Active device</string>
     <string name="debug_buffering">Buffering</string>
     <string name="debug_current_track">Current track</string>

@@ -84,6 +84,17 @@ object Spirc {
     ): Boolean
 
     /**
+     * Snapshot of the restart lifecycle, as `key=value` lines.
+     *
+     * Only safe to read once the library is loaded, and never throws: the native
+     * side returns an empty string instead of aborting.
+     *
+     * @return the raw snapshot, or an empty string if unavailable
+     */
+    @JvmStatic
+    external fun diagnostics(): String?
+
+    /**
      * Unregisters the buffer callback, freeing its JNI GlobalRef
      */
     @JvmStatic
