@@ -19,15 +19,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +41,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 
+/**
+ * Base row. Meant to live inside a [SettingsSection], which provides the
+ * tonal container and rounded shape (and clips the ripple to it).
+ */
 @Composable
 fun PreferenceEntry(
     modifier: Modifier = Modifier,
@@ -70,26 +76,19 @@ fun PreferenceEntry(
         modifier = modifier
             .fillMaxWidth()
             .then(
-                if (onClick != null) {
-                    Modifier.clickable(
-                        enabled = isEnabled,
-                        onClick = onClick
-                    )
-                } else {
-                    Modifier
-                }
+                if (onClick != null) Modifier.clickable(enabled = isEnabled, onClick = onClick)
+                else Modifier
             )
             .alpha(if (isEnabled) 1f else 0.5f)
-            .padding(horizontal = 16.dp, vertical = 16.dp)
+            .padding(horizontal = 20.dp, vertical = 14.dp)
     ) {
         if (icon != null) {
-            Box(
-                modifier = Modifier.padding(horizontal = 4.dp)
-            ) {
-                icon()
+            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
+                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                    icon()
+                }
             }
-
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
         }
 
         Column(
@@ -97,14 +96,16 @@ fun PreferenceEntry(
             modifier = Modifier.weight(1f)
         ) {
             ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                title()
+                CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+                    title()
+                }
             }
 
             if (description != null) {
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -113,10 +114,35 @@ fun PreferenceEntry(
 
         if (trailingContent != null) {
             Spacer(Modifier.width(12.dp))
-
             trailingContent()
         }
     }
+}
+
+@Composable
+fun NavigationPreferenceEntry(
+    modifier: Modifier = Modifier,
+    title: @Composable () -> Unit,
+    description: String? = null,
+    icon: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit,
+    isEnabled: Boolean = true,
+) {
+    PreferenceEntry(
+        modifier = modifier,
+        title = title,
+        description = description,
+        icon = icon,
+        onClick = onClick,
+        isEnabled = isEnabled,
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    )
 }
 
 @Composable
@@ -132,11 +158,11 @@ fun SwitchPreferenceEntry(
     isChecked: Boolean = false,
 ) {
     PreferenceEntry(
-        modifier,
-        title,
-        description,
-        content,
-        icon,
+        modifier = modifier,
+        title = title,
+        description = description,
+        content = content,
+        icon = icon,
         trailingContent = {
             trailingContent?.invoke()
 
@@ -144,12 +170,19 @@ fun SwitchPreferenceEntry(
                 checked = isChecked,
                 onCheckedChange = onCheckedChange,
                 enabled = isEnabled,
+                thumbContent = if (isChecked) {
+                    {
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                } else null
             )
         },
-        onClick = {
-            onCheckedChange(!isChecked)
-        },
-        isEnabled
+        onClick = { onCheckedChange(!isChecked) },
+        isEnabled = isEnabled
     )
 }
 
@@ -158,7 +191,7 @@ data class DropdownOption<T>(
     val label: String,
 )
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> DropdownPreferenceEntry(
     modifier: Modifier = Modifier,
@@ -209,7 +242,7 @@ fun <T> DropdownPreferenceEntry(
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
                     ),
-                    shape = MaterialTheme.shapes.medium,
+                    shape = MaterialTheme.shapes.large,
                     modifier = Modifier
                         .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
                         .fillMaxWidth(0.5f)
@@ -260,72 +293,42 @@ fun TextInputPreferenceEntry(
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .then(
-                if (onClick != null) {
-                    Modifier.clickable(enabled = isEnabled, onClick = onClick)
-                } else {
-                    Modifier
-                }
+    PreferenceEntry(
+        modifier = modifier,
+        title = title,
+        description = description,
+        icon = icon,
+        isEnabled = isEnabled,
+        onClick = onClick,
+        trailingContent = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = isEnabled,
+                singleLine = singleLine,
+                keyboardOptions = keyboardOptions,
+                placeholder = placeholder?.let {
+                    { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                },
+                textStyle = MaterialTheme.typography.bodyMedium,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    focusedBorderColor = Color.Transparent,
+                    unfocusedBorderColor = Color.Transparent,
+                    disabledBorderColor = Color.Transparent,
+                ),
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.fillMaxWidth(0.5f)
             )
-            .padding(horizontal = 16.dp, vertical = 16.dp)
-    ) {
-        if (icon != null) {
-            Box(modifier = Modifier.padding(horizontal = 4.dp)) {
-                icon()
-            }
-            Spacer(Modifier.width(12.dp))
-        }
 
-        Column(
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.weight(1f)
-        ) {
-            ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                title()
-            }
-
-            if (description != null) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+            if (trailingContent != null) {
+                Spacer(Modifier.width(12.dp))
+                trailingContent()
             }
         }
-
-        Spacer(Modifier.width(12.dp))
-
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = isEnabled,
-            singleLine = singleLine,
-            keyboardOptions = keyboardOptions,
-            placeholder = placeholder?.let {
-                { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            },
-            textStyle = MaterialTheme.typography.bodyMedium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent,
-                disabledBorderColor = Color.Transparent,
-            ),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth(0.5f)
-        )
-
-        if (trailingContent != null) {
-            Spacer(Modifier.width(12.dp))
-            trailingContent()
-        }
-    }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -346,73 +349,37 @@ fun ColorPreferenceEntry(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun openPicker() {
-        if (isEnabled) {
-            draftColor = value
-            showPicker = true
-        }
+        draftColor = value
+        showPicker = true
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
-            .fillMaxWidth()
-            .alpha(if (isEnabled) 1f else 0.5f)
-            .clickable(enabled = isEnabled) {
-                onClick?.invoke() ?: openPicker()
-            }
-            .padding(horizontal = 16.dp, vertical = 16.dp)
-    ) {
-        if (icon != null) {
-            Box(modifier = Modifier.padding(horizontal = 4.dp)) {
-                icon()
-            }
-            Spacer(Modifier.width(12.dp))
-        }
+    PreferenceEntry(
+        modifier = modifier,
+        title = title,
+        description = description,
+        icon = icon,
+        isEnabled = isEnabled,
+        onClick = { onClick?.invoke() ?: openPicker() },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(value)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                )
 
-        Column(
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.weight(1f)
-        ) {
-            ProvideTextStyle(MaterialTheme.typography.titleMedium) {
-                title()
-            }
+                Spacer(Modifier.width(8.dp))
 
-            if (description != null) {
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.secondary
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
-
-        Spacer(Modifier.width(12.dp))
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(value)
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline,
-                        CircleShape
-                    )
-            )
-
-            Spacer(Modifier.width(8.dp))
-
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+    )
 
     if (showPicker) {
         ModalBottomSheet(
