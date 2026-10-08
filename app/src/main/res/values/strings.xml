@@ -555,6 +555,10 @@
     <string name="time_months_ago">%1$dmo ago</string>
     <string name="episode_meta">%1$s · %2$s</string>
     <string name="episode_meta_resume">%1$s · %2$s · Resume %3$s</string>
+    <string name="debug_include_sensitive">Include sensitive info when copying</string>
+    <string name="debug_include_sensitive_desc">When off, sensitive information are redacted</string>
+    <string name="debug_copy_all">Copy all</string>
+    <string name="debug_copied">Copied to clipboard</string>
 
     <plurals name="queue_count">
         <item quantity="one">%d queue</item>
