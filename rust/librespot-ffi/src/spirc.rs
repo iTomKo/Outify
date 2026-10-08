@@ -1,9 +1,9 @@
 use std::{
     sync::{
         Arc, Mutex, OnceLock, RwLock,
-        atomic::{AtomicBool, AtomicU8, AtomicU32, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering},
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use librespot_connect::{
@@ -19,6 +19,7 @@ use librespot_playback::{
 use once_cell::sync::OnceCell;
 use thiserror::Error;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 
 use crate::session::with_session;
 
@@ -104,6 +105,33 @@ static RESTART_REQUESTS: AtomicU32 = AtomicU32::new(0);
 static REBUILDS: AtomicU32 = AtomicU32::new(0);
 static LAST_REBUILD_ATTEMPTS: AtomicU32 = AtomicU32::new(0);
 
+/// Incremented for every freshly built Connect runtime. 
+static RUNTIME_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Generation of the Connect task currently known to be running, written by
+/// the per-runtime watchdog; `0` while none is running. Read by diagnostics.
+static CONNECT_TASK_ALIVE: AtomicU64 = AtomicU64::new(0);
+
+/// Longest a playback command may go without producing a player event before
+/// the watchdog declares the Connect runtime stuck and rebuilds it.
+const COMMAND_ACK_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How often the per-runtime watchdog checks the Connect task and the pending
+/// command marker.
+const WATCHDOG_TICK: Duration = Duration::from_secs(5);
+
+/// A playback command that has been handed to the Connect task but has not yet
+/// produced the player event proving the runtime is responsive.
+struct TrackedCommand {
+    generation: u64,
+    /// What the command was, for diagnostics and restart reasons.
+    label: &'static str,
+    armed_at: Instant,
+    deadline: Instant,
+}
+
+static PENDING_COMMAND: OnceCell<Mutex<Option<TrackedCommand>>> = OnceCell::new();
+
 #[derive(Clone)]
 struct CurrentContext {
     uri: String, // Context uri
@@ -143,6 +171,7 @@ pub fn init_spirc_container() {
     BITRATE.get_or_init(|| Mutex::new(Bitrate::Bitrate320));
     DEVICE_NAME.get_or_init(|| Mutex::new("Outify".to_string()));
     RESTART_LOCK.get_or_init(|| tokio::sync::Mutex::new(()));
+    PENDING_COMMAND.get_or_init(|| Mutex::new(None));
 }
 
 /// Publishes a lifecycle transition. Kotlin mirrors this in its own state
@@ -164,6 +193,9 @@ pub fn set_auto_transfer(enabled: bool) {
 
 pub struct SpircRuntime {
     spirc: Arc<Spirc>,
+    /// Generation of this build, used by the watchdog and the pending-command
+    /// tracker to tell this runtime apart from a superseded one.
+    generation: u64,
 }
 
 impl SpircRuntime {
@@ -175,6 +207,7 @@ impl SpircRuntime {
         normalisation: bool,
         bitrate: Bitrate,
         crossfade: Duration,
+        generation: u64,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let player_config = PlayerConfig {
             // TODO: Make configurable from app
@@ -221,7 +254,8 @@ impl SpircRuntime {
         )
         .await?;
 
-        let _ = tokio::spawn(spirc_future);
+        let spirc = Arc::new(spirc);
+        let spirc_task = tokio::spawn(spirc_future);
 
         // Handling received Player Events
         tokio::spawn(async move {
@@ -231,6 +265,9 @@ impl SpircRuntime {
             }
             info!("spirc runtime event receiver closed");
         });
+
+        // Supervise the Connect task. 
+        spawn_watchdog(Arc::clone(&spirc), spirc_task, generation);
 
         GAPLESS.store(gapless, Ordering::Relaxed);
         NORMALISE_AUDIO.store(normalisation, Ordering::Relaxed);
@@ -247,29 +284,37 @@ impl SpircRuntime {
             bitrate as u32, gapless, normalisation
         );
 
-        Ok(Self {
-            spirc: Arc::new(spirc),
-        })
+        Ok(Self { spirc, generation })
     }
 
     pub fn play(&self) -> Result<(), librespot_core::Error> {
-        self.spirc.play()
+        self.spirc.play()?;
+        self.arm("play");
+        Ok(())
     }
 
     pub fn play_pause(&self) -> Result<(), librespot_core::Error> {
-        self.spirc.play_pause()
+        self.spirc.play_pause()?;
+        self.arm("play_pause");
+        Ok(())
     }
 
     pub fn pause(&self) -> Result<(), librespot_core::Error> {
-        self.spirc.pause()
+        self.spirc.pause()?;
+        self.arm("pause");
+        Ok(())
     }
 
     pub fn next(&self) -> Result<(), librespot_core::Error> {
-        self.spirc.next()
+        self.spirc.next()?;
+        self.arm("next");
+        Ok(())
     }
 
     pub fn prev(&self) -> Result<(), librespot_core::Error> {
-        self.spirc.prev()
+        self.spirc.prev()?;
+        self.arm("prev");
+        Ok(())
     }
 
     pub fn load(
@@ -345,7 +390,15 @@ impl SpircRuntime {
     }
 
     pub fn seek_to(&self, position: u32) -> Result<(), librespot_core::Error> {
-        self.spirc.set_position_ms(position)
+        self.spirc.set_position_ms(position)?;
+        self.arm("seek_to");
+        Ok(())
+    }
+
+    /// Records that a command was sent to the Connect task, so the watchdog
+    /// can restart the runtime if no resulting player event arrives in time.
+    fn arm(&self, label: &'static str) {
+        arm_command_ack(self.generation, label);
     }
 
     pub fn shutdown(&self) {
@@ -437,6 +490,89 @@ impl SpircRuntime {
     }
 }
 
+/// Supervises a Connect task for silent failure.
+fn spawn_watchdog(spirc: Arc<Spirc>, spirc_task: JoinHandle<()>, generation: u64) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(WATCHDOG_TICK);
+        loop {
+            tick.tick().await;
+
+            let finished = spirc_task.is_finished();
+            let stalled = pending_command_expired(generation);
+
+            // Surface liveness for diagnostics even when nothing needs fixing.
+            CONNECT_TASK_ALIVE.store(
+                if finished { 0 } else { generation },
+                Ordering::Relaxed,
+            );
+
+            let reason = if finished {
+                Some("spirc task exited unexpectedly")
+            } else if stalled.is_some() {
+                Some("spirc task stalled")
+            } else {
+                None
+            };
+            let Some(reason) = reason else { continue };
+
+            if !is_current_runtime(&spirc, generation) {
+                debug!("spirc watchdog: {reason}, but runtime is no longer current");
+                return;
+            }
+
+            warn!("spirc watchdog: {reason}, requesting restart");
+            if let Err(e) = request_restart(reason).await {
+                error!("spirc watchdog restart failed: {e}");
+            }
+            return;
+        }
+    });
+}
+
+/// Whether `expected` and its generation identify the runtime currently
+/// published in the container.
+fn is_current_runtime(expected: &Arc<Spirc>, generation: u64) -> bool {
+    with_spirc(|rt| Arc::ptr_eq(&rt.spirc, expected) && rt.generation == generation)
+        .unwrap_or(false)
+}
+
+/// Records that a playback command was handed to the Connect task.
+fn arm_command_ack(generation: u64, label: &'static str) {
+    let now = Instant::now();
+    if let Some(mutex) = PENDING_COMMAND.get() {
+        if let Ok(mut guard) = mutex.lock() {
+            *guard = Some(TrackedCommand {
+                generation,
+                label,
+                armed_at: now,
+                deadline: now + COMMAND_ACK_TIMEOUT,
+            });
+        }
+    }
+}
+
+/// Clears the pending-command marker once the runtime proves it is responsive.
+fn clear_command_ack() {
+    if let Some(mutex) = PENDING_COMMAND.get() {
+        if let Ok(mut guard) = mutex.lock() {
+            *guard = None;
+        }
+    }
+}
+
+/// The label of the command that has gone unanswered past its deadline for
+/// `generation`, if any.
+fn pending_command_expired(generation: u64) -> Option<&'static str> {
+    let mutex = PENDING_COMMAND.get()?;
+    let guard = mutex.lock().ok()?;
+    let pending = guard.as_ref()?;
+    if pending.generation == generation && Instant::now() >= pending.deadline {
+        Some(pending.label)
+    } else {
+        None
+    }
+}
+
 // Handles each player event accordingly
 fn handle_event(event: PlayerEvent) {
     match event {
@@ -445,6 +581,7 @@ fn handle_event(event: PlayerEvent) {
             ref track_id,
             position_ms,
         } => {
+            clear_command_ack();
             IS_PLAYING.store(true, std::sync::atomic::Ordering::Relaxed);
             LAST_POSITION.store(position_ms, std::sync::atomic::Ordering::Relaxed);
 
@@ -455,6 +592,7 @@ fn handle_event(event: PlayerEvent) {
         }
 
         PlayerEvent::TrackChanged { audio_item } => {
+            clear_command_ack();
             LAST_POSITION.store(0, std::sync::atomic::Ordering::Relaxed);
             crate::jni_utils::playback::on_player_track_update(audio_item.track_id.clone());
         }
@@ -464,6 +602,7 @@ fn handle_event(event: PlayerEvent) {
             ref track_id,
             position_ms,
         } => {
+            clear_command_ack();
             IS_PLAYING.store(false, std::sync::atomic::Ordering::Relaxed);
             LAST_POSITION.store(position_ms, std::sync::atomic::Ordering::Relaxed);
 
@@ -478,6 +617,7 @@ fn handle_event(event: PlayerEvent) {
             track_id,
             position_ms,
         } => {
+            clear_command_ack();
             LAST_POSITION.store(position_ms, std::sync::atomic::Ordering::Relaxed);
 
             update_current_track(track_id.clone());
@@ -489,10 +629,14 @@ fn handle_event(event: PlayerEvent) {
             track_id,
             position_ms,
         } => {
+            clear_command_ack();
             LAST_POSITION.store(position_ms, std::sync::atomic::Ordering::Relaxed);
 
             update_current_track(track_id.clone());
             crate::jni_utils::playback::on_player_position_update(position_ms, track_id.clone());
+        }
+        PlayerEvent::Stopped { .. } => {
+            clear_command_ack();
         }
         PlayerEvent::TimeToPreloadNextTrack {
             play_request_id: _,
@@ -621,6 +765,10 @@ pub fn store_settings(
 pub async fn start_runtime() -> Result<(), SpircError> {
     let settings = current_settings();
 
+    // A new build gets a fresh generation so a watchdog or pending command of
+    // a superseded runtime can never be mistaken for this one.
+    let generation = RUNTIME_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+
     let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
     if lock.read().map(|g| g.is_some()).unwrap_or(true) {
         return Err(SpircError::Other(
@@ -654,6 +802,7 @@ pub async fn start_runtime() -> Result<(), SpircError> {
         settings.normalisation,
         settings.bitrate,
         settings.crossfade,
+        generation,
     )
     .await
     .map_err(|e| SpircError::Other(e.to_string()))?;
@@ -682,6 +831,7 @@ pub fn teardown_runtime(reason: &str) {
 
     if let Some(runtime) = taken {
         info!("tearing down spirc runtime ({reason})");
+        clear_command_ack();
         runtime.shutdown();
     }
 }
@@ -732,6 +882,8 @@ pub fn diagnostics() -> Vec<(&'static str, String)> {
         ("state", format!("{state:?}")),
         ("session", presence(crate::session::session_present())),
         ("runtime", presence(runtime_present())),
+        ("task alive", task_alive().to_string()),
+        ("command ack", command_ack_diagnostics().to_string()),
         (
             "username",
             match crate::session::get_username() {
@@ -782,6 +934,23 @@ fn runtime_present() -> bool {
         .and_then(|c| c.read().ok())
         .map(|guard| guard.is_some())
         .unwrap_or(false)
+}
+
+/// Whether the Connect task of the current build is still running.
+fn task_alive() -> bool {
+    let generation = RUNTIME_GENERATION.load(Ordering::Relaxed);
+    generation != 0 && CONNECT_TASK_ALIVE.load(Ordering::Relaxed) == generation
+}
+
+/// Human-readable state of the pending-command tracker, for the debug screen.
+fn command_ack_diagnostics() -> String {
+    match PENDING_COMMAND.get().and_then(|m| m.lock().ok()) {
+        Some(guard) => match guard.as_ref() {
+            Some(p) => format!("{} pending for {}s", p.label, p.armed_at.elapsed().as_secs()),
+            None => "none".to_string(),
+        },
+        None => "unavailable".to_string(),
+    }
 }
 
 /// Re-establishes the Connect session and playback after a (re)build.
@@ -890,6 +1059,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use librespot_core::SpotifyId;
 
     #[test]
     fn every_state_round_trips_through_its_encoding() {
@@ -922,6 +1092,8 @@ mod tests {
             "state",
             "session",
             "runtime",
+            "task alive",
+            "command ack",
             "username",
             "restart pending",
             "restart requests",
@@ -966,5 +1138,72 @@ mod tests {
             .expect("missing coalesced requests");
         let coalesced: u32 = coalesced.parse().expect("coalesced is numeric");
         assert!(coalesced <= RESTART_REQUESTS.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn pending_command_ack_is_cleared_by_a_responsive_player_event() {
+        PENDING_COMMAND.get_or_init(|| Mutex::new(None));
+
+        arm_command_ack(1, "play");
+        assert!(
+            PENDING_COMMAND.get().unwrap().lock().unwrap().is_some(),
+            "arming a command must register a pending ack"
+        );
+
+        let track_id = SpotifyUri::Track {
+            id: SpotifyId::from_base62("4iV5W9uYEdYUVa79Axb7Rh")
+                .expect("test track id must be valid base62"),
+        };
+        handle_event(PlayerEvent::Paused {
+            play_request_id: 1,
+            track_id,
+            position_ms: 1_000,
+        });
+
+        assert!(
+            PENDING_COMMAND.get().unwrap().lock().unwrap().is_none(),
+            "a player event must clear the pending ack"
+        );
+        // The watchdog must not report the runtime as stalled either.
+        assert_eq!(pending_command_expired(1), None);
+    }
+
+    #[test]
+    fn pending_command_ack_expires_after_its_timeout() {
+        PENDING_COMMAND.get_or_init(|| Mutex::new(None));
+
+        arm_command_ack(1, "play");
+        assert_eq!(
+            pending_command_expired(1),
+            None,
+            "a freshly armed command must not be expired"
+        );
+
+        // Simulate a command that never got acknowledged.
+        if let Some(mutex) = PENDING_COMMAND.get()
+            && let Ok(mut guard) = mutex.lock()
+            && let Some(pending) = guard.as_mut()
+        {
+            pending.deadline = Instant::now() - Duration::from_secs(1);
+        }
+
+        assert_eq!(pending_command_expired(1), Some("play"));
+
+        // A pending command from an older generation must never affect the
+        // current runtime.
+        assert_eq!(pending_command_expired(2), None);
+    }
+
+    #[test]
+    fn watchdog_reports_no_liveness_without_a_runtime() {
+        // No watchdog runs in a unit test, so nothing is alive.
+        assert!(!task_alive(), "no task can be alive without a runtime");
+        // No pending command may be reported as armed: either the tracker was
+        // never initialized, or it holds no marker.
+        assert!(
+            matches!(command_ack_diagnostics().as_str(), "none" | "unavailable"),
+            "unexpected command ack diagnostics: {}",
+            command_ack_diagnostics()
+        );
     }
 }
