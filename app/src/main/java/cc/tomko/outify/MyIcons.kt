@@ -16,4 +16,8 @@ object MyIcons {
     val NoShuffle: ImageVector
         @Composable
         get() = ImageVector.vectorResource(id = R.drawable.no_shuffle)
+
+    val Logo: ImageVector
+        @Composable
+        get() = ImageVector.vectorResource(id = R.drawable.ic_launcher_foreground)
 }

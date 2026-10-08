@@ -466,6 +466,15 @@
     <string name="about_version">Version</string>
     <string name="about_build">Build</string>
     <string name="about_source_code">Source code</string>
+    <string name="about_section_app">App</string>
+    <string name="about_updates">Updates</string>
+    <string name="about_check_updates">Check for updates</string>
+    <string name="about_checking_updates">Checking for updates…</string>
+    <string name="about_up_to_date">You\'re up to date</string>
+    <string name="about_update_available">Version %1$s is available</string>
+    <string name="about_update_available_desc">Open the release page to download it</string>
+    <string name="about_update_download">Download</string>
+    <string name="about_update_error">Couldn\'t check for updates</string>
     <string name="common_repeat">Repeat</string>
     <string name="common_save">Save</string>
     <string name="common_create">Create</string>
