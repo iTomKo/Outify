@@ -28,7 +28,10 @@ interface AlbumDao {
 
     @Transaction
     @Query("SELECT * FROM albums WHERE albumId IN (:albumIds)")
-    fun observeAlbumsWithArtists(albumIds: List<String>): Flow<List<AlbumWithArtists>>
+    fun observeAlbumsWithArtistsChunk(albumIds: List<String>): Flow<List<AlbumWithArtists>>
+
+    fun observeAlbumsWithArtists(albumIds: List<String>): Flow<List<AlbumWithArtists>> =
+        albumIds.chunkedObserve(::observeAlbumsWithArtistsChunk)
 
     @Transaction
     @Query("SELECT * FROM albums WHERE albumId = :albumId")
@@ -36,7 +39,10 @@ interface AlbumDao {
 
     @Transaction
     @Query("SELECT * FROM albums WHERE albumId IN (:albumIds)")
-    suspend fun getAlbumsWithArtists(albumIds: List<String>): List<AlbumWithArtists>
+    suspend fun getAlbumsWithArtistsChunk(albumIds: List<String>): List<AlbumWithArtists>
+
+    suspend fun getAlbumsWithArtists(albumIds: List<String>): List<AlbumWithArtists> =
+        albumIds.chunkedQuery { getAlbumsWithArtistsChunk(it) }
 
     @Transaction
     @Query("SELECT * FROM albums WHERE albumId = :albumId")
