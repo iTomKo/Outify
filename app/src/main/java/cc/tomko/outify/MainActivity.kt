@@ -70,6 +70,7 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.rememberViewModelStoreProvider
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import cc.tomko.outify.MainActivity.MainActivity.LocalSharedTransitionScope
@@ -199,6 +200,9 @@ class MainActivity : ComponentActivity() {
         val startRoute = Route.HomeScreen
 
         val backStack = rememberNavBackStack(startRoute)
+        // Owns the per-entry ViewModelStores of detail screens; lives above both NavigationRoot
+        // call sites so the stores survive orientation layout switches.
+        val entryViewModelStoreProvider = rememberViewModelStoreProvider()
 
         LaunchedEffect(Unit) {
             deepLinkFlow.collect { uri ->
@@ -382,6 +386,7 @@ class MainActivity : ComponentActivity() {
 
                                         NavigationRoot(
                                             backStack,
+                                            entryViewModelStoreProvider = entryViewModelStoreProvider,
                                             modifier = Modifier.matchParentSize(),
 //                                            bottomPadding = if (currentAudio != null) 156.dp else if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                         )
@@ -491,6 +496,7 @@ class MainActivity : ComponentActivity() {
                                                 ) {
                                                     NavigationRoot(
                                                         backStack = backStack,
+                                                        entryViewModelStoreProvider = entryViewModelStoreProvider,
                                                         modifier = Modifier.fillMaxSize(),
                                                         bottomPadding = if (interfaceSettings.experimentalFloatingNav) 60.dp else 56.dp
                                                     )

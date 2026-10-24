@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.ViewModelStoreProvider
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -50,7 +51,6 @@ import cc.tomko.outify.ui.viewmodel.detail.AlbumDetailViewModel
 import cc.tomko.outify.ui.viewmodel.detail.ArtistDetailViewModel
 import cc.tomko.outify.ui.viewmodel.detail.PlaylistDetailViewModel
 import cc.tomko.outify.ui.viewmodel.detail.TrackDetailViewModel
-import cc.tomko.outify.ui.viewmodel.detail.rememberDetailViewModel
 import cc.tomko.outify.ui.viewmodel.library.LibraryViewModel
 import cc.tomko.outify.ui.viewmodel.library.LikedViewModel
 import cc.tomko.outify.ui.viewmodel.library.ProfileDetailViewModel
@@ -67,6 +67,7 @@ import cc.tomko.outify.ui.viewmodel.settings.SettingsViewModel
 @Composable
 fun SharedTransitionScope.NavigationRoot(
     backStack: NavBackStack<NavKey>,
+    entryViewModelStoreProvider: ViewModelStoreProvider,
     modifier: Modifier = Modifier,
     bottomPadding: Dp = 0.dp
 ) {
@@ -78,6 +79,7 @@ fun SharedTransitionScope.NavigationRoot(
         modifier = modifier.padding(bottom = bottomPadding),
         entryDecorators = listOf(
             rememberSaveableStateHolderNavEntryDecorator(),
+            rememberEntryScopedViewModelDecorator(entryViewModelStoreProvider),
         ),
         transitionSpec = {
             slideInHorizontally { it } + fadeIn() togetherWith
@@ -147,10 +149,8 @@ fun SharedTransitionScope.NavigationRoot(
                 SearchScreen(backStack, viewModel, showSearchUi = false)
             }
 
-            entry<Route.TrackScreen> {
-                val viewModel = rememberDetailViewModel<TrackDetailViewModel>(
-                    key = "track_${it.trackUri}"
-                )
+            entry<Route.TrackScreen>(metadata = EntryScopedViewModels) {
+                val viewModel: TrackDetailViewModel = hiltViewModel()
 
                 LaunchedEffect(it.trackUri) {
                     viewModel.loadTrack(it.trackUri)
@@ -171,10 +171,8 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.AlbumScreen> {
-                val viewModel = rememberDetailViewModel<AlbumDetailViewModel>(
-                    key = "album_${it.albumUri}"
-                )
+            entry<Route.AlbumScreen>(metadata = EntryScopedViewModels) {
+                val viewModel: AlbumDetailViewModel = hiltViewModel()
 
                 LaunchedEffect(it.albumUri) {
                     viewModel.loadAlbum(it.albumUri)
@@ -194,10 +192,8 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.ArtistScreen> {
-                val viewModel = rememberDetailViewModel<ArtistDetailViewModel>(
-                    key = "artist_${it.artistUri}"
-                )
+            entry<Route.ArtistScreen>(metadata = EntryScopedViewModels) {
+                val viewModel: ArtistDetailViewModel = hiltViewModel()
                 LaunchedEffect(viewModel) {
                     viewModel.loadArtist(it.artistUri)
                 }
@@ -222,10 +218,8 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.PlaylistScreen> {
-                val viewModel = rememberDetailViewModel<PlaylistDetailViewModel>(
-                    key = "playlist_${it.playlistUri}"
-                )
+            entry<Route.PlaylistScreen>(metadata = EntryScopedViewModels) {
+                val viewModel: PlaylistDetailViewModel = hiltViewModel()
                 LaunchedEffect(it.playlistUri) {
                     viewModel.loadPlaylist(it.playlistUri, false)
                 }
