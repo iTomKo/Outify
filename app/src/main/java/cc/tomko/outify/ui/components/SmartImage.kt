@@ -29,7 +29,6 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.size
 import cc.tomko.outify.data.setting.LocalUiSettings
-import coil3.ImageLoader
 import coil3.compose.AsyncImage
 import coil3.imageLoader
 import coil3.request.ImageRequest
@@ -123,7 +122,7 @@ fun rememberSmartImageRequest(url: String?, size: Int?): ImageRequest {
 }
 
 suspend fun loadBitmap(context: Context, url: String): Bitmap? {
-    val imageLoader = ImageLoader(context)
+    val imageLoader = context.imageLoader
 
     val request = ImageRequest.Builder(context)
         .data(url)
