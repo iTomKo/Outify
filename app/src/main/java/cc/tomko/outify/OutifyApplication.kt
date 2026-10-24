@@ -11,8 +11,6 @@ import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.data.repository.SettingsRepository
-import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
-import cc.tomko.outify.ui.viewmodel.detail.setDetailViewModelStore
 import cc.tomko.outify.utils.ExceptionCollector
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -55,9 +53,6 @@ class OutifyApplication : Application(), SingletonImageLoader.Factory {
     lateinit var spircController: SpircController
 
     @Inject
-    lateinit var detailViewModelStore: DetailViewModelStore
-
-    @Inject
     lateinit var settingsRepository: SettingsRepository
 
     @Inject
@@ -76,8 +71,6 @@ class OutifyApplication : Application(), SingletonImageLoader.Factory {
         Os.setenv("TMPDIR", cacheDir.absolutePath, true)
         Log.i("OutifyTMP", "TMPDIR=${System.getenv("TMPDIR")}")
         exceptionCollector.install()
-
-        setDetailViewModelStore(detailViewModelStore)
 
         val libraryLoaded = try {
             System.loadLibrary("librespot_ffi")
