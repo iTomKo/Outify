@@ -14,7 +14,14 @@ import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.ui.viewmodel.detail.DetailViewModelStore
 import cc.tomko.outify.ui.viewmodel.detail.setDetailViewModelStore
 import cc.tomko.outify.utils.ExceptionCollector
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,8 +39,14 @@ fun fabBottomPadding(isMediaPlaying: Boolean) =
 fun widgetMediaPreference(id: GlanceId) =
     stringPreferencesKey("widget_media_$id")
 
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface ImageLoaderEntryPoint {
+    fun imageLoader(): ImageLoader
+}
+
 @HiltAndroidApp
-class OutifyApplication : Application() {
+class OutifyApplication : Application(), SingletonImageLoader.Factory {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val database: AppDatabase by lazy { AppDatabase.getInstance(this) }
@@ -49,6 +62,11 @@ class OutifyApplication : Application() {
 
     @Inject
     lateinit var exceptionCollector: ExceptionCollector
+
+    // context.imageLoader must resolve to the Hilt loader so there is one memory and disk cache.
+    // An entry point works even if Coil asks before field injection has run.
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        EntryPointAccessors.fromApplication(this, ImageLoaderEntryPoint::class.java).imageLoader()
 
     @UnstableApi
     override fun onCreate() {
