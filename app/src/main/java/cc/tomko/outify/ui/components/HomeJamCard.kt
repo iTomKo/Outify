@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,6 +27,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 import cc.tomko.outify.core.jam.Jam
+import cc.tomko.outify.core.jam.JamMember
+import cc.tomko.outify.ui.components.user.UserChipAvatar
 
 /** Opens Jam controls; never starts a session or playback just by tapping. */
 @Composable
@@ -65,12 +68,22 @@ internal fun HomeJamCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Text(
-                    if (jam == null) stringResource(R.string.home_jam_description)
-                    else pluralStringResource(R.plurals.jam_listeners, jam.members.size, jam.members.size),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (active) colors.onTertiaryContainer else colors.onSurfaceVariant,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        if (jam == null) stringResource(R.string.home_jam_description)
+                        else pluralStringResource(R.plurals.jam_listeners, jam.members.size, jam.members.size),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (active) colors.onTertiaryContainer else colors.onSurfaceVariant,
+                    )
+
+                    jam?.members?.take(6)?.forEach { mem ->
+                        UserChipAvatar(
+                            artworkUrl = mem.image,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     stringResource(if (active) R.string.jam_manage else R.string.jam_start),

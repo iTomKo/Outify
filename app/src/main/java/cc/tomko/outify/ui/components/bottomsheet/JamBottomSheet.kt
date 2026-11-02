@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +71,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 import cc.tomko.outify.core.jam.Jam
+import cc.tomko.outify.core.jam.JamMember
+import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.viewmodel.bottomsheet.JamAction
 import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
 import com.google.zxing.BarcodeFormat
@@ -84,6 +87,7 @@ import kotlinx.coroutines.launch
 data class JamMemberUi(
     val id: String,
     val name: String,
+    val imageUrl: String,
     val isHost: Boolean,
     val isYou: Boolean,
 )
@@ -334,12 +338,19 @@ private fun JamMemberRow(member: JamMemberUi, shape: Shape) {
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = member.name.take(1).uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (member.isHost) MaterialTheme.colorScheme.onTertiaryContainer
-                        else MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
+                    if (member.imageUrl.isNotEmpty()) {
+                        SmartImage(
+                            url = member.imageUrl,
+                            imageSize = 44.dp,
+                        )
+                    } else {
+                        Text(
+                            text = member.name.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (member.isHost) MaterialTheme.colorScheme.onTertiaryContainer
+                            else MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
                 }
             },
             headlineContent = {
@@ -466,13 +477,6 @@ private fun JamInviteDialog(url: String, onDismiss: () -> Unit) {
                             .size(220.dp),
                     )
                 }
-                Text(
-                    text = url,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
         },
         confirmButton = {
@@ -556,6 +560,7 @@ private fun Jam?.toUi(): JamSessionUi? = this?.let { jam ->
             JamMemberUi(
                 id = m.id,
                 name = m.name,
+                imageUrl = m.image ?: "",
                 isHost = m.host,
                 isYou = m.you,
             )
