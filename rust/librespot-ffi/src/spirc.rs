@@ -265,6 +265,10 @@ impl SpircRuntime {
         .await?;
 
         let spirc = Arc::new(spirc);
+        // Subscribe before the dealer builder is consumed by spirc_future.
+        if let Err(error) = crate::jam_runtime::start(session) {
+            warn!("cannot start Jam listener: {error}");
+        }
         let spirc_task = tokio::spawn(spirc_future);
 
         // Handling received Player Events
@@ -845,6 +849,7 @@ pub async fn start_runtime() -> Result<(), SpircError> {
 
 /// Tears the Connect runtime down without touching the core session.
 pub fn teardown_runtime(reason: &str) {
+    crate::jam_runtime::stop();
     let lock = SPIRC_RUNTIME.get_or_init(|| RwLock::new(None));
 
     let taken = match lock.write() {

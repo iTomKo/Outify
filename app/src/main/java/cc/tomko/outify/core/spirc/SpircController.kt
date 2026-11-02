@@ -3,6 +3,8 @@ package cc.tomko.outify.core.spirc
 import android.util.Log
 import cc.tomko.outify.core.Session
 import cc.tomko.outify.core.SessionCallback
+import cc.tomko.outify.core.jam.JamClient
+import cc.tomko.outify.core.jam.JamException
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.model.getSpeed
@@ -30,6 +32,7 @@ class SpircController @Inject constructor(
     private val spirc: SpircWrapper,
     private val playbackStateHolder: PlaybackStateHolder,
     private val settingsRepository: SettingsRepository,
+    private val jam: JamClient,
 ) {
     private val _state = MutableStateFlow(SpircState.Stopped)
 
@@ -44,6 +47,11 @@ class SpircController @Inject constructor(
     private var bufferCallbacksRegistered = false
 
     fun start() {
+        try {
+            jam.initialize()
+        } catch (error: JamException) {
+            Log.w(TAG, "Jam listener registration failed", error)
+        }
         session.initializeSession(object : SessionCallback {
             override fun onInitialized() {
                 spirc.scope.launch {

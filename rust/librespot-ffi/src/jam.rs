@@ -12,6 +12,7 @@ use reqwest::{
     Method,
     header::{CONTENT_LENGTH, HeaderMap, HeaderValue},
 };
+use serde::Serialize;
 use tokio::sync::mpsc;
 
 const INVITE: &str = "https://open.spotify.com/socialsession/";
@@ -22,7 +23,7 @@ const START: &str = "/social-connect/v2/sessions/current_or_new";
 const END: &str = "/social-connect/v3/sessions";
 
 // One person in a Jam
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct JamMember {
     pub id: String,
     pub name: String,
@@ -33,7 +34,7 @@ pub struct JamMember {
     pub you: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct Jam {
     pub members: Vec<JamMember>,
     // Is this account the owner
@@ -87,7 +88,13 @@ async fn current_read(session: &Session) -> Result<Option<Read>, Error> {
 
 pub async fn leave(session: &Session) -> Result<(), Error> {
     let owned = match current_read(session).await? {
-        Some(read) if read.jam.owner && is_path_id(&read.id) => Some(read.id),
+        None => return Ok(()),
+        Some(read) if read.jam.owner => {
+            if !is_path_id(&read.id) {
+                return Err(Error::data_loss("the owned Jam has an invalid session id"));
+            }
+            Some(read.id)
+        }
         _ => None,
     };
 
@@ -116,34 +123,37 @@ pub async fn leave(session: &Session) -> Result<(), Error> {
 
 /// Emits snapshots (`Some`) or a cleared Jam (`None`) for the JNI layer to forward.
 /// Tokio wakes the receiver; no frontend-specific event or waker is needed.
-/// Ends when the dealer stream or the receiver closes.
-pub async fn watch(session: Session, events: mpsc::UnboundedSender<Option<Jam>>) {
-    let mut updates = match session.dealer().listen_for(TOPIC, Ok) {
-        Ok(updates) => updates,
-        Err(err) => return warn!("jam: cannot follow updates: {err}"),
-    };
+/// Subscribes synchronously, before Spirc launches the dealer, to avoid missing
+/// updates during startup. The returned future ends when either channel closes.
+pub fn watch(
+    session: Session,
+    events: mpsc::UnboundedSender<Option<Jam>>,
+) -> Result<impl Future<Output = ()> + Send, Error> {
+    let mut updates = session.dealer().listen_for(TOPIC, Ok)?;
     let own = session.username();
-    loop {
-        let message = tokio::select! {
-            _ = events.closed() => break,
-            message = updates.next() => match message {
-                Some(Ok(message)) => message,
-                Some(Err(error)) => {
-                    warn!("jam: cannot read update: {error}");
-                    continue;
-                }
-                None => break,
-            },
-        };
-        let jam = match update_of(&message, &own) {
-            Update::Ended => None,
-            Update::Changed(jam) => Some(jam),
-            Update::Nothing => continue,
-        };
-        if events.send(jam).is_err() {
-            break;
+    Ok(async move {
+        loop {
+            let message = tokio::select! {
+                _ = events.closed() => break,
+                message = updates.next() => match message {
+                    Some(Ok(message)) => message,
+                    Some(Err(error)) => {
+                        warn!("jam: cannot read update: {error}");
+                        continue;
+                    }
+                    None => break,
+                },
+            };
+            let jam = match update_of(&message, &own) {
+                Update::Ended => None,
+                Update::Changed(jam) => Some(jam),
+                Update::Nothing => continue,
+            };
+            if events.send(jam).is_err() {
+                break;
+            }
         }
-    }
+    })
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -364,6 +374,30 @@ mod tests {
         }
     }
 
+    #[test]
+    fn kotlin_receives_a_nullable_snapshot_with_stable_field_names() {
+        let jam = Jam {
+            owner: true,
+            link: Some("https://open.spotify.com/socialsession/Tok9".into()),
+            members: vec![JamMember {
+                id: "me".into(),
+                name: "Me".into(),
+                image: None,
+                host: true,
+                you: true,
+            }],
+        };
+        assert_eq!(
+            serde_json::to_value(Some(jam)).unwrap(),
+            serde_json::json!({
+                "owner": true,
+                "link": "https://open.spotify.com/socialsession/Tok9",
+                "members": [{"id": "me", "name": "Me", "image": null, "host": true, "you": true}]
+            })
+        );
+        assert_eq!(serde_json::to_string(&None::<Jam>).unwrap(), "null");
+    }
+
     #[tokio::test]
     async fn requests_use_the_dealer_connection_header_and_empty_post_body() {
         let session = Session::new(Default::default(), None);
@@ -385,9 +419,12 @@ mod tests {
         let (tx, rx) = mpsc::unbounded_channel();
         drop(rx);
 
-        tokio::time::timeout(std::time::Duration::from_secs(1), watch(session, tx))
-            .await
-            .expect("watcher should stop without waiting for a dealer update");
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            watch(session, tx).unwrap(),
+        )
+        .await
+        .expect("watcher should stop without waiting for a dealer update");
     }
 
     #[test]
