@@ -46,6 +46,10 @@ interface SpircDeviceCallback {
 }
 
 object Spirc {
+    /** Also applies to automatic native reconnects; manual transfers remain explicit. */
+    @JvmStatic
+    external fun setTransferPreferences(autoTransfer: Boolean, smartTransfer: Boolean)
+
     /**
      * Initializes the SpircRuntime
      * @param deviceName The device name shown in Spotify Connect (default "Outify")

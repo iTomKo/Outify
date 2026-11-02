@@ -46,6 +46,18 @@ pub fn device_cb() -> Option<Arc<JavaCallback>> {
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_setTransferPreferences(
+    _env: JNIEnv,
+    _this: JClass,
+    auto_transfer: jboolean,
+    smart_transfer: jboolean,
+) {
+    guard("Spirc.setTransferPreferences", (), || {
+        crate::spirc::set_transfer_preferences(auto_transfer != 0, smart_transfer != 0);
+    });
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_initializeSpirc(
     mut env: JNIEnv,
     _this: JClass,

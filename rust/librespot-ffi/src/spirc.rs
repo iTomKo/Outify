@@ -82,7 +82,10 @@ pub static DEVICE_NAME: OnceCell<Mutex<String>> = OnceCell::new();
 pub static NORMALISE_AUDIO: AtomicBool = AtomicBool::new(false);
 pub static GAPLESS: AtomicBool = AtomicBool::new(false);
 pub static CROSSFADE: AtomicU32 = AtomicU32::new(0);
-static AUTO_TRANSFER: AtomicBool = AtomicBool::new(true);
+// One atomic snapshot avoids mixing preferences during a concurrent settings update.
+const AUTO_TRANSFER: u8 = 1;
+const SMART_TRANSFER: u8 = 2;
+static TRANSFER_PREFERENCES: AtomicU8 = AtomicU8::new(AUTO_TRANSFER | SMART_TRANSFER);
 static CURRENT_CONTEXT: OnceCell<Mutex<Option<CurrentContext>>> = OnceCell::new();
 static IS_PLAYING: AtomicBool = AtomicBool::new(false);
 static PLAYBACK_INTENT: crate::playback_intent::PlaybackIntent =
@@ -198,7 +201,16 @@ pub fn set_state(state: SpircState) {
 }
 
 pub fn set_auto_transfer(enabled: bool) {
-    AUTO_TRANSFER.store(enabled, Ordering::Relaxed);
+    if enabled {
+        TRANSFER_PREFERENCES.fetch_or(AUTO_TRANSFER, Ordering::Relaxed);
+    } else {
+        TRANSFER_PREFERENCES.fetch_and(!AUTO_TRANSFER, Ordering::Relaxed);
+    }
+}
+
+pub fn set_transfer_preferences(auto: bool, smart: bool) {
+    let flags = (if auto { AUTO_TRANSFER } else { 0 }) | (if smart { SMART_TRANSFER } else { 0 });
+    TRANSFER_PREFERENCES.store(flags, Ordering::Relaxed);
 }
 
 pub struct SpircRuntime {
@@ -266,7 +278,8 @@ impl SpircRuntime {
 
         let spirc = Arc::new(spirc);
         // Subscribe before the dealer builder is consumed by spirc_future.
-        if let Err(error) = crate::jam_runtime::start(session) {
+        // This restores current membership only; it never creates a new Jam.
+        if let Err(error) = crate::jam_runtime::initialize(session) {
             warn!("cannot start Jam listener: {error}");
         }
         let spirc_task = tokio::spawn(spirc_future);
@@ -938,7 +951,11 @@ pub fn diagnostics() -> Vec<(&'static str, String)> {
         ),
         (
             "auto transfer",
-            AUTO_TRANSFER.load(Ordering::Relaxed).to_string(),
+            (TRANSFER_PREFERENCES.load(Ordering::Relaxed) & AUTO_TRANSFER != 0).to_string(),
+        ),
+        (
+            "smart transfer",
+            (TRANSFER_PREFERENCES.load(Ordering::Relaxed) & SMART_TRANSFER != 0).to_string(),
         ),
         ("applied gapless", settings.gapless.to_string()),
         ("applied normalise", settings.normalisation.to_string()),
@@ -984,15 +1001,92 @@ fn command_ack_diagnostics() -> String {
     }
 }
 
-/// Re-establishes the Connect session and playback after a (re)build.
-pub fn reestablish_after_restart(was_playing: bool) {
-    let transferred = with_spirc(|spirc| {
-        let _ = spirc.activate();
+/// Shared decision for native reconnects. Futures stay lazy when checks are disabled.
+async fn automatic_transfer_allowed(
+    auto: bool,
+    smart: bool,
+    in_jam: impl Future<Output = Result<bool, String>>,
+    remote_active: impl Future<Output = Result<bool, String>>,
+) -> Result<bool, String> {
+    if !auto {
+        return Ok(false);
+    }
+    if !smart {
+        return Ok(true);
+    }
+    if in_jam.await? {
+        return Ok(false);
+    }
+    Ok(!remote_active.await?)
+}
 
-        if AUTO_TRANSFER.load(Ordering::Relaxed) {
+/// Re-establishes playback only after checking the same safeguards as cold startup.
+pub async fn reestablish_after_restart(was_playing: bool) {
+    let (expected, generation) =
+        match with_spirc(|runtime| (runtime.spirc.clone(), runtime.generation)) {
+            Ok(runtime) => runtime,
+            Err(error) => return warn!("cannot inspect runtime for automatic transfer: {error}"),
+        };
+    let session = match with_session(|session| session.clone()) {
+        Ok(session) => session,
+        Err(error) => return warn!("cannot inspect session for automatic transfer: {error}"),
+    };
+    let flags = TRANSFER_PREFERENCES.load(Ordering::Relaxed);
+    let allowed = tokio::time::timeout(
+        Duration::from_secs(30),
+        automatic_transfer_allowed(
+            flags & AUTO_TRANSFER != 0,
+            flags & SMART_TRANSFER != 0,
+            async {
+                crate::jam_runtime::request(crate::jam_runtime::Operation::Current)
+                    .await
+                    .map(|jam| jam.is_some())
+            },
+            async {
+                let devices = crate::spotify::client::get_client()
+                    .get_devices()
+                    .await
+                    .map_err(|error| error.to_string())?;
+                Ok(devices.devices.iter().any(|device| {
+                    device.is_active && device.id.as_deref() != Some(session.device_id())
+                }))
+            },
+        ),
+    )
+    .await;
+    match allowed {
+        Ok(Ok(true)) => {}
+        Ok(Ok(false)) => {
+            return info!("skipping automatic transfer: disabled, in a Jam, or another device is active");
+        }
+        Ok(Err(error)) => {
+            return warn!("skipping automatic transfer: cannot check playback state: {error}");
+        }
+        Err(_) => return warn!("skipping automatic transfer: playback state check timed out"),
+    }
+    // The HTTP checks can outlive this runtime or a settings change. Never apply
+    // an old decision to a replacement session or a stricter preference snapshot.
+    if !is_current_runtime(&expected, generation)
+        || session.is_invalid()
+        || TRANSFER_PREFERENCES.load(Ordering::Relaxed) != flags
+    {
+        return;
+    }
+    let transferred = with_spirc(|spirc| {
+        if spirc.generation != generation
+            || TRANSFER_PREFERENCES.load(Ordering::Relaxed) != flags
+        {
+            return false;
+        }
+        if let Err(error) = spirc.activate() {
+            warn!("activation after restart failed: {error}");
+            return false;
+        }
+        if TRANSFER_PREFERENCES.load(Ordering::Relaxed) & AUTO_TRANSFER != 0 {
             match spirc.transfer() {
                 Ok(()) => {
                     info!("transferred session after restart");
+                    spirc.resume_playback(was_playing);
                     true
                 }
                 Err(e) => {
@@ -1007,9 +1101,7 @@ pub fn reestablish_after_restart(was_playing: bool) {
     });
 
     match transferred {
-        Ok(true) => {
-            let _ = with_spirc(|spirc| spirc.resume_playback(was_playing));
-        }
+        Ok(true) => {}
         Ok(false) => {
             // Another device stayed active, so the server drives our state and
             // reloading the queue here would fight it.
@@ -1090,6 +1182,80 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn smart_reconnect_does_not_steal_ordinary_remote_playback() {
+        assert!(
+            !automatic_transfer_allowed(true, true, async { Ok(false) }, async { Ok(true) })
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn smart_reconnect_preserves_a_jam_before_checking_devices() {
+        assert!(
+            !automatic_transfer_allowed(true, true, async { Ok(true) }, async {
+                panic!("Jam already prevents takeover")
+            })
+            .await
+            .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn smart_reconnect_can_restore_when_no_jam_or_remote_device_is_active() {
+        assert!(
+            automatic_transfer_allowed(true, true, async { Ok(false) }, async { Ok(false) })
+                .await
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn reconnect_does_not_assume_failed_lookups_mean_no_playback() {
+        assert!(
+            automatic_transfer_allowed(
+                true,
+                true,
+                async { Err("Jam unavailable".into()) },
+                async { panic!("Jam lookup failed") },
+            )
+            .await
+            .is_err()
+        );
+        assert!(
+            automatic_transfer_allowed(true, true, async { Ok(false) }, async {
+                Err("devices unavailable".into())
+            })
+            .await
+            .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn disabled_transfer_preferences_skip_unnecessary_reconnect_lookups() {
+        assert!(
+            !automatic_transfer_allowed(
+                false,
+                true,
+                async { panic!("auto off") },
+                async { panic!("auto off") },
+            )
+            .await
+            .unwrap()
+        );
+        assert!(
+            automatic_transfer_allowed(
+                true,
+                false,
+                async { panic!("smart off") },
+                async { panic!("smart off") },
+            )
+            .await
+            .unwrap()
+        );
+    }
     use librespot_core::SpotifyId;
 
     #[test]

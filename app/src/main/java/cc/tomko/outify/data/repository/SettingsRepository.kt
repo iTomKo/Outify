@@ -51,6 +51,7 @@ class SettingsRepository @Inject constructor(
          * Should we auto transfer the playback session upon connect
          */
         val AUTO_TRANSFER = booleanPreferencesKey("auto_transfer")
+        val SMART_TRANSFER = booleanPreferencesKey("smart_transfer")
         val BITRATE = stringPreferencesKey("bitrate")
         val CROSSFADE_MILLIS = intPreferencesKey("crossfade_millis")
         val DEVICE_NAME = stringPreferencesKey("device_name")
@@ -182,6 +183,7 @@ class SettingsRepository @Inject constructor(
             normalizeAudio = prefs[Keys.NORMALIZE_AUDIO] ?: default.normalizeAudio,
             keepalive = prefs[Keys.KEEPALIVE] ?: default.keepalive,
             autoTransfer = prefs[Keys.AUTO_TRANSFER] ?: default.autoTransfer,
+            smartTransfer = prefs[Keys.SMART_TRANSFER] ?: default.smartTransfer,
             bitrate = Bitrate.valueOf(bitrate),
             crossfadeMillis = prefs[Keys.CROSSFADE_MILLIS] ?: default.crossfadeMillis,
             deviceName = prefs[Keys.DEVICE_NAME] ?: default.deviceName,
@@ -265,7 +267,11 @@ class SettingsRepository @Inject constructor(
     }
 
     val autoTransfer = dataStore.data.map {
-        it[Keys.AUTO_TRANSFER] ?: false
+        it[Keys.AUTO_TRANSFER] ?: PlaybackSettings.Default.autoTransfer
+    }
+
+    val smartTransfer = dataStore.data.map {
+        it[Keys.SMART_TRANSFER] ?: PlaybackSettings.Default.smartTransfer
     }
 
     val bitrate = dataStore.data.map {
@@ -338,6 +344,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAutoTransfer(enabled: Boolean) {
         dataStore.edit { it[Keys.AUTO_TRANSFER] = enabled }
+    }
+
+    suspend fun setSmartTransfer(enabled: Boolean) {
+        dataStore.edit { it[Keys.SMART_TRANSFER] = enabled }
     }
 
     suspend fun setDeviceName(name: String) {
@@ -650,6 +660,7 @@ data class PlaybackSettings(
     val normalizeAudio: Boolean = false,
     val keepalive: Boolean = true,
     val autoTransfer: Boolean = true,
+    val smartTransfer: Boolean = true,
     val bitrate: Bitrate = Bitrate.KBPS320,
     val crossfadeMillis: Int = 5_000,
     val deviceName: String = "Outify",

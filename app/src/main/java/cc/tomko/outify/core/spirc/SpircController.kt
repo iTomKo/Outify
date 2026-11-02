@@ -8,10 +8,14 @@ import cc.tomko.outify.core.jam.JamException
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.model.getSpeed
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -45,8 +49,17 @@ class SpircController @Inject constructor(
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
     private var bufferCallbacksRegistered = false
+    private var transferPreferencesJob: Job? = null
 
     fun start() {
+        if (transferPreferencesJob == null) {
+            transferPreferencesJob = spirc.scope.launch {
+                settingsRepository.playbackSettings
+                    .map { it.autoTransfer to it.smartTransfer }
+                    .distinctUntilChanged()
+                    .collect { (auto, smart) -> Spirc.setTransferPreferences(auto, smart) }
+            }
+        }
         try {
             jam.initialize()
         } catch (error: JamException) {
@@ -96,6 +109,8 @@ class SpircController @Inject constructor(
             val crossfadeMillis = settingsRepository.crossfadeMillis.first()
             val deviceName = settingsRepository.deviceName.first()
             val autoTransfer = settingsRepository.autoTransfer.first()
+            val smartTransfer = settingsRepository.smartTransfer.first()
+            Spirc.setTransferPreferences(autoTransfer, smartTransfer)
 
             if (!Spirc.requestRestart(reason, gapless, normalise, bitrate.getSpeed(), crossfadeMillis, deviceName, autoTransfer)) {
                 Log.e(TAG, "restart request was rejected")
@@ -121,6 +136,8 @@ class SpircController @Inject constructor(
     }
 
     private suspend fun initializeSpirc() {
+        val transferSettings = settingsRepository.playbackSettings.first()
+        Spirc.setTransferPreferences(transferSettings.autoTransfer, transferSettings.smartTransfer)
         val gapless = settingsRepository.gaplessPlayback.first()
         val normalise = settingsRepository.normalizePlayback.first()
         val bitrate = settingsRepository.bitrate.first()
@@ -196,6 +213,25 @@ class SpircController @Inject constructor(
     }
 
     private suspend fun activateAndTransfer() {
+        val settings = settingsRepository.playbackSettings.first()
+        val shouldTransfer = try {
+            shouldTransferOnStartup(settings, jam::current, spirc::hasActiveDevice)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.w(TAG, "Skipping startup transfer: could not check Jam or active devices", error)
+            return
+        }
+        if (!shouldTransfer) {
+            Log.d(TAG, "Skipping startup transfer: disabled, in a Jam, or another device is active")
+            return
+        }
+        // The read-only checks can suspend while the user changes preferences.
+        // Do not apply an older, less protective decision afterward.
+        val latest = settingsRepository.playbackSettings.first()
+        if (!latest.autoTransfer || latest.smartTransfer != settings.smartTransfer) return
+        if (settings.smartTransfer && jam.state.value != null) return
+
         spirc.startPlaybackService()
 
         if (!spirc.activate()) {
@@ -203,11 +239,7 @@ class SpircController @Inject constructor(
             return
         }
 
-        if (!settingsRepository.autoTransfer.first()) {
-            return
-        }
-
-        if (!spirc.smartTransfer()) {
+        if (!spirc.transfer()) {
             Log.w(TAG, "Spirc session did not transfer!")
             playbackStateHolder.setActiveDevice(false)
             return

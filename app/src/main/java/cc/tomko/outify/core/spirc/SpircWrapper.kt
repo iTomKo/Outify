@@ -16,6 +16,7 @@ import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.services.PlaybackService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -299,22 +300,25 @@ class SpircWrapper @Inject constructor(
     }
 
     /**
-     * Checks if any other device is actively playing.
-     * Retries up to 3 times since SpClient may not be ready immediately at startup.
+     * Checks if Spotify already has an active playback device (including paused
+     * sessions). Retries startup failures, then throws rather than treating an
+     * unknown device state as safe to take over.
      */
     override suspend fun hasActiveDevice(): Boolean = withContext(Dispatchers.IO) {
-        repeat(3) {
+        var lastError: Exception? = null
+        repeat(3) { attempt ->
             try {
-                val json = spClient.getDevices()
-                if (json != null) {
-                    val devices = Json.decodeFromString<DevicesResponse>(json)
-                    return@withContext devices.devices.any { it.isActive }
-                }
-            } catch (_: Exception) {
+                val raw = spClient.getDevices() ?: error("Device lookup returned no response")
+                val devices = json.decodeFromString<DevicesResponse>(raw)
+                return@withContext devices.devices.any { it.isActive }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                lastError = error
             }
-            delay(500)
+            if (attempt < 2) delay(500)
         }
-        false
+        throw IllegalStateException("Could not check active playback devices", lastError)
     }
 
     /**

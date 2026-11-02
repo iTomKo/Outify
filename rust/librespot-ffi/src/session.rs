@@ -187,7 +187,7 @@ pub async fn rebuild_all(reason: &str) -> Result<(), String> {
         } else {
             // Restore the Connect session before announcing readiness, so that
             // Kotlin accepts commands only once they can actually take effect.
-            crate::spirc::reestablish_after_restart(was_playing);
+            crate::spirc::reestablish_after_restart(was_playing).await;
             crate::spirc::set_state(crate::spirc::SpircState::Ready);
             notify_callback("onRestarted");
 

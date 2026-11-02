@@ -27,6 +27,26 @@ pub enum Operation {
     Leave,
 }
 
+// Startup/reconnect may restore membership, but must never create a social
+// session. Only an explicit Start/Invite action is allowed to do that.
+const STARTUP_OPERATION: Operation = Operation::Current;
+
+impl Operation {
+    async fn execute(
+        self,
+        start: impl Future<Output = Result<Jam, Error>>,
+        current: impl Future<Output = Result<Option<Jam>, Error>>,
+        leave: impl Future<Output = Result<(), Error>>,
+    ) -> Result<Option<Jam>, Error> {
+        // These are lazy futures: only the selected endpoint is ever polled.
+        match self {
+            Self::Start => start.await.map(Some),
+            Self::Current => current.await,
+            Self::Leave => leave.await.map(|()| None),
+        }
+    }
+}
+
 struct Runtime {
     context: Context,
     cancel: watch::Sender<bool>,
@@ -99,8 +119,9 @@ pub fn unregister_listener() {
     MANAGER.lock().unwrap().listener = None;
 }
 
+/// Starts the listener and restores an existing Jam, without creating one.
 /// Called before the newly authenticated Spirc starts its dealer task.
-pub fn start(session: &Session) -> Result<(), Error> {
+pub fn initialize(session: &Session) -> Result<(), Error> {
     let mut manager = MANAGER.lock().unwrap();
     manager.reset();
     if session.is_invalid() {
@@ -122,7 +143,7 @@ pub fn start(session: &Session) -> Result<(), Error> {
     let mut shutdown = session.subscribe_shutdown();
     let task = tokio::spawn(async move {
         let mut cancelled = task_context.cancelled.clone();
-        let initial = perform(task_context.clone(), Operation::Current);
+        let initial = perform(task_context.clone(), STARTUP_OPERATION);
         tokio::pin!(watcher, initial);
         let mut initial_done = false;
         let error = loop {
@@ -139,10 +160,14 @@ pub fn start(session: &Session) -> Result<(), Error> {
                 _ = &mut watcher => break Some("Jam dealer subscription closed".to_string()),
                 result = &mut initial, if !initial_done => {
                     initial_done = true;
-                    if let Err(error) = result {
-                        let manager = MANAGER.lock().unwrap();
-                        if manager.generation == task_context.generation {
-                            manager.error(error);
+                    match result {
+                        Ok(Some(jam)) => debug!("jam: restored existing session ({} members)", jam.members.len()),
+                        Ok(None) => debug!("jam: no existing session; continuing without a Jam"),
+                        Err(error) => {
+                            let manager = MANAGER.lock().unwrap();
+                            if manager.generation == task_context.generation {
+                                manager.error(error);
+                            }
                         }
                     }
                 },
@@ -204,11 +229,11 @@ async fn perform(mut context: Context, operation: Operation) -> Result<Option<Ja
                 }
                 manager.revision
             };
-            let jam = match operation {
-                Operation::Start => jam::start(&context.session).await.map(Some),
-                Operation::Current => jam::current(&context.session).await,
-                Operation::Leave => jam::leave(&context.session).await.map(|()| None),
-            }.map_err(|error| error.to_string())?;
+            let jam = operation.execute(
+                jam::start(&context.session),
+                jam::current(&context.session),
+                jam::leave(&context.session),
+            ).await.map_err(|error| error.to_string())?;
             let mut manager = MANAGER.lock().unwrap();
             if manager.generation != context.generation {
                 return Err("Jam session was replaced or shut down".to_string());
@@ -225,6 +250,47 @@ async fn perform(mut context: Context, operation: Operation) -> Result<Option<Ja
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    async fn startup_lookup(current: Result<Option<Jam>, Error>) -> Result<Option<Jam>, Error> {
+        STARTUP_OPERATION
+            .execute(
+                async { panic!("startup must not create a Jam") },
+                async { current },
+                async { panic!("startup must not leave an existing Jam") },
+            )
+            .await
+    }
+
+    #[tokio::test]
+    async fn startup_reuses_an_existing_jam_without_starting_another() {
+        let jam = Jam {
+            owner: false,
+            members: vec![jam::JamMember {
+                id: "host".into(),
+                host: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        assert_eq!(
+            startup_lookup(Ok(Some(jam.clone()))).await.unwrap(),
+            Some(jam)
+        );
+    }
+
+    #[tokio::test]
+    async fn startup_without_a_jam_does_not_create_one() {
+        assert_eq!(startup_lookup(Ok(None)).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn failed_startup_lookup_never_falls_back_to_creating_a_jam() {
+        let result = startup_lookup(Err(Error::unavailable("offline"))).await;
+        assert_eq!(
+            result.unwrap_err().kind,
+            librespot_core::error::ErrorKind::Unavailable
+        );
+    }
 
     #[test]
     fn late_http_snapshots_do_not_overwrite_dealer_updates() {

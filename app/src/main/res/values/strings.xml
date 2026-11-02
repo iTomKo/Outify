@@ -376,6 +376,8 @@
     <string name="settings_client_secret">Spotify Client Secret</string>
     <string name="settings_keepalive">Keepalive</string>
     <string name="settings_auto_transfer">Auto transfer</string>
+    <string name="settings_smart_transfer">Smart transfer</string>
+    <string name="settings_smart_transfer_desc">On startup or reconnect, transfer playback to Outify only when you are not in a Jam and no other device is active.</string>
     <string name="settings_romanize">Romanize lyrics</string>
     <string name="settings_lyrics_fallback">Fallback lyrics from LRCLIB</string>
     <string name="settings_advanced">Advanced settings</string>

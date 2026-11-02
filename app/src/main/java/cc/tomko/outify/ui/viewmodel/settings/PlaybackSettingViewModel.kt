@@ -89,6 +89,12 @@ class PlaybackSettingViewModel @Inject constructor(
         }
     }
 
+    fun setSmartTransfer(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setSmartTransfer(enabled)
+        }
+    }
+
     fun setRomanizeLyrics(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setRomanizeLyrics(enabled)

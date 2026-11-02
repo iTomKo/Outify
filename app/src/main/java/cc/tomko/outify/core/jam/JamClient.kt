@@ -29,7 +29,10 @@ class JamClient internal constructor(
 
     private var listener: JamCallback? = null
 
-    /** Called after libInit; registers once and replays the latest native state. */
+    /**
+     * Called after libInit; registers once and replays native state. Native startup
+     * restores current membership with a read-only lookup; it never starts a Jam.
+     */
     @Synchronized
     fun initialize() {
         if (listener != null) return

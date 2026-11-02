@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Healing
 import androidx.compose.material.icons.filled.HighQuality
@@ -296,6 +297,17 @@ fun PlaybackSettingScreen(
                         onCheckedChange = { viewModel.setAutoTransfer(it) },
                         isChecked = settings.autoTransfer
                     )
+                }
+                if (settings.autoTransfer) {
+                    entry {
+                        SwitchPreferenceEntry(
+                            title = { Text(stringResource(R.string.settings_smart_transfer)) },
+                            description = stringResource(R.string.settings_smart_transfer_desc),
+                            icon = { Icon(Icons.Default.Group, contentDescription = null) },
+                            onCheckedChange = { viewModel.setSmartTransfer(it) },
+                            isChecked = settings.smartTransfer,
+                        )
+                    }
                 }
             }
         }
