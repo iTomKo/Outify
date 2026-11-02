@@ -76,6 +76,8 @@ Contact us through Github:
 - [x] interacting with spotify account
     - [x] login to Spotify Web API
 - [ ] jams
+    - [x] starting, ending and inviting
+    - [ ] joining jams
 - [ ] offline support
 - [x] media notification
 - [x] keep alive lifecycle
