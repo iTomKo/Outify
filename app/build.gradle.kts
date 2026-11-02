@@ -189,6 +189,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
 
+    implementation(libs.zxing.core)
+
     implementation(libs.androidx.palette)
     implementation(libs.google.material)
 

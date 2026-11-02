@@ -2,6 +2,7 @@
 agp = "9.3.2"
 coilCompose = "3.6.2"
 coilNetworkOkhttp = "3.6.2"
+zxingCore = "3.5.4"
 datastorePreferences = "1.2.1"
 glance = "1.2.0"
 hiltAndroid = "2.60.1"
@@ -49,6 +50,7 @@ androidx-media3-session = { module = "androidx.media3:media3-session", version.r
 androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coilNetworkOkhttp" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coilCompose" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
 google-material = { module = "com.google.android.material:material", version.ref = "material" }
 hilt-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltAndroidCompiler" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltCompiler" }
