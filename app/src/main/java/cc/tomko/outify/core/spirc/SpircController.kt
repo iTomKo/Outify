@@ -82,8 +82,7 @@ class SpircController @Inject constructor(
             }
 
             override fun onRestarted() {
-                updateState(SpircState.Ready)
-                refreshPlaybackState()
+                finishRuntimeInitialization()
             }
 
             override fun onFailed(reason: String) {
@@ -149,11 +148,7 @@ class SpircController @Inject constructor(
         Spirc.initializeSpirc(object : SpircInitializationCallback {
             override fun initialized() {
                 registerCallbacks()
-                updateState(SpircState.Ready)
-
-                spirc.scope.launch {
-                    activateAndTransfer()
-                }
+                finishRuntimeInitialization { activateAndTransfer() }
             }
 
             override fun failed() {
@@ -199,16 +194,31 @@ class SpircController @Inject constructor(
     }
 
     /**
-     * Re-applies the persisted playback preferences to the fresh runtime.
+     * Cold startup and reconnects both restore modes before exposing a usable
+     * runtime. Direct JNI setters seed Rust's load options even while the Kotlin
+     * wrapper is still gated, without clearing the saved queue or rewriting prefs.
      */
-    private fun refreshPlaybackState() {
+    private fun finishRuntimeInitialization(afterReady: suspend () -> Unit = {}) {
         spirc.scope.launch {
-            val shuffle = settingsRepository.shuffleEnabled.first()
-            val repeat = settingsRepository.repeatEnabled.first()
-            val repeatTrack = settingsRepository.repeatTrackEnabled.first()
-
-            spirc.shuffle(shuffle)
-            spirc.repeat(repeat, repeatTrack)
+            try {
+                restorePlaybackModes(
+                    shuffleEnabled = settingsRepository.shuffleEnabled,
+                    repeatMode = settingsRepository.repeatMode,
+                    applyShuffle = Spirc::shuffle,
+                    applyRepeat = Spirc::repeat,
+                ) { repeat ->
+                    playbackStateHolder.setRepeatMode(repeat)
+                    updateState(SpircState.Ready)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.e(TAG, "Failed to restore playback modes", error)
+                _lastError.value = error.message
+                updateState(SpircState.Failed)
+                return@launch
+            }
+            afterReady()
         }
     }
 
