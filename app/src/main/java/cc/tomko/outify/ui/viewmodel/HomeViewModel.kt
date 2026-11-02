@@ -7,6 +7,7 @@ import cc.tomko.outify.core.AuthStateEvent
 import cc.tomko.outify.core.AuthStateEventBus
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.UserProfile
+import cc.tomko.outify.core.jam.JamClient
 import cc.tomko.outify.core.model.PlayableAudio
 import cc.tomko.outify.core.model.Profile
 import cc.tomko.outify.core.model.Track
@@ -85,10 +86,12 @@ class HomeViewModel @Inject constructor(
     private val userProfile: UserProfile,
     private val settingsRepository: SettingsRepository,
     private val authManager: AuthManager,
+    jamClient: JamClient,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState
+    val jam = jamClient.state
 
     private val _selectedDuration = MutableStateFlow(TopItemsDuration.SHORT_TERM)
     val selectedDuration: StateFlow<TopItemsDuration> = _selectedDuration.asStateFlow()

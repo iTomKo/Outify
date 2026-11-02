@@ -26,6 +26,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import cc.tomko.outify.reccobeats.PendingRecommendation
+import cc.tomko.outify.ui.GlobalPopupController
+import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.screens.HomeScreen
 import cc.tomko.outify.ui.screens.SearchScreen
 import cc.tomko.outify.ui.screens.library.LibraryScreen
@@ -100,6 +102,9 @@ fun SharedTransitionScope.NavigationRoot(
                 HomeScreen(
                     backStack = backStack,
                     viewModel = viewModel,
+                    onShowJam = {
+                        GlobalPopupController.show(PopupSpec.Jam())
+                    }
                 )
             }
 

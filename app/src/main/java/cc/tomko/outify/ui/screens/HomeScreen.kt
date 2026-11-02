@@ -65,6 +65,7 @@ import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.ui.components.ErrorScreen
+import cc.tomko.outify.ui.components.HomeJamCard
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
@@ -79,6 +80,7 @@ fun SharedTransitionScope.HomeScreen(
     backStack: NavBackStack<NavKey>,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel,
+    onShowJam: () -> Unit,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val username by viewModel.username.collectAsState(initial = "User")
@@ -88,6 +90,7 @@ fun SharedTransitionScope.HomeScreen(
     val currentTrack by viewModel.currentAudio.collectAsState(initial = null)
     val isPlaybackPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val jam by viewModel.jam.collectAsState()
     var durationExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
@@ -99,11 +102,22 @@ fun SharedTransitionScope.HomeScreen(
     ) { innerPaddings ->
         val state = uiState
         if (state is HomeUiState.Error) {
-            ErrorScreen(
-                message = state.message,
-                onRetry = { viewModel.retry() },
-                modifier = Modifier.padding(top = innerPaddings.calculateTopPadding()),
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = innerPaddings.calculateTopPadding()),
+            ) {
+                HomeJamCard(
+                    jam = jam,
+                    onClick = onShowJam,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                )
+                ErrorScreen(
+                    message = state.message,
+                    onRetry = { viewModel.retry() },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         } else {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
@@ -127,6 +141,14 @@ fun SharedTransitionScope.HomeScreen(
                             onAccountClick = { backStack.add(Route.AccountsScreen) },
                             durationExpanded = durationExpanded,
                             onDurationExpandedChange = { durationExpanded = it }
+                        )
+                    }
+
+                    item(key = "home_jam") {
+                        HomeJamCard(
+                            jam = jam,
+                            onClick = onShowJam,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                         )
                     }
 
@@ -172,7 +194,6 @@ fun SharedTransitionScope.HomeScreen(
 
                         is HomeUiState.Success -> {
                             item {
-                                Spacer(Modifier.height(24.dp))
                                 Text(
                                     text = stringResource(R.string.homescreen_top_artists),
                                     style = MaterialTheme.typography.titleLarge,

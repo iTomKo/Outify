@@ -568,6 +568,28 @@
     <string name="debug_include_sensitive_desc">When off, sensitive information are redacted</string>
     <string name="debug_copy_all">Copy all</string>
     <string name="debug_copied">Copied to clipboard</string>
+    <string name="jam_title">Jam</string>
+    <string name="jam_not_in_jam">Not in a Jam</string>
+    <string name="jam_start_headline">Listen together</string>
+    <string name="jam_start_body">Start a Jam and invite friends to listen in real time.</string>
+    <string name="jam_unavailable">Connecting to Spotify…</string>
+    <string name="jam_start">Start a Jam</string>
+    <string name="jam_manage">Manage Jam</string>
+    <string name="home_jam_active">Your Jam</string>
+    <string name="home_jam_description">Invite friends to listen and add songs.</string>
+    <string name="jam_invite">Invite</string>
+    <string name="jam_leave">Leave</string>
+    <string name="jam_end">End Jam</string>
+    <string name="jam_host">Host</string>
+    <string name="jam_you">You</string>
+    <string name="jam_invite_title">Invite to Jam</string>
+    <string name="jam_invite_body">Scan the code or share the link to join.</string>
+    <string name="jam_copy_link">Copy link</string>
+    <string name="jam_copied">Copied</string>
+    <plurals name="jam_listeners">
+        <item quantity="one">%d listener</item>
+        <item quantity="other">%d listeners</item>
+    </plurals>
 
     <plurals name="queue_count">
         <item quantity="one">%d queue</item>
