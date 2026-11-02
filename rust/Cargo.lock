@@ -1713,6 +1713,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "bytes",
+ "futures-util",
  "jni",
  "librespot-connect",
  "librespot-core",
@@ -1724,6 +1725,7 @@ dependencies = [
  "num_cpus",
  "oauth2",
  "once_cell",
+ "protobuf",
  "regex",
  "reqwest",
  "serde",

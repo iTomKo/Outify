@@ -16,6 +16,7 @@ mod playback;
 mod playback_intent;
 mod profile;
 mod spirc;
+mod jam;
 
 use std::path::PathBuf;
 
