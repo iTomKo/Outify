@@ -26,12 +26,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.PartyMode
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhoneIphone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.ContainedLoadingIndicator
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -54,10 +58,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.ALBUM_COVER_URL
 import cc.tomko.outify.R
@@ -88,6 +95,8 @@ fun MiniPlayer(
     val currentAudio by viewModel.currentAudio.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState(initial = false)
     val isBuffering by viewModel.isBuffering().collectAsState(initial = false)
+    val isJamSession by viewModel.isJamSession.collectAsStateWithLifecycle()
+    val jamMemberCount by viewModel.jamMemberCount.collectAsStateWithLifecycle()
     val isActiveDevice by viewModel.isActiveDevice().collectAsState(initial = true)
     val currentTime by viewModel.positionMs.collectAsStateWithLifecycle()
     val spirc = viewModel.spirc
@@ -280,18 +289,11 @@ fun MiniPlayer(
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val icon = if (isActiveDevice) Icons.Default.PhoneIphone else Icons.Default.Cast
-
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .clickable {
-                                viewModel.openDevices()
-                            }
-                            .padding(6.dp)
-                            .size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    MiniPlayerDeviceButton(
+                        isActiveDevice = isActiveDevice,
+                        isJamSession = isJamSession,
+                        onClick = viewModel::openDevices,
+                        memberCount = jamMemberCount,
                     )
 
                     IconButton(
@@ -333,6 +335,45 @@ fun MiniPlayer(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+internal fun MiniPlayerDeviceButton(
+    isActiveDevice: Boolean,
+    isJamSession: Boolean,
+    memberCount: Number,
+    onClick: () -> Unit,
+) {
+    val jamStatus = stringResource(if (isJamSession) R.string.jam_active else R.string.jam_not_in_jam)
+
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(36.dp).semantics { stateDescription = jamStatus },
+    ) {
+        BadgedBox(
+            badge = {
+                if (isJamSession) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary,
+                    ) {
+                        Text(
+                            text = "$memberCount",
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            },
+        ) {
+            Icon(
+                if (isActiveDevice) Icons.Default.PhoneIphone else Icons.Default.Cast,
+                contentDescription = stringResource(R.string.cd_devices),
+                modifier = Modifier.size(20.dp),
+                tint = if (isJamSession) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

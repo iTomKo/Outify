@@ -570,6 +570,7 @@
     <string name="debug_copied">Copied to clipboard</string>
     <string name="jam_title">Jam</string>
     <string name="jam_not_in_jam">Not in a Jam</string>
+    <string name="jam_active">In a Jam</string>
     <string name="jam_start_headline">Listen together</string>
     <string name="jam_start_body">Start a Jam and invite friends to listen in real time.</string>
     <string name="jam_unavailable">Connecting to Spotify…</string>
