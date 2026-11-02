@@ -44,6 +44,7 @@ class MediaLibrarySessionCallback @Inject constructor(
     var toggleLike: () -> Unit = {}
     var toggleStartRadio: () -> Unit = {}
     var toggleRepeatMode: () -> Unit = {}
+    var toggleShuffle: () -> Unit = {}
 
     override fun onConnect(
         session: MediaSession,
@@ -83,6 +84,7 @@ class MediaLibrarySessionCallback @Inject constructor(
             MediaSessionConstants.ACTION_TOGGLE_LIKE -> toggleLike()
             MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> toggleStartRadio()
             MediaSessionConstants.ACTION_TOGGLE_REPEAT_MODE -> toggleRepeatMode()
+            MediaSessionConstants.ACTION_TOGGLE_SHUFFLE -> toggleShuffle()
         }
         return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
     }

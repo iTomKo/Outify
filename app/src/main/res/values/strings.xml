@@ -88,6 +88,8 @@
     <string name="common_interface">Interface</string>
     <string name="common_misc">Misc</string>
     <string name="common_shuffle">Shuffle</string>
+    <string name="shuffle_turn_on">Turn shuffle on</string>
+    <string name="shuffle_turn_off">Turn shuffle off</string>
     <string name="common_play_in_order">Play in order</string>
     <string name="common_logout">Log out</string>
     <string name="common_loading">Loading...</string>

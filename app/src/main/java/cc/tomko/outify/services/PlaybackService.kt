@@ -49,12 +49,17 @@ import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Singleton
 
 
@@ -133,6 +138,9 @@ class PlaybackService : MediaLibraryService(),
     private var mediaLibrarySession: MediaLibrarySession? = null
     private var selfBrowserFuture: ListenableFuture<MediaBrowser>? = null
     private val binder = MusicBinder()
+    private val shuffleMutex = Mutex()
+    private var shuffleEnabled = false
+    private var notificationUpdateJob: Job? = null
 
     private val becomingNoisyListener = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -173,6 +181,7 @@ class PlaybackService : MediaLibraryService(),
             toggleLike = ::toggleLike
             toggleStartRadio = ::toggleStartRadio
             toggleRepeatMode = ::toggleRepeatMode
+            toggleShuffle = ::toggleShuffle
         }
 
         mediaLibrarySession = MediaLibrarySession.Builder(this, player, mediaLibrarySessionCallback)
@@ -204,10 +213,12 @@ class PlaybackService : MediaLibraryService(),
         }
 
         scope.launch {
-            playbackStateHolder.state
-                .map { it.currentAudio to it.repeatMode }
-                .distinctUntilChanged()
-                .collect { _ ->
+            combine(
+                playbackStateHolder.state.map { it.currentAudio to it.repeatMode }.distinctUntilChanged(),
+                settings.shuffleEnabled.distinctUntilChanged(),
+            ) { playback, shuffle -> playback to shuffle }
+                .collect { (_, shuffle) ->
+                    shuffleEnabled = shuffle
                     updateNotification()
                 }
         }
@@ -290,21 +301,55 @@ class PlaybackService : MediaLibraryService(),
         }
     }
 
+    private fun toggleShuffle() {
+        scope.launch {
+            // Read after the preceding toggle was saved, so rapid taps alternate
+            // instead of both applying the same stale notification snapshot.
+            shuffleMutex.withLock {
+                val enabled = !settings.shuffleEnabled.first()
+                settings.setShuffle(enabled)
+                spirc.shuffle(enabled)
+            }
+        }
+    }
+
     fun updateNotification() {
-        mediaLibrarySession ?: return
+        val session = mediaLibrarySession ?: return
         val state = playbackStateHolder.state.value
         val audio = state.currentAudio
         val hasAudio = audio != null
 
         val repeatMode = state.repeatMode
+        val shuffle = shuffleEnabled
 
-        scope.launch {
+        notificationUpdateJob?.cancel()
+        notificationUpdateJob = scope.launch {
             val isLiked = hasAudio && if (audio.isTrack()) {
                 likedDao.containsTrack(audio.id)
             } else {
                 likedDao.containsEpisode(audio.id)
             }
             val buttons = listOf(
+                shuffleNotificationButton(
+                    enabled = shuffle,
+                    hasAudio = hasAudio,
+                    displayName = getString(if (shuffle) R.string.shuffle_turn_off else R.string.shuffle_turn_on),
+                ),
+                CommandButton.Builder(
+                    when (isLiked) {
+                        true -> CommandButton.ICON_HEART_FILLED
+                        false -> CommandButton.ICON_HEART_UNFILLED
+                    }
+                )
+                    .setDisplayName(getString(R.string.like))
+                    .setSessionCommand(MediaSessionConstants.CommandToggleLike)
+                    .setEnabled(hasAudio && audio.isTrack())
+                    .build(),
+                CommandButton.Builder(CommandButton.ICON_RADIO)
+                    .setDisplayName(getString(R.string.start_radio))
+                    .setSessionCommand(MediaSessionConstants.CommandToggleStartRadio)
+                    .setEnabled(hasAudio && audio.isTrack())
+                    .build(),
                 CommandButton.Builder(
                     when (repeatMode) {
                         RepeatMode.NONE -> CommandButton.ICON_REPEAT_OFF
@@ -330,23 +375,8 @@ class PlaybackService : MediaLibraryService(),
                     )
                     .setSessionCommand(MediaSessionConstants.CommandToggleRepeatMode)
                     .build(),
-                CommandButton.Builder(
-                    when (isLiked) {
-                        true -> CommandButton.ICON_HEART_FILLED
-                        false -> CommandButton.ICON_HEART_UNFILLED
-                    }
-                )
-                    .setDisplayName(getString(R.string.like))
-                    .setSessionCommand(MediaSessionConstants.CommandToggleLike)
-                    .setEnabled(hasAudio && audio.isTrack())
-                    .build(),
-                CommandButton.Builder(CommandButton.ICON_RADIO)
-                    .setDisplayName(getString(R.string.start_radio))
-                    .setSessionCommand(MediaSessionConstants.CommandToggleStartRadio)
-                    .setEnabled(hasAudio && audio.isTrack())
-                    .build()
             )
-            mediaLibrarySession!!.setMediaButtonPreferences(buttons)
+            session.setMediaButtonPreferences(buttons)
             Log.i(TAG, "Updated notification with ${buttons.size} buttons, isLiked=$isLiked")
         }
     }
