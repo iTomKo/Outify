@@ -275,19 +275,13 @@ class SpircWrapper @Inject constructor(
     }
 
     /**
-     * Transfers current Spirc session only if no other session is streaming.
+     * Transfers only if native Connect state says it is safe, including paused
+     * remote sessions and Jams. Like other blocking JNI calls, call off the main thread.
      */
     override fun smartTransfer(): Boolean {
         if (!requireReady("smartTransfer")) return false
 
-        val json = spClient.getDevices() ?: return false
-        val devices = Json.decodeFromString<DevicesResponse>(json)
-
-        for (device in devices.devices) {
-            if (device.isActive) return false
-        }
-
-        return Spirc.transfer()
+        return Spirc.automaticTransfer(forceSmart = true)
     }
 
     /**

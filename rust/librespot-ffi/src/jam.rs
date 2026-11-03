@@ -85,7 +85,7 @@ pub async fn start(session: &Session) -> Result<Jam, Error> {
 pub async fn join(session: &Session, token: &str, mode: JoinMode) -> Result<Jam, Error> {
     let endpoint = format!(
         "{JOIN}/{token}?playback_control={}&join_type=deeplinking&local_device_id={}",
-        mode.as_str()
+        mode.as_str(),
         session.device_id()
     );
     let body = session

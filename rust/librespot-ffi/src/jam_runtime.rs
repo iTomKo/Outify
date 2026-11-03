@@ -193,6 +193,10 @@ pub fn stop() {
     MANAGER.lock().unwrap().reset();
 }
 
+pub fn has_jam() -> bool {
+    MANAGER.lock().unwrap().jam.is_some()
+}
+
 pub fn request(operation: Operation) -> impl Future<Output = Result<Option<Jam>, String>> + Send {
     let context = MANAGER
         .lock()

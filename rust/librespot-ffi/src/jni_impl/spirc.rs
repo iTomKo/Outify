@@ -530,6 +530,27 @@ pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_activate(
 
 // Transfers the Spirc session to us
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_automaticTransfer(
+    _env: JNIEnv,
+    _this: JClass,
+    force_smart: jboolean,
+) -> jboolean {
+    guard("Spirc.automaticTransfer", 0, || {
+        let Some(runtime) = crate::TOKIO_RUNTIME.get() else {
+            return 0;
+        };
+        match runtime.block_on(crate::spirc::automatic_transfer(force_smart != 0, None)) {
+            Ok(transferred) => transferred as jboolean,
+            Err(error) => {
+                warn!("automatic transfer skipped: {error}");
+                0
+            }
+        }
+    })
+}
+
+// Explicit manual transfers do not apply the automatic transfer policy.
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_spirc_Spirc_transfer(
     _env: JNIEnv,
     _this: JClass,

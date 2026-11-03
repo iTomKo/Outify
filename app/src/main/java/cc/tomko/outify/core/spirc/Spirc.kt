@@ -169,6 +169,14 @@ object Spirc {
     external fun transfer(): Boolean
 
     /**
+     * Applies native automatic-transfer preferences and live Connect safety checks.
+     * Blocks until checked; call off the main thread. A false result never activates us.
+     * [forceSmart] also permits an explicit smart transfer when auto transfer is off.
+     */
+    @JvmStatic
+    external fun automaticTransfer(forceSmart: Boolean = false): Boolean
+
+    /**
      * Sets the volume for the current Spotify Connect session
      * @param volume 0-65535 (u16 range)
      * @return `true` if success

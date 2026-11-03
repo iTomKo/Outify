@@ -9,6 +9,7 @@ import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.model.getSpeed
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.time.Duration.Companion.milliseconds
@@ -223,39 +225,20 @@ class SpircController @Inject constructor(
     }
 
     private suspend fun activateAndTransfer() {
-        val settings = settingsRepository.playbackSettings.first()
-        val shouldTransfer = try {
-            shouldTransferOnStartup(settings, jam::current, spirc::hasActiveDevice)
+        val transferred = try {
+            withContext(Dispatchers.IO) { Spirc.automaticTransfer() }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            Log.w(TAG, "Skipping startup transfer: could not check Jam or active devices", error)
+            Log.w(TAG, "Skipping startup transfer: could not check Connect playback", error)
             return
         }
-        if (!shouldTransfer) {
-            Log.d(TAG, "Skipping startup transfer: disabled, in a Jam, or another device is active")
+        if (!transferred) {
+            Log.d(TAG, "Skipping startup transfer: disabled, unavailable, or remote playback is protected")
             return
         }
-        // The read-only checks can suspend while the user changes preferences.
-        // Do not apply an older, less protective decision afterward.
-        val latest = settingsRepository.playbackSettings.first()
-        if (!latest.autoTransfer || latest.smartTransfer != settings.smartTransfer) return
-        if (settings.smartTransfer && jam.state.value != null) return
-
         spirc.startPlaybackService()
-
-        if (!spirc.activate()) {
-            Log.e(TAG, "Failed to activate Spirc session!")
-            return
-        }
-
-        if (!spirc.transfer()) {
-            Log.w(TAG, "Spirc session did not transfer!")
-            playbackStateHolder.setActiveDevice(false)
-            return
-        }
-
-        playbackStateHolder.setActiveDevice(true)
+        // Native device callbacks publish actual activation, not request acceptance.
     }
 
     private fun updateState(state: SpircState) {

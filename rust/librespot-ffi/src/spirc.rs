@@ -86,6 +86,9 @@ pub static CROSSFADE: AtomicU32 = AtomicU32::new(0);
 const AUTO_TRANSFER: u8 = 1;
 const SMART_TRANSFER: u8 = 2;
 static TRANSFER_PREFERENCES: AtomicU8 = AtomicU8::new(AUTO_TRANSFER | SMART_TRANSFER);
+/// Smart transfer preserves paused remote sessions by default. Set this to true
+/// to permit taking playback from an explicitly paused (never buffering) device.
+pub static ALLOW_TRANSFER_FROM_PAUSED_REMOTE: AtomicBool = AtomicBool::new(false);
 static CURRENT_CONTEXT: OnceCell<Mutex<Option<CurrentContext>>> = OnceCell::new();
 static IS_PLAYING: AtomicBool = AtomicBool::new(false);
 static PLAYBACK_INTENT: crate::playback_intent::PlaybackIntent =
@@ -471,17 +474,15 @@ impl SpircRuntime {
             .ok_or_else(|| librespot_core::Error::internal("Spirc task not available"))
     }
 
-    // Resumes last played context after Spirc shutdown
-    pub fn resume_playback(&self, was_playing: bool) {
+    // Build the saved context; only the guarded Connect command may load it.
+    fn resume_request(&self, was_playing: bool) -> Option<LoadRequest> {
         let context = match CURRENT_CONTEXT.get() {
             Some(c) => match c.lock().unwrap().clone() {
                 Some(c) => c,
-                None => return,
+                None => return None,
             },
-            None => return,
+            None => return None,
         };
-
-        info!("resuming playback after reconnect");
 
         // Starting from latest recorded track
         let last_uri = match current_track() {
@@ -517,10 +518,7 @@ impl SpircRuntime {
             seek_to,
         };
 
-        let req = LoadRequest::from_context_uri(context.uri.to_string(), options);
-        if let Err(e) = self.spirc.load(req) {
-            error!("resume after reconnect load failed: {e}");
-        }
+        Some(LoadRequest::from_context_uri(context.uri.to_string(), options))
     }
 }
 
@@ -968,6 +966,10 @@ pub fn diagnostics() -> Vec<(&'static str, String)> {
             "smart transfer",
             (TRANSFER_PREFERENCES.load(Ordering::Relaxed) & SMART_TRANSFER != 0).to_string(),
         ),
+        (
+            "allow paused remote transfer",
+            ALLOW_TRANSFER_FROM_PAUSED_REMOTE.load(Ordering::Relaxed).to_string(),
+        ),
         ("applied gapless", settings.gapless.to_string()),
         ("applied normalise", settings.normalisation.to_string()),
         ("applied bitrate", format!("{:?}", settings.bitrate)),
@@ -1031,94 +1033,69 @@ async fn automatic_transfer_allowed(
     Ok(!remote_active.await?)
 }
 
-/// Re-establishes playback only after checking the same safeguards as cold startup.
-pub async fn reestablish_after_restart(was_playing: bool) {
-    let (expected, generation) =
-        match with_spirc(|runtime| (runtime.spirc.clone(), runtime.generation)) {
-            Ok(runtime) => runtime,
-            Err(error) => return warn!("cannot inspect runtime for automatic transfer: {error}"),
-        };
-    let session = match with_session(|session| session.clone()) {
-        Ok(session) => session,
-        Err(error) => return warn!("cannot inspect session for automatic transfer: {error}"),
-    };
-    let flags = TRANSFER_PREFERENCES.load(Ordering::Relaxed);
-    let allowed = tokio::time::timeout(
-        Duration::from_secs(30),
-        automatic_transfer_allowed(
-            flags & AUTO_TRANSFER != 0,
-            flags & SMART_TRANSFER != 0,
+/// Shared native path for cold startup, reconnects, and explicit smart transfer.
+/// Manual device selection continues to use the unconditional transfer command.
+pub async fn automatic_transfer(force_smart: bool, restore: Option<bool>) -> Result<bool, String> {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        let flags = TRANSFER_PREFERENCES.load(Ordering::Relaxed);
+        let smart = force_smart || flags & SMART_TRANSFER != 0;
+        let (spirc, generation, resume) = with_spirc(|runtime| {
+            (
+                runtime.spirc.clone(),
+                runtime.generation,
+                restore.and_then(|playing| runtime.resume_request(playing)),
+            )
+        })
+        .map_err(|error| error.to_string())?;
+        let allowed = automatic_transfer_allowed(
+            force_smart || flags & AUTO_TRANSFER != 0,
+            smart,
             async {
                 crate::jam_runtime::request(crate::jam_runtime::Operation::Current)
                     .await
                     .map(|jam| jam.is_some())
             },
             async {
-                let devices = crate::spotify::client::get_client()
-                    .get_devices()
+                let state = spirc
+                    .remote_playback_state()
                     .await
                     .map_err(|error| error.to_string())?;
-                Ok(devices.devices.iter().any(|device| {
-                    device.is_active && device.id.as_deref() != Some(session.device_id())
-                }))
+                Ok(!state.allows_transfer(ALLOW_TRANSFER_FROM_PAUSED_REMOTE.load(Ordering::Relaxed)))
             },
-        ),
-    )
-    .await;
-    match allowed {
-        Ok(Ok(true)) => {}
-        Ok(Ok(false)) => {
-            return info!("skipping automatic transfer: disabled, in a Jam, or another device is active");
+        )
+        .await?;
+        if !allowed {
+            return Ok(false);
         }
-        Ok(Err(error)) => {
-            return warn!("skipping automatic transfer: cannot check playback state: {error}");
-        }
-        Err(_) => return warn!("skipping automatic transfer: playback state check timed out"),
-    }
-    // The HTTP checks can outlive this runtime or a settings change. Never apply
-    // an old decision to a replacement session or a stricter preference snapshot.
-    if !is_current_runtime(&expected, generation)
-        || session.is_invalid()
-        || TRANSFER_PREFERENCES.load(Ordering::Relaxed) != flags
-    {
-        return;
-    }
-    let transferred = with_spirc(|spirc| {
-        if spirc.generation != generation
-            || TRANSFER_PREFERENCES.load(Ordering::Relaxed) != flags
-        {
-            return false;
-        }
-        if let Err(error) = spirc.activate() {
-            warn!("activation after restart failed: {error}");
-            return false;
-        }
-        if TRANSFER_PREFERENCES.load(Ordering::Relaxed) & AUTO_TRANSFER != 0 {
-            match spirc.transfer() {
-                Ok(()) => {
-                    info!("transferred session after restart");
-                    spirc.resume_playback(was_playing);
-                    true
-                }
-                Err(e) => {
-                    warn!("transfer after restart failed: {e}");
-                    false
-                }
-            }
-        } else {
-            info!("skipping transfer after restart, auto transfer disabled");
-            false
-        }
-    });
 
-    match transferred {
-        Ok(true) => {}
-        Ok(false) => {
-            // Another device stayed active, so the server drives our state and
-            // reloading the queue here would fight it.
-            debug!("not restoring playback, session stayed with another device");
-        }
-        Err(e) => warn!("cannot inspect spirc runtime after restart: {e}"),
+        let expected = spirc.clone();
+        spirc
+            .transfer_if(resume, move |state| {
+                // Recheck at command execution, not just before awaiting HTTP/Connect.
+                // An old decision cannot affect a rebuilt runtime or newer settings.
+                TRANSFER_PREFERENCES.load(Ordering::Relaxed) == flags
+                    && is_current_runtime(&expected, generation)
+                    && (!smart
+                        || (!crate::jam_runtime::has_jam()
+                            && state.allows_transfer(
+                                ALLOW_TRANSFER_FROM_PAUSED_REMOTE.load(Ordering::Relaxed),
+                            )))
+            })
+            .await
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|_| "Automatic transfer timed out".to_string())?
+}
+
+/// Re-establishes playback using exactly the same safety policy as cold startup.
+pub async fn reestablish_after_restart(was_playing: bool) {
+    match automatic_transfer(false, Some(was_playing)).await {
+        Ok(true) => info!("restored playback after restart"),
+        Ok(false) => info!(
+            "skipping automatic transfer: disabled, in a Jam, or remote playback is protected"
+        ),
+        Err(error) => warn!("skipping automatic transfer: {error}"),
     }
 }
 
@@ -1193,6 +1170,11 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn smart_transfer_preserves_paused_remote_sessions_by_default() {
+        assert!(!ALLOW_TRANSFER_FROM_PAUSED_REMOTE.load(Ordering::Relaxed));
+    }
 
     #[test]
     fn playback_mode_events_update_cached_load_and_reconnect_settings() {
