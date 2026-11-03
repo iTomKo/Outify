@@ -15,7 +15,7 @@ use reqwest::{
 use serde::Serialize;
 use tokio::sync::mpsc;
 
-const INFO: &str = "/social-connect/v2/sessions/info/";
+const INFO: &str = "/social-connect/v2/sessions/info";
 const JOIN: &str = "/social-connect/v2/sessions/join";
 const INVITE: &str = "https://open.spotify.com/socialsession/";
 const TOPIC: &str = "social-connect/v2/session_update";
@@ -64,6 +64,21 @@ pub async fn start(session: &Session) -> Result<Jam, Error> {
         .map_err(|e| Error::new(e.kind, format!("cannot start a Jam: {e}")))?;
     let read = read_session(&body, &session.username())
         .ok_or_else(|| Error::data_loss("the Jam that started cannot be read"))?;
+    Ok(read.jam)
+}
+
+pub async fn join(session: &Session, token: &str) -> Result<Jam, Error> {
+    let endpoint = format!(
+        "{JOIN}/{token}?playback_control=listen_and_control&join_type=deeplinking&local_device_id={}",
+        session.device_id()
+    );
+    let body = session
+        .spclient()
+        .request(&Method::POST, &endpoint, Some(headers(session, true)), None)
+        .await
+        .map_err(|e| Error::new(e.kind, format!("cannot join a Jam: {e}")))?;
+    let read = read_session(&body, &session.username())
+        .ok_or_else(|| Error::data_loss("the Jam you were invited cannot be read"))?;
     Ok(read.jam)
 }
 
