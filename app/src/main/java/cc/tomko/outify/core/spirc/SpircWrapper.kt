@@ -216,8 +216,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun repeat(repeat: Boolean, repeatTrack: Boolean): Boolean {
         scope.launch {
-            settingsRepository.setRepeat(repeat)
-            settingsRepository.setRepeatTrack(repeatTrack)
+            settingsRepository.setRepeatMode(repeat, repeatTrack)
         }
 
         if (!requireReady("repeat")) return false

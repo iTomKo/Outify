@@ -8,7 +8,8 @@ use crate::session::with_session;
 
 use super::jni_bridge::{BridgeArg, dispatch};
 use crate::jni_impl::playback::{
-    METHOD_PLAYING_STATUS, METHOD_POSITION_UPDATE, METHOD_TRACK_CHANGE, player_cb,
+    METHOD_PLAYING_STATUS, METHOD_POSITION_UPDATE, METHOD_REPEAT_CHANGED, METHOD_SHUFFLE_CHANGED,
+    METHOD_TRACK_CHANGE, player_cb,
 };
 
 static TRACK_JSON_CACHE: OnceCell<Mutex<Option<(String, String)>>> = OnceCell::new();
@@ -147,4 +148,20 @@ pub fn on_player_status(playing: bool) {
     };
 
     dispatch(cb, METHOD_PLAYING_STATUS, vec![BridgeArg::Bool(playing)]);
+}
+
+pub fn on_shuffle_changed(shuffle: bool) {
+    if let Some(cb) = player_cb() {
+        dispatch(cb, METHOD_SHUFFLE_CHANGED, vec![BridgeArg::Bool(shuffle)]);
+    }
+}
+
+pub fn on_repeat_changed(context: bool, track: bool) {
+    if let Some(cb) = player_cb() {
+        dispatch(
+            cb,
+            METHOD_REPEAT_CHANGED,
+            vec![BridgeArg::Bool(context), BridgeArg::Bool(track)],
+        );
+    }
 }

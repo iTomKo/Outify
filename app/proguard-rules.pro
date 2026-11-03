@@ -4,6 +4,7 @@
 -keep class cc.tomko.outify.core.spirc.SpircDeviceCallback { *; }
 
 -keep class cc.tomko.outify.playback.callbacks.PlayerEventCallback { *; }
+-keepclassmembers class * implements cc.tomko.outify.playback.callbacks.PlayerEventCallback { *; }
 -keep class cc.tomko.outify.playback.AudioEngine { *; }
 
 # These names/signatures are resolved by JNI, including callback implementations.

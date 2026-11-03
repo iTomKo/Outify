@@ -20,8 +20,10 @@ import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.spirc.SpircWrapper
+import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
 import cc.tomko.outify.playback.model.PlayState
+import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.services.PlaybackService
 import coil3.Bitmap
 import coil3.ImageLoader
@@ -52,6 +54,7 @@ class Player @Inject constructor(
     val spirc: SpircWrapper,
     val json: Json,
     val imageLoader: ImageLoader,
+    private val settingsRepository: SettingsRepository,
 ) : SimpleBasePlayer(application.mainLooper) {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -228,6 +231,23 @@ class Player @Inject constructor(
                         invalidateState()
                     }
                 }
+
+                override fun onShuffleChanged(shuffle: Boolean) {
+                    scope.launch {
+                        stateHolder.setShuffleEnabled(shuffle)
+                        invalidateState()
+                        // Persist the runtime state without sending another Connect command.
+                        settingsRepository.setShuffle(shuffle)
+                    }
+                }
+
+                override fun onRepeatChanged(context: Boolean, track: Boolean) {
+                    scope.launch {
+                        stateHolder.setRepeatMode(RepeatMode.fromSettings(context, track))
+                        invalidateState()
+                        settingsRepository.setRepeatMode(context, track)
+                    }
+                }
             }, stateHolder
         )
 
@@ -280,6 +300,8 @@ class Player @Inject constructor(
         val ps = stateHolder.state.value
         val audio = ps.currentAudio ?: return State.Builder()
             .setPlaybackState(STATE_IDLE)
+            .setShuffleModeEnabled(ps.shuffleEnabled)
+            .setRepeatMode(ps.repeatMode.toMediaRepeatMode())
             .setAvailableCommands(determineCommands())
             .setPlayWhenReady(false, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
             .setPlaylist(emptyList())
@@ -327,6 +349,8 @@ class Player @Inject constructor(
 
         return State.Builder()
             .setAudioAttributes(PlaybackService.AUDIO_ATTRIBUTES)
+            .setShuffleModeEnabled(ps.shuffleEnabled)
+            .setRepeatMode(ps.repeatMode.toMediaRepeatMode())
             .setPlaybackState(playbackState)
             .setAvailableCommands(determineCommands())
             .setPlayWhenReady(ps.isPlaying, PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)

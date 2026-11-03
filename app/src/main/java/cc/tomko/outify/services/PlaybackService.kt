@@ -294,8 +294,7 @@ class PlaybackService : MediaLibraryService(),
         player.repeatMode = repeatMode.toMediaRepeatMode()
 
         scope.launch {
-            settings.setRepeat(repeatMode.repeat)
-            settings.setRepeatTrack(repeatMode.repeatTrack)
+            settings.setRepeatMode(repeatMode.repeat, repeatMode.repeatTrack)
             playbackStateHolder.setRepeatMode(repeatMode)
             spirc.repeat(repeatMode.repeat, repeatMode.repeatTrack)
         }

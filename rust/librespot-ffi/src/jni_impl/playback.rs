@@ -9,16 +9,22 @@ use crate::jni_utils::jni_bridge::JavaCallback;
 //   void onTrackChange(String uri, String json)
 //   void onPositionUpdate(String uri, long position_ms, String json)
 //   void onPlayingStatus(boolean playing)
+//   void onShuffleChanged(boolean shuffle)
+//   void onRepeatChanged(boolean context, boolean track)
 static PLAYER_CB: OnceCell<Mutex<Option<Arc<JavaCallback>>>> = OnceCell::new();
 
 pub const METHOD_TRACK_CHANGE: usize = 0;
 pub const METHOD_POSITION_UPDATE: usize = 1;
 pub const METHOD_PLAYING_STATUS: usize = 2;
+pub const METHOD_SHUFFLE_CHANGED: usize = 3;
+pub const METHOD_REPEAT_CHANGED: usize = 4;
 
-const PLAYER_METHODS: [(&str, &str); 3] = [
+const PLAYER_METHODS: [(&str, &str); 5] = [
     ("onTrackChange", "(Ljava/lang/String;Ljava/lang/String;)V"),
     ("onPositionUpdate", "(Ljava/lang/String;JLjava/lang/String;)V"),
     ("onPlayingStatus", "(Z)V"),
+    ("onShuffleChanged", "(Z)V"),
+    ("onRepeatChanged", "(ZZ)V"),
 ];
 
 // Returns a cheap clone of the registered player listener

@@ -68,6 +68,10 @@ class PlaybackStateHolder @Inject constructor() {
         }
     }
 
+    fun setShuffleEnabled(enabled: Boolean) {
+        _state.update { it.copy(shuffleEnabled = enabled) }
+    }
+
     suspend fun seekTo(ms: Duration) {
         mutex.withLock {
             _state.value = _state.value.copy(

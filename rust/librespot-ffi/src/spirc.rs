@@ -738,6 +738,17 @@ fn handle_event(event: PlayerEvent) {
         PlayerEvent::VolumeChanged { volume } => {
             notify_device_volume(volume);
         }
+        PlayerEvent::ShuffleChanged { shuffle } => {
+            IS_SHUFFLING.store(shuffle, Ordering::Relaxed);
+            crate::jni_utils::playback::on_shuffle_changed(shuffle);
+        }
+        PlayerEvent::RepeatChanged { context, track } => {
+            REPEAT_MODE.store(
+                RepeatMode::from_states(context, track) as u8,
+                Ordering::Relaxed,
+            );
+            crate::jni_utils::playback::on_repeat_changed(context, track);
+        }
         _ => {
             // Not yet implemented
         }
@@ -1182,6 +1193,28 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn playback_mode_events_update_cached_load_and_reconnect_settings() {
+        for shuffle in [true, false] {
+            handle_event(PlayerEvent::ShuffleChanged { shuffle });
+            assert_eq!(IS_SHUFFLING.load(Ordering::Relaxed), shuffle);
+        }
+
+        for (context, track, expected) in [
+            (true, false, RepeatMode::All),
+            (true, true, RepeatMode::Track),
+            (false, true, RepeatMode::Track),
+            (true, false, RepeatMode::All),
+            (false, false, RepeatMode::Off),
+        ] {
+            handle_event(PlayerEvent::RepeatChanged { context, track });
+            assert_eq!(
+                RepeatMode::from_u8(REPEAT_MODE.load(Ordering::Relaxed)),
+                expected,
+            );
+        }
+    }
 
     #[tokio::test]
     async fn smart_reconnect_does_not_steal_ordinary_remote_playback() {

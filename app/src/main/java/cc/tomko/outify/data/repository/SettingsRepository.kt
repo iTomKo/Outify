@@ -22,7 +22,6 @@ import cc.tomko.outify.ui.model.search.SearchHistoryItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -247,11 +246,8 @@ class SettingsRepository @Inject constructor(
     }
 
     val repeatMode: Flow<RepeatMode> =
-        combine(
-            repeatEnabled,
-            repeatTrackEnabled,
-        ) { repeat, repeatTrack ->
-            RepeatMode.fromSettings(repeat, repeatTrack)
+        dataStore.data.map {
+            RepeatMode.fromSettings(it[Keys.REPEAT] ?: false, it[Keys.REPEAT_TRACK] ?: false)
         }
 
     val gaplessPlayback = dataStore.data.map {
@@ -317,6 +313,13 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setRepeatTrack(enabled: Boolean) {
         dataStore.edit { it[Keys.REPEAT_TRACK] = enabled }
+    }
+
+    suspend fun setRepeatMode(repeat: Boolean, repeatTrack: Boolean) {
+        dataStore.edit {
+            it[Keys.REPEAT] = repeat
+            it[Keys.REPEAT_TRACK] = repeatTrack
+        }
     }
 
     suspend fun setGaplessPlayback(enabled: Boolean) {
