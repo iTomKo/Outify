@@ -46,6 +46,21 @@ pub struct Jam {
     pub link: Option<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum JoinMode {
+    ListenAndControl,
+    CONTROL,
+}
+
+impl JoinMode {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::CONTROL => "CONTROL",
+            Self::ListenAndControl => "LISTEN_AND_CONTROL",
+        }
+    }
+}
+
 struct Read {
     jam: Jam,
     id: String,
@@ -67,9 +82,10 @@ pub async fn start(session: &Session) -> Result<Jam, Error> {
     Ok(read.jam)
 }
 
-pub async fn join(session: &Session, token: &str) -> Result<Jam, Error> {
+pub async fn join(session: &Session, token: &str, mode: JoinMode) -> Result<Jam, Error> {
     let endpoint = format!(
-        "{JOIN}/{token}?playback_control=listen_and_control&join_type=deeplinking&local_device_id={}",
+        "{JOIN}/{token}?playback_control={}&join_type=deeplinking&local_device_id={}",
+        mode.as_str()
         session.device_id()
     );
     let body = session
