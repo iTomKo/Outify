@@ -31,7 +31,7 @@ import cc.tomko.outify.ui.components.bottomsheet.ArtistInfoBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.AuthResultBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.BatteryOptimizationBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.CreatePlaylistBottomSheet
-import cc.tomko.outify.ui.components.bottomsheet.JamBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.JamManageBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.LyricsBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.NotificationPermissionBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.PlaybackDevicesBottomSheet
@@ -273,7 +273,7 @@ fun GlobalPopupHost(
             }
 
             is PopupSpec.Jam -> {
-                JamBottomSheet(
+                JamManageBottomSheet(
                     viewModel = playbackDevicesViewModel,
                     onDismiss = { GlobalPopupController.dismiss(popup.id) },
                 )

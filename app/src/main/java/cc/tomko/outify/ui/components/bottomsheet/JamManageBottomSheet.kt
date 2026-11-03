@@ -1,23 +1,21 @@
 package cc.tomko.outify.ui.components.bottomsheet
 
 import android.content.ClipData
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -33,7 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -41,6 +39,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +59,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.pluralStringResource
@@ -71,7 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 import cc.tomko.outify.core.jam.Jam
-import cc.tomko.outify.core.jam.JamMember
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.viewmodel.bottomsheet.JamAction
 import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
@@ -81,8 +78,6 @@ import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-/* ---------- UI models ---------- */
 
 data class JamMemberUi(
     val id: String,
@@ -97,11 +92,9 @@ data class JamSessionUi(
     val isHost: Boolean,
 )
 
-/* ---------- Sheet ---------- */
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun JamBottomSheet(
+fun JamManageBottomSheet(
     viewModel: PlaybackDevicesViewModel,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -115,6 +108,9 @@ fun JamBottomSheet(
     val available by viewModel.jamAvailable.collectAsState(initial = false)
 
     val session = jam.toUi()
+    val members = remember(session?.members) {
+        session?.members.orEmpty().sortedByDescending { it.isHost }
+    }
     var inviteUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(available) {
@@ -128,45 +124,50 @@ fun JamBottomSheet(
         tonalElevation = 3.dp,
         modifier = modifier,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            JamHeader(memberCount = session?.members?.size)
-
-            AnimatedVisibility(visible = error != null) {
-                JamErrorBanner(message = error.orEmpty())
+            item(key = "header") {
+                JamHeader(memberCount = session?.members?.size)
             }
 
-            AnimatedContent(
-                targetState = session != null,
-                label = "jam_content",
-            ) { inJam ->
-                if (!inJam) {
+            item(key = "header_divider") {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+
+            if (error != null) {
+                item(key = "error") {
+                    JamErrorBanner(message = error.orEmpty())
+                }
+            }
+
+            if (session == null) {
+                item(key = "start") {
                     JamStartCard(
                         starting = action == JamAction.Starting,
                         enabled = available && action == null,
                         available = available,
                         onStart = viewModel::startJam,
                     )
-                } else if (session != null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        JamMemberList(
-                            members = session.members,
-                            modifier = Modifier.weight(1f, fill = false),
-                        )
-                        JamActions(
-                            isHost = session.isHost,
-                            action = action,
-                            onInvite = {
-                                scope.launch { inviteUrl = viewModel.inviteToJam() }
-                            },
-                            onLeave = viewModel::leaveJam,
-                        )
-                    }
+                }
+            } else {
+                items(members, key = { "member_${it.id}" }) { member ->
+                    JamMemberRow(member)
+                }
+                item(key = "actions_divider") {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                }
+                item(key = "actions") {
+                    JamActions(
+                        isHost = session.isHost,
+                        action = action,
+                        onInvite = {
+                            scope.launch { inviteUrl = viewModel.inviteToJam() }
+                        },
+                        onLeave = viewModel::leaveJam,
+                    )
                 }
             }
         }
@@ -176,8 +177,6 @@ fun JamBottomSheet(
         JamInviteDialog(url = url, onDismiss = { inviteUrl = null })
     }
 }
-
-/* ---------- Header ---------- */
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -189,15 +188,15 @@ private fun JamHeader(memberCount: Int?) {
         Icon(
             Icons.Default.Group,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onTertiaryContainer,
+            tint = MaterialTheme.colorScheme.onSecondaryContainer,
             modifier = Modifier
                 .clip(MaterialShapes.Cookie9Sided.toShape())
-                .background(MaterialTheme.colorScheme.tertiaryContainer)
+                .background(MaterialTheme.colorScheme.secondaryContainer)
                 .padding(12.dp)
                 .size(20.dp),
         )
         Spacer(Modifier.width(12.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.jam_title),
                 style = MaterialTheme.typography.headlineMediumEmphasized,
@@ -218,7 +217,7 @@ private fun JamHeader(memberCount: Int?) {
 @Composable
 private fun JamErrorBanner(message: String) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
@@ -235,8 +234,7 @@ private fun JamErrorBanner(message: String) {
     }
 }
 
-/* ---------- Not in a Jam ---------- */
-
+/* Not in a Jam */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun JamStartCard(
@@ -246,31 +244,19 @@ private fun JamStartCard(
     onStart: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(
-                Icons.Default.GroupAdd,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier
-                    .clip(MaterialShapes.Cookie12Sided.toShape())
-                    .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(24.dp)
-                    .size(32.dp),
-            )
             Text(
                 text = stringResource(R.string.jam_start_headline),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
             )
             Text(
                 text = stringResource(
@@ -278,14 +264,13 @@ private fun JamStartCard(
                 ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
             )
             Button(
                 onClick = onStart,
                 enabled = enabled,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .heightIn(min = 48.dp),
             ) {
                 if (starting) {
                     LoadingIndicator(modifier = Modifier.size(24.dp))
@@ -293,47 +278,33 @@ private fun JamStartCard(
                     Icon(Icons.Default.GroupAdd, contentDescription = null, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.jam_start), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.jam_start))
             }
         }
     }
 }
 
-/* ---------- In a Jam ---------- */
+/* In a Jam */
 
 @Composable
-private fun JamMemberList(members: List<JamMemberUi>, modifier: Modifier = Modifier) {
-    // Host first, then the rest in their original order.
-    val sorted = remember(members) { members.sortedByDescending { it.isHost } }
-
-    LazyColumn(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        itemsIndexed(sorted, key = { _, m -> m.id }) { index, member ->
-            JamMemberRow(member, groupedShape(index, sorted.size))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun JamMemberRow(member: JamMemberUi, shape: Shape) {
+private fun JamMemberRow(member: JamMemberUi) {
     Surface(
-        shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (member.isYou)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        else
+            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
     ) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = {
-                val avatarShape: Shape =
-                    if (member.isHost) MaterialShapes.Cookie12Sided.toShape() else CircleShape
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(avatarShape)
+                        .size(48.dp)
+                        .clip(CircleShape)
                         .background(
-                            if (member.isHost) MaterialTheme.colorScheme.tertiaryContainer
+                            if (member.isHost) MaterialTheme.colorScheme.primaryContainer
                             else MaterialTheme.colorScheme.secondaryContainer
                         ),
                     contentAlignment = Alignment.Center,
@@ -341,13 +312,14 @@ private fun JamMemberRow(member: JamMemberUi, shape: Shape) {
                     if (member.imageUrl.isNotEmpty()) {
                         SmartImage(
                             url = member.imageUrl,
-                            imageSize = 44.dp,
+                            imageSize = 48.dp,
+                            shape = CircleShape,
                         )
                     } else {
                         Text(
                             text = member.name.take(1).uppercase(),
                             style = MaterialTheme.typography.titleMedium,
-                            color = if (member.isHost) MaterialTheme.colorScheme.onTertiaryContainer
+                            color = if (member.isHost) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.onSecondaryContainer,
                         )
                     }
@@ -369,8 +341,8 @@ private fun JamMemberRow(member: JamMemberUi, shape: Shape) {
                 {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.tertiary,
-                        contentColor = MaterialTheme.colorScheme.onTertiary,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     ) {
                         Text(
                             text = stringResource(R.string.jam_host),
@@ -394,14 +366,17 @@ private fun JamActions(
 ) {
     val busy = action != null
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         if (isHost) {
-            FilledTonalButton(
+            OutlinedButton(
                 onClick = onInvite,
                 enabled = !busy,
                 modifier = Modifier
                     .weight(1f)
-                    .height(56.dp),
+                    .heightIn(min = 48.dp),
             ) {
                 if (action == JamAction.Inviting) {
                     LoadingIndicator(modifier = Modifier.size(24.dp))
@@ -417,12 +392,12 @@ private fun JamActions(
             onClick = onLeave,
             enabled = !busy,
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
             ),
             modifier = Modifier
                 .weight(1f)
-                .height(56.dp),
+                .heightIn(min = 48.dp),
         ) {
             if (action == JamAction.Leaving) {
                 LoadingIndicator(modifier = Modifier.size(24.dp))
@@ -435,7 +410,7 @@ private fun JamActions(
     }
 }
 
-/* ---------- Invite popup ---------- */
+/* Invite popup */
 
 @Composable
 private fun JamInviteDialog(url: String, onDismiss: () -> Unit) {
@@ -535,22 +510,6 @@ private fun QrCode(content: String, modifier: Modifier = Modifier) {
             }
         }
     }
-}
-
-/* ---------- Helpers ---------- */
-
-/** Expressive "grouped list" look: big outer corners, tight inner corners. */
-private fun groupedShape(index: Int, count: Int): Shape {
-    val outer = 20.dp
-    val inner = 4.dp
-    val first = index == 0
-    val last = index == count - 1
-    return RoundedCornerShape(
-        topStart = if (first) outer else inner,
-        topEnd = if (first) outer else inner,
-        bottomStart = if (last) outer else inner,
-        bottomEnd = if (last) outer else inner,
-    )
 }
 
 private fun Jam?.toUi(): JamSessionUi? = this?.let { jam ->
