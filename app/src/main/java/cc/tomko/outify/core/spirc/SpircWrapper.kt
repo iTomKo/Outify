@@ -137,7 +137,23 @@ class SpircWrapper @Inject constructor(
     @OptIn(UnstableApi::class)
     private fun startForegroundPlaybackService() {
         val intent = Intent(context, PlaybackService::class.java)
-        ContextCompat.startForegroundService(context, intent)
+        try {
+            context.startService(intent)
+        } catch (e: IllegalStateException) {
+            Log.d(TAG, "background service start not allowed, starting in foreground", e)
+            intent.putExtra(PlaybackService.EXTRA_REQUIRE_FOREGROUND, true)
+            ContextCompat.startForegroundService(context, intent)
+        }
+    }
+
+    private fun makeThisDeviceActive() {
+        if (playbackStateHolder.state.value.isActiveDevice) return
+        Log.i(TAG, "not the active device, activating before playback")
+        if (Spirc.activate()) {
+            playbackStateHolder.setActiveDevice(true)
+        } else {
+            Log.w(TAG, "failed to activate this device")
+        }
     }
 
     /** Logs and rejects a command that arrived while the runtime is unavailable. */
@@ -170,6 +186,7 @@ class SpircWrapper @Inject constructor(
             )
         }
 
+        makeThisDeviceActive()
         startForegroundPlaybackService()
         return Spirc.load(context?.toUriString(), playingTrackUri?.toUriString())
     }
@@ -177,6 +194,7 @@ class SpircWrapper @Inject constructor(
     override fun setQueue(uris: Array<String>, playingTrackUri: String?): Boolean {
         if (!requireReady("setQueue")) return false
 
+        makeThisDeviceActive()
         startForegroundPlaybackService()
         return Spirc.setQueue(uris, playingTrackUri)
     }
@@ -190,6 +208,7 @@ class SpircWrapper @Inject constructor(
             savedQueueRepository.setActiveQueueId(null)
         }
 
+        makeThisDeviceActive()
         startForegroundPlaybackService()
         return Spirc.localLoad(uri)
     }
@@ -240,6 +259,7 @@ class SpircWrapper @Inject constructor(
             )
         }
 
+        makeThisDeviceActive()
         startForegroundPlaybackService()
         return Spirc.shuffleLoad(uri)
     }
