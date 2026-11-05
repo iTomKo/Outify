@@ -31,8 +31,17 @@ const val ALBUM_COVER_URL: String = "https://i.scdn.co/image/"
 
 val ScreenBottomPadding = 160.dp;
 
+/**
+ * How far a floating button has to sit from the bottom edge to clear what is
+ * already drawn there.
+ *
+ * With the mini player showing, the stack from the bottom is its 68dp collapsed
+ * inset plus its 88dp height, and 12dp of breathing room above that. At 160dp a
+ * 56dp button landed on the mini player's top edge, which is the overlap reported
+ * in #11.
+ */
 fun fabBottomPadding(isMediaPlaying: Boolean) =
-    if (isMediaPlaying) 160.dp else 60.dp
+    if (isMediaPlaying) 168.dp else 60.dp
 
 fun widgetMediaPreference(id: GlanceId) =
     stringPreferencesKey("widget_media_$id")
