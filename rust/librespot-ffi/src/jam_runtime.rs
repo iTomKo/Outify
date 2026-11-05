@@ -20,7 +20,7 @@ use crate::{
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 static MANAGER: Lazy<Mutex<Manager>> = Lazy::new(|| Mutex::new(Manager::default()));
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Start,
     Current,
@@ -91,6 +91,16 @@ impl Manager {
         if self.generation != generation || revision.is_some_and(|r| r != self.revision) {
             return false;
         }
+        if self.jam != jam {
+            match &jam {
+                Some(jam) => info!(
+                    "jam: state active (owner={}, members={})",
+                    jam.owner,
+                    jam.members.len()
+                ),
+                None => info!("jam: state inactive (left, ended, or runtime reset)"),
+            }
+        }
         self.revision += 1;
         self.jam = jam;
         self.notify();
@@ -128,6 +138,7 @@ pub fn initialize(session: &Session) -> Result<(), Error> {
         manager.error("cannot watch a shut down Jam session".into());
         return Err(Error::unavailable("cannot watch a shut down Jam session"));
     }
+    info!("jam: checking for an existing session (read-only)");
     let (tx, mut updates) = mpsc::unbounded_channel();
     let watcher = jam::watch(session.clone(), tx).inspect_err(|error| {
         manager.error(format!("cannot start Jam listener: {error}"));
@@ -161,8 +172,12 @@ pub fn initialize(session: &Session) -> Result<(), Error> {
                 result = &mut initial, if !initial_done => {
                     initial_done = true;
                     match result {
-                        Ok(Some(jam)) => debug!("jam: restored existing session ({} members)", jam.members.len()),
-                        Ok(None) => debug!("jam: no existing session; continuing without a Jam"),
+                        Ok(Some(jam)) => info!(
+                            "jam: restored existing session (owner={}, members={})",
+                            jam.owner,
+                            jam.members.len()
+                        ),
+                        Ok(None) => info!("jam: no active session; continuing without a Jam"),
                         Err(error) => {
                             let manager = MANAGER.lock().unwrap();
                             if manager.generation == task_context.generation {
@@ -207,7 +222,18 @@ pub fn request(operation: Operation) -> impl Future<Output = Result<Option<Jam>,
         .ok_or_else(|| "Jam is unavailable: the Connect session is not running".to_string());
     // Capture the session at JNI submission time, not when the spawned task is
     // eventually polled (which may be after a rebuild).
-    async move { perform(context?, operation).await }
+    async move {
+        info!("jam: {operation:?} request started");
+        let result = match context {
+            Ok(context) => perform(context, operation).await,
+            Err(error) => Err(error),
+        };
+        match &result {
+            Ok(_) => info!("jam: {operation:?} request succeeded"),
+            Err(error) => warn!("jam: {operation:?} request failed: {error}"),
+        }
+        result
+    }
 }
 
 async fn perform(mut context: Context, operation: Operation) -> Result<Option<Jam>, String> {

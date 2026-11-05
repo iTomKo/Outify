@@ -6,7 +6,7 @@ use librespot_core::{
     dealer::protocol::{Message, PayloadValue},
     error::ErrorKind,
 };
-use librespot_protocol::social_connect_v2::Session as SocialSession;
+use librespot_protocol::social_connect_v2::{Session as SocialSession, SessionType};
 use protobuf::Message as _;
 use reqwest::{
     Method,
@@ -64,6 +64,7 @@ impl JoinMode {
 struct Read {
     jam: Jam,
     id: String,
+    background: bool,
 }
 
 pub async fn start(session: &Session) -> Result<Jam, Error> {
@@ -109,9 +110,16 @@ async fn current_read(session: &Session) -> Result<Option<Read>, Error> {
         .await;
 
     match answer {
-        Ok(body) => read_session(&body, &session.username())
-            .map(Some)
-            .ok_or_else(|| Error::data_loss("the Jam answer cannot be read")),
+        Ok(body) => {
+            let read = read_session(&body, &session.username())
+                .ok_or_else(|| Error::data_loss("the Jam answer cannot be read"))?;
+            if read.background {
+                info!("jam: ignoring inactive/background session; no active Jam");
+                Ok(None)
+            } else {
+                Ok(Some(read))
+            }
+        }
         Err(error) if error.kind == ErrorKind::NotFound => Ok(None),
         Err(error) => Err(Error::new(
             error.kind,
@@ -247,7 +255,14 @@ fn update_in(json: &serde_json::Value, own: &str) -> Update {
         return Update::Ended;
     }
 
-    match json.get("session").and_then(|_| session_of(json, own)) {
+    let Some(session) = json.get("session") else {
+        return Update::Nothing;
+    };
+    match session_of(json, own) {
+        Some(jam) if background_session_of(session, &jam) => {
+            info!("jam: ignoring inactive/background update; no active Jam");
+            Update::Ended
+        }
         Some(jam) => Update::Changed(jam),
         None => Update::Nothing,
     }
@@ -294,8 +309,10 @@ fn invite(url: &str) -> Option<String> {
 fn read_session(body: &[u8], own: &str) -> Option<Read> {
     if let Ok(json) = serde_json::from_slice::<serde_json::Value>(body) {
         let session = json.get("session").unwrap_or(&json);
+        let jam = session_of(&json, own)?;
         return Some(Read {
-            jam: session_of(&json, own)?,
+            background: background_session_of(session, &jam),
+            jam,
             id: key_of(session, ["session_id", "sessionId"])?
                 .as_str()?
                 .to_owned(),
@@ -305,6 +322,15 @@ fn read_session(body: &[u8], own: &str) -> Option<Read> {
     if session.session_id.is_empty() {
         return None;
     }
+    info!(
+        "jam: session metadata (type={:?}, owner={}, discoverable={}, listening={}, controlling={}, members={})",
+        session.initial_session_type,
+        session.is_session_owner,
+        session.is_discoverable,
+        session.is_listening,
+        session.is_controlling,
+        session.session_members.len()
+    );
     let link = session
         .is_session_owner
         .then(|| invite(&session.join_session_url))
@@ -317,6 +343,12 @@ fn read_session(body: &[u8], own: &str) -> Option<Read> {
         [&member.id, &member.username, &member.display_name, image].map(String::as_str)
     });
     Some(Read {
+        background: is_background_session(
+            session.is_session_owner,
+            session.session_members.len(),
+            session.initial_session_type.enum_value_or_default() == SessionType::IN_PERSON,
+            session.is_discoverable,
+        ),
         jam: Jam {
             members: members_of(
                 listed,
@@ -329,6 +361,26 @@ fn read_session(body: &[u8], own: &str) -> Option<Read> {
         },
         id: session.session_id,
     })
+}
+
+// Spotify may retain a solo, undiscoverable IN_PERSON session for ordinary
+// playback/Wi-Fi discovery. Its existence alone does not mean a Jam was started.
+fn is_background_session(owner: bool, members: usize, in_person: bool, discoverable: bool) -> bool {
+    owner && members <= 1 && in_person && !discoverable
+}
+
+fn background_session_of(session: &serde_json::Value, jam: &Jam) -> bool {
+    // Current Spotify responses explicitly mark activated Jams.
+    if let Some(active) = session.get("active").and_then(serde_json::Value::as_bool) {
+        return !active;
+    }
+    // Older JSON/protobuf responses may omit the activation flag.
+    let in_person = key_of(session, ["initial_session_type", "initialSessionType"])
+        .is_some_and(|kind| kind.as_str() == Some("IN_PERSON") || kind.as_i64() == Some(3));
+    let discoverable = key_of(session, ["is_discoverable", "isDiscoverable"])
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+    is_background_session(jam.owner, jam.members.len(), in_person, discoverable)
 }
 
 fn members_of<'a>(
@@ -386,6 +438,22 @@ fn text_of<'a>(object: &'a serde_json::Value, keys: [&str; 2]) -> &'a str {
 /// when `own` owns the session.
 fn session_of(json: &serde_json::Value, own: &str) -> Option<Jam> {
     let session = json.get("session").unwrap_or(json);
+    // Log state flags only, never invitation tokens, identifiers, or member data.
+    let metadata = session
+        .as_object()
+        .into_iter()
+        .flatten()
+        .filter(|(key, value)| {
+            value.is_boolean()
+                || (matches!(key.as_str(), "initial_session_type" | "initialSessionType")
+                    && (value.is_string() || value.is_number()))
+        })
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect::<serde_json::Map<_, _>>();
+    info!(
+        "jam: session metadata {}",
+        serde_json::Value::Object(metadata)
+    );
     let owned = key_of(session, ["is_session_owner", "isSessionOwner"])
         .and_then(serde_json::Value::as_bool)
         .unwrap_or(false);
@@ -613,6 +681,110 @@ mod tests {
         assert!(!me.host && me.you);
         assert_eq!(me.name, "me", "falls back to the username");
         assert_eq!(me.id, "me", "and the id to the username");
+    }
+
+    #[test]
+    fn solo_in_person_playback_is_not_an_active_jam() {
+        // Shape observed after playing a track, killing the app, and reopening.
+        let session = serde_json::json!({
+            "session_id": "background",
+            "initialSessionType": "IN_PERSON",
+            "is_session_owner": true,
+            "is_controlling": true,
+            "is_listening": true,
+            "wifi_broadcast": true,
+            "requires_jam_lens": true,
+            "session_members": [{"id": "me", "username": "me"}]
+        });
+        let read = read_session(&serde_json::to_vec(&session).unwrap(), "me").unwrap();
+        assert!(read.background);
+        assert_eq!(
+            update_in(
+                &serde_json::json!({"session": session, "reason": "NEW_SESSION"}),
+                "me"
+            ),
+            Update::Ended
+        );
+    }
+
+    #[test]
+    fn explicit_remote_jams_stay_active_even_with_only_the_host() {
+        for kind in [
+            serde_json::json!("REMOTE"),
+            serde_json::json!("REMOTE_V2"),
+            serde_json::json!(4),
+            serde_json::json!(5),
+        ] {
+            let session = serde_json::json!({
+                "session_id": "explicit",
+                "initial_session_type": kind,
+                "is_session_owner": true,
+                "session_members": [{"id": "me"}]
+            });
+            let read = read_session(&serde_json::to_vec(&session).unwrap(), "me").unwrap();
+            assert!(!read.background);
+            assert!(matches!(
+                update_in(&serde_json::json!({"session": session}), "me"),
+                Update::Changed(_)
+            ));
+        }
+    }
+
+    #[test]
+    fn activation_flag_takes_precedence_over_session_type_and_member_count() {
+        for (active, kind, owner) in [(true, "IN_PERSON", true), (false, "REMOTE", false)] {
+            let session = serde_json::json!({
+                "session_id": "activation",
+                "active": active,
+                "initialSessionType": kind,
+                "is_session_owner": owner,
+                "session_members": [{"id": "me"}]
+            });
+            let read = read_session(&serde_json::to_vec(&session).unwrap(), "me").unwrap();
+            assert_eq!(read.background, !active);
+            let update = update_in(&serde_json::json!({"session": session}), "me");
+            assert_eq!(matches!(update, Update::Changed(_)), active);
+        }
+    }
+
+    #[test]
+    fn in_person_guests_groups_and_discoverable_jams_stay_active() {
+        for (owner, members, discoverable) in [(false, 1, false), (true, 2, false), (true, 1, true)]
+        {
+            for kind in [serde_json::json!("IN_PERSON"), serde_json::json!(3)] {
+                let session = serde_json::json!({
+                    "sessionId": "in-person",
+                    "initialSessionType": kind,
+                    "isSessionOwner": owner,
+                    "isDiscoverable": discoverable,
+                    "sessionMembers": (0..members).map(|i| serde_json::json!({"id": i.to_string()})).collect::<Vec<_>>()
+                });
+                let read = read_session(&serde_json::to_vec(&session).unwrap(), "me").unwrap();
+                assert!(!read.background);
+            }
+        }
+    }
+
+    #[test]
+    fn protobuf_background_sessions_are_classified_like_json() {
+        let mut session = SocialSession {
+            session_id: "solo".into(),
+            is_session_owner: true,
+            initial_session_type: SessionType::IN_PERSON.into(),
+            session_members: vec![member("me", "me", "Me", "")],
+            ..Default::default()
+        };
+        assert!(
+            read_session(&session.write_to_bytes().unwrap(), "me")
+                .unwrap()
+                .background
+        );
+        session.initial_session_type = SessionType::REMOTE.into();
+        assert!(
+            !read_session(&session.write_to_bytes().unwrap(), "me")
+                .unwrap()
+                .background
+        );
     }
 
     #[test]
