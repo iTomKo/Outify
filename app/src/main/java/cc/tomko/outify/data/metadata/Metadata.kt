@@ -13,6 +13,7 @@ import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.data.dao.LikedItemsDao
 import cc.tomko.outify.data.database.LikedItemsEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -132,16 +133,17 @@ class Metadata @Inject constructor(
 
     suspend fun getLikedUris(): List<String> {
         try {
-            val jsonUris = spClient.getUserCollection() ?: return emptyList()
-            val checked = spClient.checkAndHandleError(jsonUris, "getLikedUris")
-            val parsed = json.decodeFromString<List<String>>(checked)
-            return parsed
+            val jsonUris = spClient.getUserCollection()
+            val checked = jsonUris?.let { spClient.checkAndHandleError(it, "getLikedUris") }
+            return decodeLikedTrackUris(checked, json)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get liked URIs"),
                 "getLikedUris"
             )
-            return emptyList()
+            throw e
         }
     }
 

@@ -18,6 +18,7 @@ mod profile;
 mod spirc;
 mod jam;
 mod jam_runtime;
+mod collection;
 
 use std::path::PathBuf;
 

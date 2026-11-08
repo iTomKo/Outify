@@ -25,6 +25,7 @@ serde = "1.0.228"
 bytes = "1.11.0"
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 protobuf = "3.7"
+protobuf-json-mapping = "3.7"
 regex = "1.12.3"
 base64 = "0.22.1"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-webpki-roots" ] }

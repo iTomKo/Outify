@@ -6,6 +6,7 @@ import cc.tomko.outify.core.SessionCallback
 import cc.tomko.outify.core.jam.JamClient
 import cc.tomko.outify.core.jam.JamException
 import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.repository.CollectionSyncCoordinator
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.playback.model.getSpeed
 import kotlinx.coroutines.CancellationException
@@ -39,6 +40,7 @@ class SpircController @Inject constructor(
     private val playbackStateHolder: PlaybackStateHolder,
     private val settingsRepository: SettingsRepository,
     private val jam: JamClient,
+    private val collectionSync: CollectionSyncCoordinator,
 ) {
     private val _state = MutableStateFlow(SpircState.Stopped)
 
@@ -84,7 +86,11 @@ class SpircController @Inject constructor(
             }
 
             override fun onRestarted() {
-                finishRuntimeInitialization()
+                finishRuntimeInitialization { collectionSync.requestSync() }
+            }
+
+            override fun onCollectionChanged() {
+                collectionSync.requestSync()
             }
 
             override fun onFailed(reason: String) {

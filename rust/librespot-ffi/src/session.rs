@@ -84,6 +84,7 @@ pub async fn initialize_session() -> Result<(), librespot_core::Error> {
     };
     let session = Session::with_handle(session_config, Some(cache), handle);
 
+    crate::collection::start(&session).await;
     let mut guard = container.write().unwrap();
     *guard = Some(session.clone());
 
@@ -265,6 +266,7 @@ fn notify_callback_with_arg(method: &str, arg: &str) {
 }
 
 async fn cleanup() {
+    crate::collection::stop();
     if let Some(lock) = SESSION.get() {
         let mut guard = lock.write().unwrap();
         guard.take();

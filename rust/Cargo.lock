@@ -1726,6 +1726,7 @@ dependencies = [
  "oauth2",
  "once_cell",
  "protobuf",
+ "protobuf-json-mapping",
  "regex",
  "reqwest",
  "serde",

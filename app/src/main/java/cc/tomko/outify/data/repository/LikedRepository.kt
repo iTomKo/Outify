@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.min
@@ -39,6 +41,7 @@ class LikedRepository @Inject constructor(
     private val metadata: Metadata,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
+    private val trackSyncMutex = Mutex()
 
     companion object {
         private const val TAG = "LikedRepository"
@@ -133,20 +136,22 @@ class LikedRepository @Inject constructor(
      * Pulls the URI list from the API and rebuilds liked_songs if it differs.
      * Returns true if anything changed.
      */
-    suspend fun syncLikedUris(): Boolean {
+    suspend fun syncLikedUris(): Boolean = trackSyncMutex.withLock {
+        reconcileLikedTrackUris() != null
+    }
+
+    /** Silent collection refresh: reconcile membership, then cache only new tracks. */
+    suspend fun syncLikedTracksFromCollection() = withContext(Dispatchers.IO) {
+        trackSyncMutex.withLock {
+            val added = reconcileLikedTrackUris() ?: return@withLock
+            added.chunked(20).forEach { trackMetadataHelper.getTrackMetadata(it) }
+        }
+    }
+
+    private suspend fun reconcileLikedTrackUris(): List<String>? {
         val remote = metadata.getLikedUris()
         val cached = likedDao.getLikedIds()
-
-        if (remote.size == cached.size) {
-            var allMatch = true
-            for ((i, uri) in remote.withIndex()) {
-                if (uri.length <= SUBSTRING_OFFSET || uri.substring(SUBSTRING_OFFSET) != cached[i]) {
-                    allMatch = false
-                    break
-                }
-            }
-            if (allMatch) return false
-        }
+        val added = addedLikedTrackUris(remote, cached) ?: return null
 
         Log.d(TAG, "Liked list changed (${cached.size} → ${remote.size}), resyncing")
         db.withTransaction {
@@ -162,7 +167,7 @@ class LikedRepository @Inject constructor(
                 )
             }
         }
-        return true
+        return added
     }
 
     /**

@@ -48,4 +48,7 @@ interface SessionCallback {
      * Called when initialization or a rebuild gave up
      */
     fun onFailed(reason: String)
+
+    /** The current user's saved tracks changed; refresh the authoritative list. */
+    fun onCollectionChanged()
 }

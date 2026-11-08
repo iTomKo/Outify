@@ -18,16 +18,18 @@ pub const METHOD_SHUTDOWN: usize = 1;
 pub const METHOD_RESTARTING: usize = 2;
 pub const METHOD_RESTARTED: usize = 3;
 pub const METHOD_FAILED: usize = 4;
+pub const METHOD_COLLECTION_CHANGED: usize = 5;
 
 static SESSION_CALLBACK: OnceCell<Mutex<Option<Arc<JavaCallback>>>> = OnceCell::new();
 
 /// Methods of `SessionCallback`, resolved once at registration time.
-pub const CALLBACK_METHODS: [(&str, &str); 5] = [
+pub const CALLBACK_METHODS: [(&str, &str); 6] = [
     ("onInitialized", "()V"),
     ("onShutdown", "()V"),
     ("onRestarting", "()V"),
     ("onRestarted", "()V"),
     ("onFailed", "(Ljava/lang/String;)V"),
+    ("onCollectionChanged", "()V"),
 ];
 
 pub fn session_cb() -> Option<Arc<JavaCallback>> {

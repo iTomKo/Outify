@@ -9,7 +9,6 @@ use regex::Regex;
 use crate::{
     jni_utils::{optionable_string, throw_exception, vec_to_jstring_array},
     outifyuri::{OutifyUri, UsernameCache},
-    session::with_session,
     spotify::client::{SavedItemType, get_client},
     spotify::error::SpotifyApiError,
 };
@@ -754,29 +753,9 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getUserCollection(
         }
     };
 
-    let user_id = match with_session(|session| session.username()) {
-        Ok(u) => u,
-        Err(e) => {
-            error!("with_session failed for collection user_id: {e}");
-            return std::ptr::null_mut();
-        }
-    };
-
     let json_res = rt.block_on(async {
-        let uri = match query {
-            Some(ref q) => format!("spotify:user:{}:collection{}", user_id, q),
-            None => format!("spotify:user:{}:collection", user_id),
-        };
-
-        match crate::spclient::get_context(&uri).await {
-            Ok(context) => {
-                let uris: Vec<String> = context
-                    .pages
-                    .iter()
-                    .flat_map(|page| page.tracks.iter())
-                    .map(|track| track.uri().to_string())
-                    .collect();
-
+        match crate::spclient::get_collection_uris(query.as_deref()).await {
+            Ok(uris) => {
                 match serde_json::to_string(&uris) {
                     Ok(s) => Ok(s),
                     Err(e) => {
