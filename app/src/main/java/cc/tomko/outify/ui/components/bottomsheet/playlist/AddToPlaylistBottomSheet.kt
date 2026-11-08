@@ -1,4 +1,4 @@
-package cc.tomko.outify.ui.components.bottomsheet
+package cc.tomko.outify.ui.components.bottomsheet.playlist
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

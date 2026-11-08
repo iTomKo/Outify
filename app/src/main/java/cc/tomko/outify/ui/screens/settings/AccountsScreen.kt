@@ -49,7 +49,7 @@ import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.SettingsScaffold
 import cc.tomko.outify.ui.components.SettingsSection
 import cc.tomko.outify.ui.components.SmartImage
-import cc.tomko.outify.ui.components.bottomsheet.AccountDetailBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.account.AccountDetailBottomSheet
 import cc.tomko.outify.ui.viewmodel.settings.AccountsViewModel
 
 private const val LIBRESPOT_URL = "https://github.com/librespot-org/librespot#librespot"

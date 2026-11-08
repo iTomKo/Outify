@@ -83,8 +83,8 @@ import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.ArtworkBackground
 import cc.tomko.outify.ui.components.CollapsingHeader
 import cc.tomko.outify.ui.components.ErrorScreen
-import cc.tomko.outify.ui.components.bottomsheet.CreateFolderBottomSheet
-import cc.tomko.outify.ui.components.bottomsheet.MoveToFolderBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.library.CreateFolderBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.library.MoveToFolderBottomSheet
 import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.components.navigation.popKeepingRoot
 import cc.tomko.outify.ui.components.rememberCollapsingHeaderState

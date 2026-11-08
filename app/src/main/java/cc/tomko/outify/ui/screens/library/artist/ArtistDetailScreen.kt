@@ -82,7 +82,7 @@ import cc.tomko.outify.ui.components.ArtworkBackground
 import cc.tomko.outify.ui.components.CollapsingHeader
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.SmartImage
-import cc.tomko.outify.ui.components.bottomsheet.ArtistLikedTracksBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.artist.ArtistLikedTracksBottomSheet
 import cc.tomko.outify.ui.components.rememberCollapsingHeaderState
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.detail.ArtistDetailViewModel

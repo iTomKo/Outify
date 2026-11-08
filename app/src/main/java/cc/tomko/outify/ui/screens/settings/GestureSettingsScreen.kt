@@ -31,7 +31,7 @@ import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.SettingsScaffold
 import cc.tomko.outify.ui.components.SettingsSection
 import cc.tomko.outify.ui.components.SwitchPreferenceEntry
-import cc.tomko.outify.ui.components.bottomsheet.GestureCustomizeBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.settings.GestureCustomizeBottomSheet
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
 import cc.tomko.outify.ui.viewmodel.settings.GestureSettingViewModel
 

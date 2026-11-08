@@ -1,4 +1,4 @@
-package cc.tomko.outify.ui.components.bottomsheet
+package cc.tomko.outify.ui.components.bottomsheet.playlist
 
 import android.content.ClipData
 import android.content.Intent

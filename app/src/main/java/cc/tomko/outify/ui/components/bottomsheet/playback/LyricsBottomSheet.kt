@@ -1,4 +1,4 @@
-package cc.tomko.outify.ui.components.bottomsheet
+package cc.tomko.outify.ui.components.bottomsheet.playback
 
 import androidx.compose.animation.AnimatedVisibility
 import cc.tomko.outify.R

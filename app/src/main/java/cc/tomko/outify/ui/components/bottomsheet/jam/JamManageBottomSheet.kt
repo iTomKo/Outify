@@ -1,4 +1,4 @@
-package cc.tomko.outify.ui.components.bottomsheet
+package cc.tomko.outify.ui.components.bottomsheet.jam
 
 import android.content.ClipData
 import androidx.compose.foundation.Canvas

@@ -8,7 +8,7 @@ import cc.tomko.outify.core.jam.JamClient
 import cc.tomko.outify.core.model.Device
 import cc.tomko.outify.core.model.DevicesResponse
 import cc.tomko.outify.core.spirc.SpircWrapper
-import cc.tomko.outify.ui.components.bottomsheet.JamMemberUi
+import cc.tomko.outify.ui.components.bottomsheet.jam.JamMemberUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
