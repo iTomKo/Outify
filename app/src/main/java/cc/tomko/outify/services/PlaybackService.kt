@@ -8,11 +8,14 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ServiceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Binder
 import android.util.Log
 import android.widget.Toast
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC
@@ -82,6 +85,9 @@ class PlaybackService : MediaLibraryService(),
         const val NOTIFICATION_ID = 4894
         const val CHANNEL_ID = "outify_channel_01"
 
+        const val EXTRA_REQUIRE_FOREGROUND = "cc.tomko.outify.REQUIRE_FOREGROUND"
+        private const val PLACEHOLDER_NOTIFICATION_ID = NOTIFICATION_ID + 1
+
         val TAG = PlaybackService::class.simpleName.toString()
 
         val AUDIO_ATTRIBUTES: AudioAttributes = AudioAttributes.Builder().apply {
@@ -146,6 +152,38 @@ class PlaybackService : MediaLibraryService(),
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
             if (player.playWhenReady) player.pause()
+        }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val result = super.onStartCommand(intent, flags, startId)
+        if (intent?.getBooleanExtra(EXTRA_REQUIRE_FOREGROUND, false) == true) {
+            satisfyForegroundStart()
+        }
+        return result
+    }
+
+    private fun satisfyForegroundStart() {
+        val session = mediaLibrarySession
+        if (session != null && isPlaybackOngoing) {
+            onUpdateNotification(session, true)
+            return
+        }
+        try {
+            val placeholder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(getString(R.string.app_name))
+                .setSilent(true)
+                .build()
+            ServiceCompat.startForeground(
+                this,
+                PLACEHOLDER_NOTIFICATION_ID,
+                placeholder,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+            )
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to satisfy foreground service start", e)
         }
     }
 
