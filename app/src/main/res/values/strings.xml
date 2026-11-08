@@ -587,6 +587,7 @@
     <string name="jam_end">End Jam</string>
     <string name="jam_host">Host</string>
     <string name="jam_you">You</string>
+    <string name="jam_kick_member">Remove %1$s from Jam</string>
     <string name="jam_invite_title">Invite to Jam</string>
     <string name="jam_invite_body">Scan the code or share the link to join.</string>
     <string name="jam_copy_link">Copy link</string>

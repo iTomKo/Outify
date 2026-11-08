@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Group
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -154,7 +156,13 @@ fun JamManageBottomSheet(
                 }
             } else {
                 items(members, key = { "member_${it.id}" }) { member ->
-                    JamMemberRow(member)
+                    JamMemberRow(
+                        member = member,
+                        canKick = session.isHost && !member.isYou,
+                        onKick = {
+                            viewModel.kickMember(member)
+                        },
+                    )
                 }
                 item(key = "actions_divider") {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -287,7 +295,11 @@ private fun JamStartCard(
 /* In a Jam */
 
 @Composable
-private fun JamMemberRow(member: JamMemberUi) {
+private fun JamMemberRow(
+    member: JamMemberUi,
+    canKick: Boolean,
+    onKick: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -348,6 +360,17 @@ private fun JamMemberRow(member: JamMemberUi) {
                             text = stringResource(R.string.jam_host),
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
+                }
+            } else if (canKick) {
+                {
+                    IconButton(
+                        onClick = onKick,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.jam_kick_member, member.name),
                         )
                     }
                 }

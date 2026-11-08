@@ -17,6 +17,7 @@ internal interface JamBackend {
     fun start(callback: JamRequestCallback): Boolean
     fun current(callback: JamRequestCallback): Boolean
     fun leave(callback: JamRequestCallback): Boolean
+    fun kick(id: String, callback: JamRequestCallback): Boolean
 }
 
 internal object JamNative : JamBackend {
@@ -25,4 +26,5 @@ internal object JamNative : JamBackend {
     external override fun start(callback: JamRequestCallback): Boolean
     external override fun current(callback: JamRequestCallback): Boolean
     external override fun leave(callback: JamRequestCallback): Boolean
+    external override fun kick(id: String, callback: JamRequestCallback): Boolean
 }

@@ -20,11 +20,12 @@ use crate::{
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 static MANAGER: Lazy<Mutex<Manager>> = Lazy::new(|| Mutex::new(Manager::default()));
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Operation {
     Start,
     Current,
     Leave,
+    Kick(String),
 }
 
 // Startup/reconnect may restore membership, but must never create a social
@@ -32,17 +33,24 @@ pub enum Operation {
 const STARTUP_OPERATION: Operation = Operation::Current;
 
 impl Operation {
-    async fn execute(
-        self,
+    async fn execute<'a, K>(
+        &'a self,
         start: impl Future<Output = Result<Jam, Error>>,
         current: impl Future<Output = Result<Option<Jam>, Error>>,
         leave: impl Future<Output = Result<(), Error>>,
-    ) -> Result<Option<Jam>, Error> {
-        // These are lazy futures: only the selected endpoint is ever polled.
+        kick: impl FnOnce(&'a str) -> K,
+    ) -> Result<Option<Jam>, Error>
+    where
+        K: Future<Output = Result<(), Error>>,
+    {
         match self {
             Self::Start => start.await.map(Some),
             Self::Current => current.await,
             Self::Leave => leave.await.map(|()| None),
+            Self::Kick(member_id) => {
+                kick(member_id).await?;
+                current.await
+            }
         }
     }
 }
@@ -225,7 +233,7 @@ pub fn request(operation: Operation) -> impl Future<Output = Result<Option<Jam>,
     async move {
         info!("jam: {operation:?} request started");
         let result = match context {
-            Ok(context) => perform(context, operation).await,
+            Ok(context) => perform(context, operation.clone()).await,
             Err(error) => Err(error),
         };
         match &result {
@@ -263,6 +271,7 @@ async fn perform(mut context: Context, operation: Operation) -> Result<Option<Ja
                 jam::start(&context.session),
                 jam::current(&context.session),
                 jam::leave(&context.session),
+                |member_id| jam::kick(&context.session, member_id),
             ).await.map_err(|error| error.to_string())?;
             let mut manager = MANAGER.lock().unwrap();
             if manager.generation != context.generation {
@@ -287,8 +296,36 @@ mod tests {
                 async { panic!("startup must not create a Jam") },
                 async { current },
                 async { panic!("startup must not leave an existing Jam") },
+                |_| async { panic!("startup must not kick a member") },
             )
             .await
+    }
+
+    #[tokio::test]
+    async fn kick_passes_member_id_and_returns_refreshed_jam() {
+        let jam = Jam {
+            owner: true,
+            ..Default::default()
+        };
+        let kicked = std::cell::Cell::new(false);
+        let kicked_ref = &kicked;
+        let result = Operation::Kick("member-id".into())
+            .execute(
+                async { panic!("kick must not start a Jam") },
+                async {
+                    assert!(kicked.get(), "refresh must happen after kicking");
+                    Ok(Some(jam.clone()))
+                },
+                async { panic!("kick must not leave the Jam") },
+                |member_id| async move {
+                    assert_eq!(member_id, "member-id");
+                    kicked_ref.set(true);
+                    Ok(())
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(result, Some(jam));
     }
 
     #[tokio::test]

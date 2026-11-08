@@ -89,6 +89,11 @@ class JamClient internal constructor(
         request(backend::leave)
     }
 
+    /** Host kicks member with given ID */
+    suspend fun kick(id: String) {
+        request { callback -> backend.kick(id, callback) }
+    }
+
     /**
      * Returns the owner's invitation link, starting a Jam if none exists.
      * Guests cannot generate invitations. Sharing/opening the URL is up to callers.

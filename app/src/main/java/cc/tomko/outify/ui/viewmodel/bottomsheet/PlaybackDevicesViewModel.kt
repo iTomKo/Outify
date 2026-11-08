@@ -8,6 +8,7 @@ import cc.tomko.outify.core.jam.JamClient
 import cc.tomko.outify.core.model.Device
 import cc.tomko.outify.core.model.DevicesResponse
 import cc.tomko.outify.core.spirc.SpircWrapper
+import cc.tomko.outify.ui.components.bottomsheet.JamMemberUi
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +44,7 @@ class PlaybackDevicesViewModel @Inject constructor(
     fun refreshJam() = jamControls.refresh()
     fun startJam() = jamControls.start()
     fun leaveJam() = jamControls.leave()
+    fun kickMember(member: JamMemberUi) = jamControls.kickMember(member.id)
     suspend fun inviteToJam(): String? = jamControls.invite()
     fun reportJamShareError(message: String) = jamControls.showError(message)
 
@@ -85,7 +87,7 @@ class PlaybackDevicesViewModel @Inject constructor(
     }
 }
 
-enum class JamAction { Refreshing, Starting, Inviting, Leaving }
+enum class JamAction { Refreshing, Starting, Inviting, Leaving, Kicking }
 
 /** Sheet actions outlive recomposition, but do not own or close the shared Jam listener. */
 internal class PlaybackJamControls(
@@ -109,6 +111,9 @@ internal class PlaybackJamControls(
 
     fun leave() {
         scope.launch { perform(JamAction.Leaving) { client.leave() } }
+    }
+    fun kickMember(id: String) {
+        scope.launch { perform(JamAction.Kicking) { client.kick(id) } }
     }
     suspend fun invite(): String? = perform(JamAction.Inviting) { client.invite() }
 

@@ -1,7 +1,7 @@
 use jni::{
     JNIEnv,
     objects::{JClass, JObject},
-    sys::jboolean,
+    sys::{JNI_FALSE, jboolean},
 };
 
 use crate::{
@@ -109,4 +109,21 @@ pub extern "system" fn Java_cc_tomko_outify_core_jam_JamNative_leave(
     callback: JObject,
 ) -> jboolean {
     request(env, callback, Operation::Leave)
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_jam_JamNative_kick(
+    mut env: JNIEnv,
+    _this: JClass,
+    member_id: jni::objects::JString,
+    callback: JObject,
+) -> jboolean {
+    let member_id = match env.get_string(&member_id) {
+        Ok(m) => m.into(),
+        Err(e) => {
+            error!("cannot read Jam kick member ID: {e}");
+            return JNI_FALSE;
+        }
+    };
+    request(env, callback, Operation::Kick(member_id))
 }
