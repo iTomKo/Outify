@@ -26,6 +26,7 @@ pub enum Operation {
     Current,
     Leave,
     Kick(String),
+    Info(String),
 }
 
 // Startup/reconnect may restore membership, but must never create a social
@@ -33,15 +34,27 @@ pub enum Operation {
 const STARTUP_OPERATION: Operation = Operation::Current;
 
 impl Operation {
-    async fn execute<'a, K>(
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Start => "Start",
+            Self::Current => "Current",
+            Self::Leave => "Leave",
+            Self::Kick(_) => "Kick",
+            Self::Info(_) => "Info",
+        }
+    }
+
+    async fn execute<'a, K, I>(
         &'a self,
         start: impl Future<Output = Result<Jam, Error>>,
         current: impl Future<Output = Result<Option<Jam>, Error>>,
         leave: impl Future<Output = Result<(), Error>>,
         kick: impl FnOnce(&'a str) -> K,
+        info: impl FnOnce(&'a str) -> I,
     ) -> Result<Option<Jam>, Error>
     where
         K: Future<Output = Result<(), Error>>,
+        I: Future<Output = Result<Jam, Error>>,
     {
         match self {
             Self::Start => start.await.map(Some),
@@ -51,6 +64,7 @@ impl Operation {
                 kick(member_id).await?;
                 current.await
             }
+            Self::Info(token) => info(token).await.map(Some),
         }
     }
 }
@@ -113,6 +127,31 @@ impl Manager {
         self.jam = jam;
         self.notify();
         true
+    }
+
+    fn complete_request(
+        &mut self,
+        generation: u64,
+        revision: u64,
+        operation: &Operation,
+        jam: Option<Jam>,
+    ) -> Result<Option<Jam>, String> {
+        if self.generation != generation {
+            return Err("Jam session was replaced or shut down".into());
+        }
+        // Invitation previews belong only to the request callback, not the
+        // active membership or its listener. Do not advance its revision either.
+        if !matches!(operation, Operation::Info(_)) {
+            // A successful leave is authoritative even if someone joined while
+            // it was pending. Reads/starts must not overwrite newer dealer state.
+            let revision = if matches!(operation, Operation::Leave) {
+                None
+            } else {
+                Some(revision)
+            };
+            self.publish(generation, revision, jam.clone());
+        }
+        Ok(jam)
     }
 
     fn reset(&mut self) {
@@ -231,14 +270,16 @@ pub fn request(operation: Operation) -> impl Future<Output = Result<Option<Jam>,
     // Capture the session at JNI submission time, not when the spawned task is
     // eventually polled (which may be after a rebuild).
     async move {
-        info!("jam: {operation:?} request started");
+        // Never log operation payloads, especially invitation tokens.
+        let name = operation.name();
+        info!("jam: {name} request started");
         let result = match context {
             Ok(context) => perform(context, operation.clone()).await,
             Err(error) => Err(error),
         };
         match &result {
-            Ok(_) => info!("jam: {operation:?} request succeeded"),
-            Err(error) => warn!("jam: {operation:?} request failed: {error}"),
+            Ok(_) => info!("jam: {name} request succeeded"),
+            Err(error) => warn!("jam: {name} request failed: {error}"),
         }
         result
     }
@@ -272,16 +313,10 @@ async fn perform(mut context: Context, operation: Operation) -> Result<Option<Ja
                 jam::current(&context.session),
                 jam::leave(&context.session),
                 |member_id| jam::kick(&context.session, member_id),
+                |token| jam::info(&context.session, token),
             ).await.map_err(|error| error.to_string())?;
             let mut manager = MANAGER.lock().unwrap();
-            if manager.generation != context.generation {
-                return Err("Jam session was replaced or shut down".to_string());
-            }
-            // A successful leave is authoritative even if someone joined while
-            // it was pending. Reads/starts must not overwrite newer dealer state.
-            let revision = if matches!(operation, Operation::Leave) { None } else { Some(revision) };
-            manager.publish(context.generation, revision, jam.clone());
-            Ok(jam)
+            manager.complete_request(context.generation, revision, &operation, jam)
         }) => result.unwrap_or_else(|_| Err("Jam request timed out".into())),
     }
 }
@@ -297,6 +332,7 @@ mod tests {
                 async { current },
                 async { panic!("startup must not leave an existing Jam") },
                 |_| async { panic!("startup must not kick a member") },
+                |_| async { panic!("startup must not preview an invitation") },
             )
             .await
     }
@@ -322,6 +358,7 @@ mod tests {
                     kicked_ref.set(true);
                     Ok(())
                 },
+                |_| async { panic!("kick must not preview an invitation") },
             )
             .await
             .unwrap();

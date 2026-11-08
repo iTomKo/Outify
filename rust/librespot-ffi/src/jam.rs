@@ -163,17 +163,46 @@ pub async fn leave(session: &Session) -> Result<(), Error> {
     Ok(())
 }
 
-/// Returns information about invited Jam
+/// Returns information about an invited Jam without joining it.
 pub async fn info(session: &Session, token: &str) -> Result<Jam, Error> {
+    if !is_path_id(token) {
+        return Err(Error::invalid_argument("invalid Jam invitation token"));
+    }
+    info!("jam: reading invitation information");
     let endpoint = format!("{INFO}/{token}");
-    let body = session
+    let result = session
         .spclient()
         .request(&Method::GET, &endpoint, Some(headers(session, false)), None)
         .await
-        .map_err(|e| Error::new(e.kind, format!("cannot start a Jam: {e}")))?;
-    let read = read_session(&body, &session.username())
-        .ok_or_else(|| Error::data_loss("the Jam that started cannot be read"))?;
-    Ok(read.jam)
+        .map_err(|e| Error::new(e.kind, format!("cannot read the Jam invitation: {e}")))
+        .and_then(|body| {
+            read_session(&body, &session.username())
+                .map(|read| read.jam)
+                .ok_or_else(|| Error::data_loss("the invited Jam cannot be read"))
+        });
+    invitation_or_owned_current(token, result, current(session)).await
+}
+
+async fn invitation_or_owned_current(
+    token: &str,
+    result: Result<Jam, Error>,
+    current: impl Future<Output = Result<Option<Jam>, Error>>,
+) -> Result<Jam, Error> {
+    match result {
+        Err(error) if error.kind == ErrorKind::NotFound => {
+            // A self-invite lookup can return 404. Only reuse current membership
+            // when it proves this account owns the exact invitation requested.
+            if let Ok(Some(jam)) = current.await
+                && jam.owner
+                && jam.link.as_deref().and_then(token_in).as_deref() == Some(token)
+            {
+                info!("jam: invitation preview resolved from the owned current Jam");
+                return Ok(jam);
+            }
+            Err(error)
+        }
+        result => result,
+    }
 }
 
 /// Kick member from Jam. Host only

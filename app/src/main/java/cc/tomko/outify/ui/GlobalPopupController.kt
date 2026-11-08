@@ -105,6 +105,11 @@ sealed class PopupSpec(
         override val id: String = UUID.randomUUID().toString(),
     ) : PopupSpec(id)
 
+    data class JamJoin(
+        val token: String,
+        override val id: String = UUID.randomUUID().toString(),
+    ) : PopupSpec(id)
+
     data class CreateFolder(
         override val id: String = UUID.randomUUID().toString(),
     ) : PopupSpec(id)

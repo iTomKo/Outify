@@ -94,6 +94,11 @@ class JamClient internal constructor(
         request { callback -> backend.kick(id, callback) }
     }
 
+    /** Reads an invitation without joining it or changing active membership. */
+    suspend fun info(token: String): Jam =
+        request { callback -> backend.info(token, callback) }
+            ?: throw failure("Spotify returned no Jam invitation information")
+
     /**
      * Returns the owner's invitation link, starting a Jam if none exists.
      * Guests cannot generate invitations. Sharing/opening the URL is up to callers.

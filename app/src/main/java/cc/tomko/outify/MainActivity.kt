@@ -728,6 +728,11 @@ class MainActivity : ComponentActivity() {
                     "track" -> Route.TrackScreen(internalUri)
                     "playlist" -> Route.PlaylistScreen(internalUri)
                     "user" -> Route.ProfileScreen(internalUri)
+                    "socialsession" -> {
+                        println("social session: $type $id = ${uri.pathSegments}")
+                        GlobalPopupController.show(PopupSpec.JamJoin(id))
+                        null
+                    }
                     else -> null
                 }
             }

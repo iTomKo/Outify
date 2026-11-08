@@ -28,6 +28,7 @@ import cc.tomko.outify.ui.PopupSpec
 import cc.tomko.outify.ui.components.bottomsheet.account.AuthResultBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.artist.ArtistInfoBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.jam.JamManageBottomSheet
+import cc.tomko.outify.ui.components.bottomsheet.jam.JoinJamBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.permissions.BatteryOptimizationBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.permissions.NotificationPermissionBottomSheet
 import cc.tomko.outify.ui.components.bottomsheet.playback.LyricsBottomSheet
@@ -42,6 +43,7 @@ import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToPlaylistViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.AddToWidgetViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.CreatePlaylistViewModel
+import cc.tomko.outify.ui.viewmodel.bottomsheet.JamInfoViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.LyricsViewModel
 import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
 import kotlinx.coroutines.launch
@@ -276,6 +278,18 @@ fun GlobalPopupHost(
                 JamManageBottomSheet(
                     viewModel = playbackDevicesViewModel,
                     onDismiss = { GlobalPopupController.dismiss(popup.id) },
+                )
+            }
+
+            is PopupSpec.JamJoin -> {
+                val jamInfoViewModel: JamInfoViewModel = hiltViewModel(key = popup.id)
+                JoinJamBottomSheet(
+                    viewModel = jamInfoViewModel,
+                    jamToken = popup.token,
+                    onDismiss = { GlobalPopupController.dismiss(popup.id) },
+                    onJoin = {
+
+                    },
                 )
             }
 

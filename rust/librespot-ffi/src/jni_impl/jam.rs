@@ -1,6 +1,6 @@
 use jni::{
     JNIEnv,
-    objects::{JClass, JObject},
+    objects::{JClass, JObject, JString},
     sys::{JNI_FALSE, jboolean},
 };
 
@@ -126,4 +126,23 @@ pub extern "system" fn Java_cc_tomko_outify_core_jam_JamNative_kick(
         }
     };
     request(env, callback, Operation::Kick(member_id))
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_jam_JamNative_info(
+    mut env: JNIEnv,
+    _this: JClass,
+    token: JString,
+    callback: JObject,
+) -> jboolean {
+    guard("Jam.info", JNI_FALSE, || {
+        let token: String = match env.get_string(&token) {
+            Ok(value) => value.into(),
+            Err(error) => {
+                error!("cannot read Jam invitation token: {error}");
+                return JNI_FALSE;
+            }
+        };
+        request(env, callback, Operation::Info(token))
+    })
 }

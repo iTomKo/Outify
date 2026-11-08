@@ -44,6 +44,32 @@ class JamClientTest {
     }
 
     @Test
+    fun `info returns the invited Jam without replacing active membership`() = runTest {
+        client.initialize()
+        backend.listener!!.onChanged(OWNED)
+        backend.infoResult = """{"members":[{"id":"host","name":"Host","host":true}]}"""
+
+        val preview = client.info("AbC123")
+
+        assertEquals("AbC123", backend.infoToken)
+        assertEquals("Host", preview.members.single().name)
+        assertFalse(preview.owner)
+        assertTrue(client.state.value!!.owner)
+        assertEquals(listOf("info"), backend.operations)
+    }
+
+    @Test
+    fun `info rejects an empty native result`() = runTest {
+        try {
+            client.info("AbC123")
+            fail("Expected JamException")
+        } catch (error: JamException) {
+            assertTrue(error.message!!.contains("invitation"))
+        }
+        assertNull(client.state.value)
+    }
+
+    @Test
     fun `invite creates a Jam if needed and returns its shareable link`() = runTest {
         backend.startResult = OWNED
         assertEquals(LINK, client.invite())
@@ -168,6 +194,8 @@ class JamClientTest {
         var pending: JamRequestCallback? = null
         var startResult = "null"
         var currentResult = "null"
+        var infoResult = "null"
+        var infoToken: String? = null
         var failure: String? = null
         val operations = mutableListOf<String>()
 
@@ -188,6 +216,11 @@ class JamClientTest {
         override fun start(callback: JamRequestCallback) = reply("start", startResult, callback)
         override fun current(callback: JamRequestCallback) = reply("current", currentResult, callback)
         override fun leave(callback: JamRequestCallback) = reply("leave", "null", callback)
+        override fun kick(id: String, callback: JamRequestCallback) = reply("kick", "null", callback)
+        override fun info(token: String, callback: JamRequestCallback): Boolean {
+            infoToken = token
+            return reply("info", infoResult, callback)
+        }
 
         private fun reply(operation: String, result: String, callback: JamRequestCallback): Boolean {
             operations += operation
