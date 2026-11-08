@@ -13,7 +13,7 @@ use tokio::{
 };
 
 use crate::{
-    jam::{self, Jam},
+    jam::{self, Jam, JoinMode},
     jni_utils::jni_bridge::{self, BridgeArg, JavaCallback},
 };
 
@@ -27,6 +27,7 @@ pub enum Operation {
     Leave,
     Kick(String),
     Info(String),
+    Join(String, JoinMode),
 }
 
 // Startup/reconnect may restore membership, but must never create a social
@@ -41,20 +42,23 @@ impl Operation {
             Self::Leave => "Leave",
             Self::Kick(_) => "Kick",
             Self::Info(_) => "Info",
+            Self::Join(_, _) => "Join",
         }
     }
 
-    async fn execute<'a, K, I>(
+    async fn execute<'a, K, I, J>(
         &'a self,
         start: impl Future<Output = Result<Jam, Error>>,
         current: impl Future<Output = Result<Option<Jam>, Error>>,
         leave: impl Future<Output = Result<(), Error>>,
         kick: impl FnOnce(&'a str) -> K,
         info: impl FnOnce(&'a str) -> I,
+        join: impl FnOnce(&'a str, JoinMode) -> J,
     ) -> Result<Option<Jam>, Error>
     where
         K: Future<Output = Result<(), Error>>,
         I: Future<Output = Result<Jam, Error>>,
+        J: Future<Output = Result<Jam, Error>>,
     {
         match self {
             Self::Start => start.await.map(Some),
@@ -65,6 +69,7 @@ impl Operation {
                 current.await
             }
             Self::Info(token) => info(token).await.map(Some),
+            Self::Join(token, join_mode) => join(token, join_mode.clone()).await.map(Some),
         }
     }
 }
@@ -314,6 +319,7 @@ async fn perform(mut context: Context, operation: Operation) -> Result<Option<Ja
                 jam::leave(&context.session),
                 |member_id| jam::kick(&context.session, member_id),
                 |token| jam::info(&context.session, token),
+                |token, join_mode| jam::join(&context.session, token, join_mode),
             ).await.map_err(|error| error.to_string())?;
             let mut manager = MANAGER.lock().unwrap();
             manager.complete_request(context.generation, revision, &operation, jam)
@@ -333,6 +339,7 @@ mod tests {
                 async { panic!("startup must not leave an existing Jam") },
                 |_| async { panic!("startup must not kick a member") },
                 |_| async { panic!("startup must not preview an invitation") },
+                |_, _| async { panic!("startup must not join a Jam") },
             )
             .await
     }
@@ -359,6 +366,7 @@ mod tests {
                     Ok(())
                 },
                 |_| async { panic!("kick must not preview an invitation") },
+                |_, _| async { panic!("kick must not join a Jam") },
             )
             .await
             .unwrap();

@@ -8,6 +8,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -283,13 +284,22 @@ fun GlobalPopupHost(
 
             is PopupSpec.JamJoin -> {
                 val jamInfoViewModel: JamInfoViewModel = hiltViewModel(key = popup.id)
+                val joinSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 JoinJamBottomSheet(
                     viewModel = jamInfoViewModel,
                     jamToken = popup.token,
                     onDismiss = { GlobalPopupController.dismiss(popup.id) },
                     onJoin = {
-
+                        scope.launch {
+                            if (jamInfoViewModel.join(popup.token, it) &&
+                                GlobalPopupController.popups.value.any { current -> current.id == popup.id }
+                            ) {
+                                joinSheetState.hide()
+                                GlobalPopupController.replace(popup.id, PopupSpec.Jam())
+                            }
+                        }
                     },
+                    sheetState = joinSheetState,
                 )
             }
 

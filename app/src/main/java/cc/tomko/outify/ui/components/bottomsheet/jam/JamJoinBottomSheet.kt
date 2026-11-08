@@ -1,6 +1,7 @@
 package cc.tomko.outify.ui.components.bottomsheet.jam
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -69,7 +71,10 @@ data class JamUser(
     val avatarUrl: String?,
 )
 
-enum class JamListenTarget { ThisDevice, RemoteDevice }
+enum class JamListenTarget(val rustValue: String) {
+    ThisDevice("ListenAndControl"),
+    RemoteDevice("Control")
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -79,10 +84,10 @@ fun JoinJamBottomSheet(
     onDismiss: () -> Unit,
     onJoin: (JamListenTarget) -> Unit,
     modifier: Modifier = Modifier,
-    isJoining: Boolean = false,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isJoining = uiState.isJoining || uiState.hasJoined
     var target by rememberSaveable(jamToken) { mutableStateOf(JamListenTarget.ThisDevice) }
 
     LaunchedEffect(viewModel, jamToken) {
@@ -175,6 +180,15 @@ fun JoinJamBottomSheet(
 
             Spacer(Modifier.height(24.dp))
 
+            uiState.joinError?.let { error ->
+                Text(
+                    text = error,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+
             Button(
                 onClick = { onJoin(target) },
                 enabled = !isJoining,
@@ -183,17 +197,21 @@ fun JoinJamBottomSheet(
                     .heightIn(min = ButtonDefaults.LargeContainerHeight),
                 contentPadding = ButtonDefaults.contentPaddingFor(ButtonDefaults.LargeContainerHeight),
             ) {
-                if (isJoining) {
-                    LoadingIndicator(
-                        modifier = Modifier.size(28.dp),
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-                    )
-                } else {
-                    Text(
-                        text = "Join Jam",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                AnimatedContent(targetState = isJoining, label = "jamJoinButton") { pending ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (pending) {
+                            LoadingIndicator(
+                                modifier = Modifier.size(28.dp),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = stringResource(if (pending) R.string.jam_joining else R.string.jam_join),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
             }
         }

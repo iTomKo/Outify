@@ -1,5 +1,7 @@
 // Shoutout to Tu2525 - https://github.com/Tu2525/spotifast/blob/5fca13cea72e64ecda9f15eac61b54fcf71a9989/src/jam.rs
 
+use std::str::FromStr;
+
 use futures_util::StreamExt as _;
 use librespot_core::{
     Error, Session,
@@ -20,7 +22,6 @@ const JOIN: &str = "/social-connect/v2/sessions/join";
 const INVITE: &str = "https://open.spotify.com/socialsession/";
 const TOPIC: &str = "social-connect/v2/session_update";
 const CURRENT: &str = "/social-connect/v2/sessions/current";
-const LEAVE: &str = "/social-connect/v2/sessions/leave";
 const START: &str = "/social-connect/v2/sessions/current_or_new";
 const END: &str = "/social-connect/v3/sessions";
 const REMOVE_MEMBER: &str = "/social-connect/v3/sessions";
@@ -50,6 +51,18 @@ pub struct Jam {
 pub enum JoinMode {
     ListenAndControl,
     CONTROL,
+}
+
+impl FromStr for JoinMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "ListenAndControl" => Ok(Self::ListenAndControl),
+            "Control" => Ok(Self::CONTROL),
+            _ => Err(format!("Invalid JoinMode: {s}")),
+        }
+    }
 }
 
 impl JoinMode {
@@ -84,6 +97,9 @@ pub async fn start(session: &Session) -> Result<Jam, Error> {
 }
 
 pub async fn join(session: &Session, token: &str, mode: JoinMode) -> Result<Jam, Error> {
+    if !is_path_id(token) {
+        return Err(Error::invalid_argument("invalid Jam invitation token"));
+    }
     let endpoint = format!(
         "{JOIN}/{token}?playback_control={}&join_type=deeplinking&local_device_id={}",
         mode.as_str(),
@@ -129,38 +145,36 @@ async fn current_read(session: &Session) -> Result<Option<Read>, Error> {
 }
 
 pub async fn leave(session: &Session) -> Result<(), Error> {
-    let owned = match current_read(session).await? {
-        None => return Ok(()),
-        Some(read) if read.jam.owner => {
-            if !is_path_id(&read.id) {
-                return Err(Error::data_loss("the owned Jam has an invalid session id"));
-            }
-            Some(read.id)
-        }
-        _ => None,
+    let Some(read) = current_read(session).await? else {
+        return Ok(());
     };
-
-    let spclient = session.spclient();
-    match owned {
-        Some(id) => {
-            let endpoint = format!("{END}/{id}?local_device_id={}", session.device_id());
-            spclient
-                .request(
-                    &Method::DELETE,
-                    &endpoint,
-                    Some(headers(session, false)),
-                    None,
-                )
-                .await
-        }
-        None => {
-            spclient
-                .request(&Method::POST, LEAVE, Some(headers(session, true)), None)
-                .await
-        }
-    }
-    .map_err(|e| Error::new(e.kind, format!("cannot leave the Jam: {e}")))?;
+    let (method, endpoint) = leave_request(&read, session.device_id())?;
+    session
+        .spclient()
+        .request(
+            &method,
+            &endpoint,
+            Some(headers(session, method == Method::POST)),
+            None,
+        )
+        .await
+        .map_err(|e| Error::new(e.kind, format!("cannot leave the Jam: {e}")))?;
     Ok(())
+}
+
+fn leave_request(read: &Read, device_id: &str) -> Result<(Method, String), Error> {
+    if !is_path_id(&read.id) {
+        return Err(Error::data_loss("the Jam has an invalid session id"));
+    }
+    let (method, suffix) = if read.jam.owner {
+        (Method::DELETE, "")
+    } else {
+        (Method::POST, "/leave")
+    };
+    Ok((
+        method,
+        format!("{END}/{}{suffix}?local_device_id={device_id}", read.id),
+    ))
 }
 
 /// Returns information about an invited Jam without joining it.

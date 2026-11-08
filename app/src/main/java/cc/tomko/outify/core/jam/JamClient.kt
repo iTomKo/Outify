@@ -1,5 +1,7 @@
 package cc.tomko.outify.core.jam
 
+import cc.tomko.outify.ui.components.bottomsheet.jam.JamListenTarget
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -10,8 +12,9 @@ import javax.inject.Singleton
 
 /**
  * Process-wide Jam access. Native code owns the watcher across session rebuilds.
- * Operations suspend without blocking the calling thread and throw [JamException]
- * on failure. Coroutine cancellation does not undo an already-sent Spotify request.
+ * Operations suspend without blocking the calling thread. Invitation info/join
+ * return null on failure and expose the reason through [lastError]; other operations
+ * throw [JamException]. Cancellation does not undo an already-sent Spotify request.
  */
 @Singleton
 class JamClient internal constructor(
@@ -94,10 +97,17 @@ class JamClient internal constructor(
         request { callback -> backend.kick(id, callback) }
     }
 
-    /** Reads an invitation without joining it or changing active membership. */
-    suspend fun info(token: String): Jam =
-        request { callback -> backend.info(token, callback) }
-            ?: throw failure("Spotify returned no Jam invitation information")
+    /** Reads an invitation without joining it; null on failure, with details in [lastError]. */
+    suspend fun info(token: String): Jam? =
+        requestOrNull("Spotify returned no Jam invitation information") { callback ->
+            backend.info(token, callback)
+        }
+
+    /** Joins an invitation; null on failure, with details in [lastError]. */
+    suspend fun join(token: String, joinMode: JamListenTarget): Jam? =
+        requestOrNull("Spotify did not join invited Jam") { callback ->
+            backend.join(token, joinMode.rustValue, callback)
+        }
 
     /**
      * Returns the owner's invitation link, starting a Jam if none exists.
@@ -108,6 +118,18 @@ class JamClient internal constructor(
         if (!jam.owner) throw failure("Only the Jam owner can invite others")
         return jam.link?.takeIf { it.isNotBlank() }
             ?: throw failure("Spotify did not provide a Jam invitation link")
+    }
+
+    private suspend fun requestOrNull(
+        emptyMessage: String,
+        send: (JamRequestCallback) -> Boolean,
+    ): Jam? = try {
+        request(send).also { if (it == null) _lastError.value = emptyMessage }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        _lastError.value = error.message ?: emptyMessage
+        null
     }
 
     private suspend fun request(send: (JamRequestCallback) -> Boolean): Jam? {

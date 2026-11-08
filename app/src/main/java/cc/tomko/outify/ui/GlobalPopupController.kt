@@ -6,6 +6,7 @@ import cc.tomko.outify.core.model.PlaylistFolder
 import cc.tomko.outify.core.model.Track
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import java.util.UUID
 
 object GlobalPopupController {
@@ -18,6 +19,11 @@ object GlobalPopupController {
 
     fun dismiss(popupId: String) {
         _popups.value = _popups.value.filterNot { it.id == popupId }
+    }
+
+    /** Does nothing if the original popup was dismissed while its request was pending. */
+    fun replace(popupId: String, popup: PopupSpec) {
+        _popups.update { popups -> popups.map { if (it.id == popupId) popup else it } }
     }
 
     fun dismissAll() {
