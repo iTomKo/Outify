@@ -24,8 +24,8 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
-val majorVersion = 1
-val minorVersion = 11
+val majorVersion = 2
+val minorVersion = 0
 val patchVersion = 0
 
 extensions.configure<ApplicationExtension>("android") {
