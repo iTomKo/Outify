@@ -35,6 +35,7 @@
     <string name="clear_all">Clear all</string>
     <string name="login_required">This feature is only available to logged in users</string>
     <string name="search_no_results">Nothing found..</string>
+    <string name="search_failed">Spotify search failed</string>
     <string name="search_type_query_select_filters">Type the query and select filters</string>
     <string name="search_spotify">Search Spotify</string>
     <string name="common_back">Back</string>

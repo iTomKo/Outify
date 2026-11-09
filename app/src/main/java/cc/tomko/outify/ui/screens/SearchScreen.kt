@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.NoAccounts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ContainedLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +78,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -124,6 +126,7 @@ fun SharedTransitionScope.SearchScreen(
     val results by viewModel.results.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
     val searchHistory by viewModel.searchHistory.collectAsState()
     val historyResults by viewModel.historyResults.collectAsState()
     val spirc = viewModel.spirc
@@ -591,6 +594,48 @@ fun SharedTransitionScope.SearchScreen(
                                                 backStack.add(Route.AccountsScreen)
                                             }
                                     )
+                                }
+                            }
+                        }
+                    } else if (searchError != null && filteredResults.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Text(
+                                        text = stringResource(R.string.search_failed),
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = searchError.orEmpty(),
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    TextButton(onClick = { viewModel.retrySearch() }) {
+                                        Text(text = stringResource(R.string.common_retry))
+                                    }
                                 }
                             }
                         }

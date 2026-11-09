@@ -65,6 +65,18 @@ impl OAuthSession {
         &self.auth_url
     }
 
+    /// Issues a fresh authorization URL together with a new PKCE verifier.
+    ///
+    /// The verifier is consumed the moment a code is exchanged, so a second
+    /// login attempt (for example after logging out) would otherwise reuse a
+    /// URL whose verifier is long gone and fail with "Missing Pkce Verifier".
+    pub fn renew(&mut self) {
+        let (auth_url, pkce_verifier) = self.client.set_auth_url();
+        self.auth_url = auth_url;
+        self.pkce_verifier = Some(pkce_verifier);
+        debug!("oauth session renewed with auth_url: {}", self.auth_url);
+    }
+
     /// Retrieves the access blob using the OAuth code.
     pub async fn get_access_token(&mut self, code: String) -> Result<OAuthToken, Error> {
         let pkce_verifier = self

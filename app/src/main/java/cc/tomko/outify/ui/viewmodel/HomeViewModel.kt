@@ -14,6 +14,7 @@ import cc.tomko.outify.core.model.Track
 import cc.tomko.outify.core.model.toOutifyUri
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
+import cc.tomko.outify.data.metadata.NativeError
 import cc.tomko.outify.data.metadata.NativeErrorHandler
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import cc.tomko.outify.data.repository.SettingsRepository
@@ -179,8 +180,14 @@ class HomeViewModel @Inject constructor(
 
     fun loadData() {
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
-            delay(150)
+            // Keep whatever is already on screen (cached tops or a previous
+            // success) while refreshing, so one failed request does not blank
+            // the whole page.
+            val hasContent = _uiState.value is HomeUiState.Success
+            if (!hasContent) {
+                _uiState.value = HomeUiState.Loading
+                delay(150)
+            }
 
             try {
                 val isAuthenticated =
@@ -193,21 +200,12 @@ class HomeViewModel @Inject constructor(
 
                 val duration = _selectedDuration.value
 
-                settingsRepository.cachedTops.first()?.let { raw ->
-                    try {
-                        val allCaches = json.decodeFromString<TopsCacheData>(raw)
-                        val hit = when (duration) {
-                            TopItemsDuration.SHORT_TERM -> allCaches.shortTerm
-                            TopItemsDuration.MEDIUM_TERM -> allCaches.mediumTerm
-                            TopItemsDuration.LONG_TERM -> allCaches.longTerm
+                if (!hasContent) {
+                    readCachedTops(duration)?.let { (artists, trackUris) ->
+                        val cachedTracks = withContext(Dispatchers.IO) {
+                            trackMetadataHelper.getTrackMetadata(trackUris)
                         }
-                        if (hit.artists.isNotEmpty()) {
-                            val cachedTracks = withContext(Dispatchers.IO) {
-                                trackMetadataHelper.getTrackMetadata(hit.trackUris)
-                            }
-                            _uiState.value = HomeUiState.Success(hit.artists, cachedTracks)
-                        }
-                    } catch (_: Exception) {
+                        _uiState.value = HomeUiState.Success(artists, cachedTracks)
                     }
                 }
 
@@ -217,61 +215,104 @@ class HomeViewModel @Inject constructor(
                     TopItemsDuration.LONG_TERM,
                 )
 
+                var failure: String? = null
+
                 for (fallbackDuration in durationsToTry) {
-                    val durationValue = fallbackDuration.value
+                    when (val result = fetchTops(fallbackDuration)) {
+                        is TopsFetch.Success -> {
+                            if (result.artists.isNotEmpty() || result.tracks.isNotEmpty()) {
+                                _selectedDuration.value = fallbackDuration
+                                _uiState.value = HomeUiState.Success(result.artists, result.tracks)
+                                updateTopCache(fallbackDuration, result.artists, result.tracks)
+                                loadUserProfile()
+                                return@launch
+                            }
+                        }
 
-                    val topArtistsJson = withContext(Dispatchers.IO) {
-                        spClient.getUserTop(
-                            "artists",
-                            durationValue
-                        )
-                    }
-                    if (topArtistsJson == null) {
-                        _uiState.value = HomeUiState.NotAuthenticated
-                        loadUserProfile()
-                        return@launch
-                    }
-                    val topArtistsError =
-                        NativeErrorHandler.handleErrorJson(topArtistsJson, "top artists")
-                    if (topArtistsError != null) {
-                        _uiState.value = HomeUiState.NotAuthenticated
-                        loadUserProfile()
-                        return@launch
-                    }
+                        TopsFetch.AuthFailed -> {
+                            _uiState.value = HomeUiState.NotAuthenticated
+                            loadUserProfile()
+                            return@launch
+                        }
 
-                    val topTracksJson =
-                        withContext(Dispatchers.IO) { spClient.getUserTop("tracks", durationValue) }
-                    if (topTracksJson == null) {
-                        _uiState.value = HomeUiState.NotAuthenticated
-                        loadUserProfile()
-                        return@launch
-                    }
-                    val topTracksError =
-                        NativeErrorHandler.handleErrorJson(topTracksJson, "top tracks")
-                    if (topTracksError != null) {
-                        _uiState.value = HomeUiState.NotAuthenticated
-                        loadUserProfile()
-                        return@launch
-                    }
-
-                    val topArtists = parseTopArtists(topArtistsJson)
-                    val topTracks =
-                        withContext(Dispatchers.IO) { fetchTrackMetadata(topTracksJson) }
-
-                    if (topArtists.isNotEmpty() || topTracks.isNotEmpty()) {
-                        _selectedDuration.value = fallbackDuration
-                        _uiState.value = HomeUiState.Success(topArtists, topTracks)
-                        updateTopCache(fallbackDuration, topArtists, topTracks)
-                        loadUserProfile()
-                        return@launch
+                        is TopsFetch.Failed -> failure = result.message
                     }
                 }
 
-                _uiState.value = HomeUiState.EmptyResult
+                val lastFailure = failure
+                when {
+                    // Anything already on screen (cached or fetched) is better
+                    // than an error page, so only an empty screen reports it.
+                    _uiState.value is HomeUiState.Success -> Unit
+                    lastFailure != null -> _uiState.value = HomeUiState.Error(lastFailure)
+                    else -> _uiState.value = HomeUiState.EmptyResult
+                }
                 loadUserProfile()
             } catch (e: Exception) {
-                _uiState.value = HomeUiState.Error(e.message ?: "Unknown error")
+                if (_uiState.value !is HomeUiState.Success) {
+                    _uiState.value = HomeUiState.Error(e.message ?: "Unknown error")
+                }
             }
+        }
+    }
+
+    /**
+     * Outcome of one "top items" request. Spotify answers with a different
+     * error for each failure mode, and the home screen needs to tell an
+     * expired login apart from a temporary hiccup.
+     */
+    private sealed class TopsFetch {
+        data class Success(val artists: List<TopArtist>, val tracks: List<Track>) : TopsFetch()
+        data object AuthFailed : TopsFetch()
+        data class Failed(val message: String) : TopsFetch()
+    }
+
+    private suspend fun fetchTops(duration: TopItemsDuration): TopsFetch {
+        val topArtistsJson = withContext(Dispatchers.IO) {
+            spClient.getUserTop("artists", duration.value)
+        } ?: return TopsFetch.Failed("Spotify did not answer the request for your top artists")
+
+        NativeErrorHandler.handleErrorJson(topArtistsJson, "top artists")
+            ?.let { return it.toTopsFailure() }
+
+        val topTracksJson = withContext(Dispatchers.IO) {
+            spClient.getUserTop("tracks", duration.value)
+        } ?: return TopsFetch.Failed("Spotify did not answer the request for your top tracks")
+
+        NativeErrorHandler.handleErrorJson(topTracksJson, "top tracks")
+            ?.let { return it.toTopsFailure() }
+
+        return TopsFetch.Success(
+            artists = parseTopArtists(topArtistsJson),
+            tracks = withContext(Dispatchers.IO) { fetchTrackMetadata(topTracksJson) },
+        )
+    }
+
+    private fun NativeError.toTopsFailure(): TopsFetch = when (this) {
+        is NativeError.AuthenticationError -> TopsFetch.AuthFailed
+        is NativeError.RateLimited ->
+            TopsFetch.Failed("Spotify is rate limiting Outify. Try again in a moment.")
+
+        is NativeError.ServiceUnavailable ->
+            TopsFetch.Failed("Spotify is having trouble right now. Try again shortly.")
+
+        is NativeError.Unknown -> TopsFetch.Failed(message)
+    }
+
+    private suspend fun readCachedTops(
+        duration: TopItemsDuration
+    ): Pair<List<TopArtist>, List<String>>? {
+        val raw = settingsRepository.cachedTops.first() ?: return null
+        return try {
+            val allCaches = json.decodeFromString<TopsCacheData>(raw)
+            val hit = when (duration) {
+                TopItemsDuration.SHORT_TERM -> allCaches.shortTerm
+                TopItemsDuration.MEDIUM_TERM -> allCaches.mediumTerm
+                TopItemsDuration.LONG_TERM -> allCaches.longTerm
+            }
+            if (hit.artists.isEmpty()) null else hit.artists to hit.trackUris
+        } catch (_: Exception) {
+            null
         }
     }
 

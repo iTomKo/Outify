@@ -13,6 +13,25 @@ use crate::{
     spotify::error::SpotifyApiError,
 };
 
+/// Renders a failed Spotify Web API call as the `{"error": {...}}` shape the
+/// Kotlin side already understands, so callers can show the user why a screen
+/// came back empty instead of silently rendering nothing.
+fn api_error_json(error: &SpotifyApiError) -> String {
+    let message = match error {
+        SpotifyApiError::Http(status, body) => {
+            let detail: String = body.trim().chars().take(180).collect();
+            if detail.is_empty() {
+                format!("Spotify returned HTTP {status}")
+            } else {
+                format!("Spotify returned HTTP {status}: {detail}")
+            }
+        }
+        other => other.to_string(),
+    };
+
+    serde_json::json!({ "error": { "type": "api_error", "message": message } }).to_string()
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_username")]
 pub extern "system" fn username(env: JNIEnv, _class: JClass) -> jstring {
     let username = match crate::spclient::get_username() {
@@ -99,6 +118,7 @@ pub extern "system" fn spotify_search(
         Ok(u) => u,
         Err(e) => {
             error!("spotify search api failed: {e}");
+            throw_exception(&mut env, format!("Spotify search failed: {e}"));
             return std::ptr::null_mut();
         }
     };
@@ -384,7 +404,13 @@ pub extern "system" fn get_user_top(
         },
         Err(e) => {
             error!("get_user_top api call failed: {e}");
-            std::ptr::null_mut()
+            match env.new_string(api_error_json(&e)) {
+                Ok(json) => json.into_raw(),
+                Err(err) => {
+                    error!("jni new_string failed for top error: {err}");
+                    std::ptr::null_mut()
+                }
+            }
         }
     }
 }
