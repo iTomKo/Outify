@@ -5,6 +5,8 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.R
+import cc.tomko.outify.core.AuthStateEvent
+import cc.tomko.outify.core.AuthStateEventBus
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.core.UserProfile
 import cc.tomko.outify.core.model.Album
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -74,6 +77,13 @@ class SearchViewModel @Inject constructor(
 
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
+
+    /** Last reason a request failed, so the screen can explain an empty result. */
+    private val _searchError = MutableStateFlow<String?>(null)
+    val searchError: StateFlow<String?> = _searchError
+
+    /** Bumped by [retrySearch] to re-run the current query. */
+    private val retryTrigger = MutableStateFlow(0)
 
     private val _isRecommendationMode = MutableStateFlow(false)
     val isRecommendationMode: StateFlow<Boolean> = _isRecommendationMode
@@ -116,18 +126,32 @@ class SearchViewModel @Inject constructor(
     val authors: StateFlow<Map<String, Profile>> = _authors
 
     init {
-        _isLoggedIn.value = spClient.isOAuthAuthenticated()
+        refreshLoginState()
 
         viewModelScope.launch {
-            queryFlow
+            AuthStateEventBus.events.collect { event ->
+                when (event) {
+                    is AuthStateEvent.AccountLoggedIn,
+                    is AuthStateEvent.AccountLoggedOut -> refreshLoginState()
+
+                    else -> Unit
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            combine(queryFlow, retryTrigger) { query, attempt -> query to attempt }
                 .debounce(500)
                 .distinctUntilChanged()
-                .collectLatest { query ->
+                .collectLatest { (query, _) ->
 
                     if (query.isBlank()) {
                         _results.value = emptyList()
+                        _searchError.value = null
                         return@collectLatest
                     }
+
+                    _searchError.value = null
 
                     _results.value = listOf(
                         SearchUiModel.SectionHeader(R.string.search_section_tracks),
@@ -338,6 +362,8 @@ class SearchViewModel @Inject constructor(
             replaceSkeleton(headerRes, items)
         } catch (e: Exception) {
             Log.w("SearchViewModel", "$type search failed", e)
+            _searchError.value = e.message?.takeIf { it.isNotBlank() }
+                ?: "Spotify search failed"
             replaceSkeleton(headerRes, emptyList())
         }
     }
@@ -364,6 +390,20 @@ class SearchViewModel @Inject constructor(
 
     fun onQueryChange(query: String) {
         queryFlow.value = query
+    }
+
+    /**
+     * Re-runs the current query. Backs the "try again" action after a failed
+     * request, which is often just an expired Spotify session.
+     */
+    fun retrySearch() {
+        retryTrigger.update { it + 1 }
+    }
+
+    private fun refreshLoginState() {
+        viewModelScope.launch {
+            _isLoggedIn.value = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
+        }
     }
 
     fun fetchRecommendations(seedIds: List<String>, config: RecommendationConfig) {

@@ -39,7 +39,10 @@ pub extern "system" fn Java_cc_tomko_outify_core_AuthManager_getAuthorizationURL
         rt.block_on(async move {
             match crate::oauth::setup_oauth_session(&session) {
                 Some(mutex) => {
-                    let guard = mutex.lock().await;
+                    let mut guard = mutex.lock().await;
+                    // Always hand out a freshly minted URL: the PKCE verifier
+                    // from an earlier attempt is already used up.
+                    guard.renew();
                     Some(guard.auth_url().clone())
                 }
                 None => None,

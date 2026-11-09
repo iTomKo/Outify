@@ -1,5 +1,5 @@
 use once_cell::sync::OnceCell;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use std::{
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -70,6 +70,47 @@ impl SpotifyClient {
     pub fn update_credentials(&self, client_id: String, client_secret: String) {
         *self.client_id.lock().unwrap() = client_id;
         *self.client_secret.lock().unwrap() = client_secret;
+    }
+
+    /// Sends an authorized GET to the Spotify Web API.
+    ///
+    /// The stored access token can expire between the expiry check in
+    /// [`SpotifyClient::load_token`] and the moment the request reaches
+    /// Spotify, which comes back as a 401. Refreshing once and retrying keeps
+    /// that race from turning into an empty home screen or search page.
+    pub(crate) async fn authorized_get(
+        &self,
+        url: &str,
+        params: &[(&str, String)],
+    ) -> Result<reqwest::Response, SpotifyApiError> {
+        let token = self.load_token().await?.ok_or(SpotifyApiError::NoToken)?;
+
+        let res = self
+            .client
+            .get(url)
+            .query(params)
+            .bearer_auth(&token.access_token)
+            .timeout(REQUEST_TIMEOUT)
+            .send()
+            .await?;
+
+        if res.status() != StatusCode::UNAUTHORIZED {
+            return Ok(res);
+        }
+
+        debug!("spotify api returned 401, refreshing the access token and retrying");
+        let refreshed = self.refresh_token(&token).await?;
+
+        let res = self
+            .client
+            .get(url)
+            .query(params)
+            .bearer_auth(refreshed.access_token)
+            .timeout(REQUEST_TIMEOUT)
+            .send()
+            .await?;
+
+        Ok(res)
     }
 }
 

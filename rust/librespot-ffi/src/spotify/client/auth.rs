@@ -49,20 +49,26 @@ impl SpotifyClient {
     }
 
     pub async fn complete_oauth_flow(&self, code: String) -> Result<WebApiToken, SpotifyApiError> {
-        let mut oauth_state_guard = self.oauth_state.write().await;
-        let state = oauth_state_guard.as_mut().ok_or(SpotifyApiError::Generic(
-            "OAuth flow not started. Call start_oauth_flow first.".to_string(),
-        ))?;
+        // Take the state out of the slot instead of borrowing it. An
+        // authorization code can only be exchanged once, so a failed attempt
+        // must not leave a half-consumed PKCE verifier behind: the next
+        // attempt starts from a clean slate.
+        let state = {
+            let mut guard = self.oauth_state.write().await;
+            guard.take().ok_or(SpotifyApiError::Generic(
+                "OAuth flow not started. Call start_oauth_flow first.".to_string(),
+            ))?
+        };
 
         if state.created_at.elapsed() > Duration::from_secs(600) {
             error!("oauth state expired");
             return Err(SpotifyApiError::Generic(
-                "OAuth state expired. Please restart the flow.".to_string(),
+                "OAuth state expired. Please start the flow again.".to_string(),
             ));
         }
 
-        let pkce_verifier = state.pkce_verifier.take().ok_or(SpotifyApiError::Generic(
-            "PKCE verifier not found. OAuth flow may have already completed.".to_string(),
+        let pkce_verifier = state.pkce_verifier.ok_or(SpotifyApiError::Generic(
+            "PKCE verifier missing. Please start the flow again.".to_string(),
         ))?;
         let oauth_client = &state.oauth_client;
 
@@ -91,10 +97,7 @@ impl SpotifyClient {
 
         let mut token_guard = self.token.write().await;
         *token_guard = Some(new_token.clone());
-
-        drop(oauth_state_guard);
-        let mut oauth_state_guard = self.oauth_state.write().await;
-        *oauth_state_guard = None;
+        drop(token_guard);
 
         debug!("oauth flow completed");
 
