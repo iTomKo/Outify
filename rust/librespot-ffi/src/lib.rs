@@ -20,6 +20,7 @@ mod jam;
 mod jam_runtime;
 mod collection;
 mod collection_api;
+mod collection_session;
 mod sync_request;
 
 use std::path::PathBuf;

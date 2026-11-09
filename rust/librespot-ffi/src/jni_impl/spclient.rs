@@ -733,6 +733,32 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_searchContext(
 
 // Gets user collection
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getCollectionSession(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    crate::jni_utils::guard(
+        "SpClient.getCollectionSession",
+        std::ptr::null_mut(),
+        || {
+            let result = crate::session::with_session(crate::collection_session::identity)
+                .and_then(|identity| identity)
+                .and_then(|identity| serde_json::to_string(&identity).map_err(Into::into));
+            match result {
+                Ok(json) => env
+                    .new_string(json)
+                    .map(|value| value.into_raw())
+                    .unwrap_or(std::ptr::null_mut()),
+                Err(error) => {
+                    let _ = env.throw_new("java/lang/IllegalStateException", error.to_string());
+                    std::ptr::null_mut()
+                }
+            }
+        },
+    )
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getSavedTrackCollection(
     mut env: JNIEnv,
     _class: JClass,
@@ -743,9 +769,11 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getSavedTrackCollectio
         || {
             let result = (|| -> Result<String, librespot_core::Error> {
                 let session = crate::session::with_session(|session| session.clone())?;
+                let identity = crate::collection_session::identity(&session)?;
                 let tracks =
                     crate::network_rt().block_on(crate::collection_api::saved_tracks(&session))?;
-                Ok(serde_json::to_string(&tracks)?)
+                crate::collection_session::ensure_current(&identity)?;
+                Ok(serde_json::json!({"session": identity, "tracks": tracks}).to_string())
             })();
             match result {
                 Ok(json) => env

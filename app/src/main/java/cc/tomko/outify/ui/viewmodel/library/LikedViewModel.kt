@@ -15,6 +15,7 @@ import cc.tomko.outify.services.SyncNotificationManager
 import coil3.ImageLoader
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -127,31 +128,32 @@ class LikedViewModel @Inject constructor(
     }
 
     fun refresh() {
-        if (spirc.isUsable) {
+        if (spirc.isUsable && !isRefreshing.value) {
+            isRefreshing.value = true
             syncNotificationManager.showIndeterminate()
             viewModelScope.launch {
-                isRefreshing.value = true
                 var totalTracks = 0
-                val result = runCatching {
-                    likedRepository.syncLikedTracks(
+                try {
+                    val succeeded = likedRepository.syncLikedTracks(
                         onProgress = { current, total ->
                             totalTracks = total
                             _fetchedCount.value = current
                             syncNotificationManager.showProgress(current, total)
                         }
                     )
-                }
-                result.onSuccess {
-                    if (totalTracks > 0) {
+                    if (!succeeded) {
+                        syncNotificationManager.showError("Failed to sync liked tracks; cached data was retained")
+                    } else if (totalTracks > 0) {
                         syncNotificationManager.showComplete(totalTracks)
                     } else {
                         syncNotificationManager.cancel()
                     }
-
-                    isRefreshing.value = false
-                }.onFailure {
-                    syncNotificationManager.showError(it.message ?: "Sync failed")
-
+                } catch (cancelled: CancellationException) {
+                    syncNotificationManager.cancel()
+                    throw cancelled
+                } catch (error: Exception) {
+                    syncNotificationManager.showError(error.message ?: "Sync failed")
+                } finally {
                     isRefreshing.value = false
                 }
 

@@ -12,6 +12,7 @@ import cc.tomko.outify.data.database.album.AlbumWithArtists
 import cc.tomko.outify.data.database.track.LikedEpisodeEntity
 import cc.tomko.outify.data.database.track.LikedShowEntity
 import cc.tomko.outify.data.database.track.LikedTrackEntity
+import cc.tomko.outify.data.database.track.CollectionOwnerEntity
 import cc.tomko.outify.data.metadata.EpisodeMetadataHelper
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.metadata.ShowMetadataHelper
@@ -40,6 +41,7 @@ class LikedRepository @Inject constructor(
     private val episodeMetadataHelper: EpisodeMetadataHelper,
     private val showMetadataHelper: ShowMetadataHelper,
     private val metadata: Metadata,
+    private val collectionSessions: CollectionSessionState,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
     private val trackSyncMutex = Mutex()
@@ -56,21 +58,23 @@ class LikedRepository @Inject constructor(
         forceSync: Boolean = false,
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
     ): Boolean = withContext(Dispatchers.IO) {
+        val lease = collectionSessions.requireCurrent()
         try {
-            val ids = trackSyncMutex.withLock {
-                reconcileLikedTrackUris()
-                likedDao.getLikedIds()
-            }
+            val ids = reconcileLikedTrackUris(lease).second
             for ((index, batch) in ids.chunked(500).withIndex()) {
+                collectionSessions.ensureCurrent(lease)
                 trackMetadataHelper.cacheTracks(batch.map { "spotify:track:$it" })
+                collectionSessions.ensureCurrent(lease)
                 onProgress(min((index + 1) * 500, ids.size), ids.size)
                 yield()
             }
+            collectionSessions.ensureCurrent(lease)
             if (ids.isEmpty()) onProgress(0, 0)
             true
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            collectionSessions.ensureCurrent(lease)
             Log.e(TAG, "Could not sync liked tracks; keeping cached data", error)
             false
         }
@@ -80,44 +84,79 @@ class LikedRepository @Inject constructor(
      * Reads collection-v2 pages and updates only changed membership rows.
      * Returns true if anything changed.
      */
-    suspend fun syncLikedUris(): Boolean = trackSyncMutex.withLock {
-        reconcileLikedTrackUris() != null
+    suspend fun syncLikedUris(): Boolean = reconcileLikedTrackUris(collectionSessions.requireCurrent()).first
+
+    /** Activate only verified account membership. Legacy unowned rows cannot be attributed safely. */
+    suspend fun activateCollectionSession(lease: CollectionLease) = trackSyncMutex.withLock {
+        db.withTransaction {
+            collectionSessions.ensureCurrent(lease)
+            if (likedDao.getCollectionOwner()?.accountId != lease.session.accountId) likedDao.clearAll()
+            likedDao.setCollectionOwner(CollectionOwnerEntity(
+                accountId = lease.session.accountId,
+                sessionId = lease.session.sessionId,
+                generation = lease.generation,
+                active = true,
+            ))
+            collectionSessions.ensureCurrent(lease)
+        }
+    }
+
+    suspend fun deactivateCollectionSession(lease: CollectionLease) {
+        likedDao.deactivateCollection(lease.session.sessionId, lease.generation)
     }
 
     /** Recover missing metadata too, including batches interrupted on a previous run. */
-    suspend fun syncLikedTracksFromCollection() = withContext(Dispatchers.IO) {
-        val ids = trackSyncMutex.withLock {
-            reconcileLikedTrackUris()
-            likedDao.getLikedIds()
-        }
+    suspend fun syncLikedTracksFromCollection(lease: CollectionLease) = withContext(Dispatchers.IO) {
+        val ids = reconcileLikedTrackUris(lease).second
         ids.chunked(500).forEach { batch ->
+            collectionSessions.ensureCurrent(lease)
             trackMetadataHelper.cacheTracks(batch.map { "spotify:track:$it" })
+            collectionSessions.ensureCurrent(lease)
         }
     }
 
-    suspend fun applyCollectionChanges(changes: List<CollectionTrackChange>) = withContext(Dispatchers.IO) {
+    suspend fun applyCollectionChanges(lease: CollectionLease, changes: List<CollectionTrackChange>) = withContext(Dispatchers.IO) {
         val added = trackSyncMutex.withLock {
+            ensureOwner(lease)
             val change = applyTrackChanges(likedDao.getSnapshot(), changes, System.currentTimeMillis())
-            persistMembership(change)
+            persistMembership(change, lease)
             change.addedUris
         }
-        added.chunked(500).forEach { trackMetadataHelper.cacheTracks(it) }
+        added.chunked(500).forEach {
+            collectionSessions.ensureCurrent(lease)
+            trackMetadataHelper.cacheTracks(it)
+            collectionSessions.ensureCurrent(lease)
+        }
     }
 
-    private suspend fun reconcileLikedTrackUris(): List<String>? {
+    private suspend fun reconcileLikedTrackUris(lease: CollectionLease): Pair<Boolean, List<String>> {
         // Finish every remote page before opening the write transaction.
+        collectionSessions.ensureCurrent(lease)
         val remote = metadata.getSavedTracks()
-        val change = reconcileSavedTracks(remote, likedDao.getSnapshot(), System.currentTimeMillis())
-        if (!change.changed) return null
-        persistMembership(change)
-        return change.addedUris
+        collectionSessions.ensureSource(lease, remote.session)
+        return trackSyncMutex.withLock {
+            ensureOwner(lease)
+            val change = reconcileSavedTracks(remote.tracks, likedDao.getSnapshot(), System.currentTimeMillis())
+            persistMembership(change, lease)
+            change.changed to remote.tracks.map { it.uri.removePrefix("spotify:track:") }
+        }
     }
 
-    private suspend fun persistMembership(change: SavedTrackReconciliation) {
-        if (!change.changed) return
+    private suspend fun ensureOwner(lease: CollectionLease) {
+        collectionSessions.ensureCurrent(lease)
+        val owner = likedDao.getCollectionOwner()
+        if (owner == null || !owner.active || owner.accountId != lease.session.accountId ||
+            owner.sessionId != lease.session.sessionId || owner.generation != lease.generation
+        ) throw StaleCollectionSessionException()
+    }
+
+    private suspend fun persistMembership(change: SavedTrackReconciliation, lease: CollectionLease) {
         db.withTransaction {
+            ensureOwner(lease)
             change.removedIds.chunked(500).forEach { likedDao.deleteAll(it) }
             change.upserts.chunked(500).forEach { likedDao.insertAll(it) }
+            // Roll back if a reconnect/account switch happened while writes suspended.
+            collectionSessions.ensureCurrent(lease)
         }
     }
 
@@ -142,22 +181,36 @@ class LikedRepository @Inject constructor(
      * Appends to the end of the list
      */
     suspend fun addLiked(trackId: String) {
-        val currentCount = likedDao.getLikedIds().size
-        likedDao.insert(
-            LikedTrackEntity(
-                trackId = trackId,
-                position = currentCount.toDouble(),
-                addedAt = System.currentTimeMillis()
-            )
-        )
+        val lease = collectionSessions.requireCurrent()
+        trackSyncMutex.withLock {
+            db.withTransaction {
+                ensureOwner(lease)
+                val currentCount = likedDao.getLikedIds().size
+                likedDao.insert(LikedTrackEntity(
+                    trackId = trackId,
+                    position = currentCount.toDouble(),
+                    addedAt = System.currentTimeMillis()
+                ))
+                collectionSessions.ensureCurrent(lease)
+            }
+        }
     }
 
     /**
      * Removes a track from the liked list (optimistic UI update)
      * @return whether a row was actually removed
      */
-    suspend fun removeLiked(trackId: String): Boolean =
-        likedDao.delete(trackId) > 0
+    suspend fun removeLiked(trackId: String): Boolean {
+        val lease = collectionSessions.requireCurrent()
+        return trackSyncMutex.withLock {
+            db.withTransaction {
+                ensureOwner(lease)
+                val removed = likedDao.delete(trackId) > 0
+                collectionSessions.ensureCurrent(lease)
+                removed
+            }
+        }
+    }
 
     /**
      * Fetches (or confirms cached) metadata for a window of liked tracks.

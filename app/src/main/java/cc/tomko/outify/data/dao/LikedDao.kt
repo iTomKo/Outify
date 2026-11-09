@@ -12,20 +12,30 @@ import cc.tomko.outify.data.database.TrackWithArtists
 import cc.tomko.outify.data.database.track.LikedEpisodeEntity
 import cc.tomko.outify.data.database.track.LikedShowEntity
 import cc.tomko.outify.data.database.track.LikedTrackEntity
+import cc.tomko.outify.data.database.track.CollectionOwnerEntity
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Singleton
 
 @Dao
 @Singleton
 interface LikedDao {
+    @Query("SELECT * FROM collection_owner WHERE slot = 1")
+    suspend fun getCollectionOwner(): CollectionOwnerEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun setCollectionOwner(owner: CollectionOwnerEntity)
+
+    @Query("UPDATE collection_owner SET active = 0 WHERE sessionId = :sessionId AND generation = :generation")
+    suspend fun deactivateCollection(sessionId: String, generation: Long)
+
     @Transaction
-    @Query("SELECT * FROM liked_songs ORDER BY position ASC")
+    @Query("SELECT * FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1) ORDER BY position ASC")
     fun observeLikedTracks(): Flow<List<LikedTrackWithTrack>>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM liked_songs WHERE trackId = :id)")
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_songs WHERE trackId = :id AND EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1))")
     suspend fun containsTrack(id: String): Boolean
 
-    @Query("SELECT EXISTS(SELECT 1 FROM liked_songs WHERE trackId = :id)")
+    @Query("SELECT EXISTS(SELECT 1 FROM liked_songs WHERE trackId = :id AND EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1))")
     fun observeIsTrackLiked(id: String): Flow<Boolean>
 
     @Transaction
@@ -62,15 +72,15 @@ interface LikedDao {
     suspend fun updatePosition(id: String, newPosition: Double)
 
     /** Ordered URI snapshot — used for sync comparison */
-    @Query("SELECT trackId FROM liked_songs ORDER BY position ASC")
+    @Query("SELECT trackId FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1) ORDER BY position ASC")
     suspend fun getLikedIds(): List<String>
 
     /** Total count, even before metadata loads */
-    @Query("SELECT COUNT(*) FROM liked_songs")
+    @Query("SELECT COUNT(*) FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)")
     fun observeCount(): Flow<Int>
 
     /** Total count (suspend version for sync progress) */
-    @Query("SELECT COUNT(*) FROM liked_songs")
+    @Query("SELECT COUNT(*) FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)")
     suspend fun getCount(): Int
 
     /** Wipe all cached positions (used during full re-sync) */
@@ -78,7 +88,7 @@ interface LikedDao {
     suspend fun clearAll()
 
     /** Id window for triggering metadata fetch */
-    @Query("SELECT trackId FROM liked_songs ORDER BY position ASC LIMIT :limit OFFSET :offset")
+    @Query("SELECT trackId FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1) ORDER BY position ASC LIMIT :limit OFFSET :offset")
     suspend fun getIdsWindow(limit: Int, offset: Int): List<String>
 
     /**
@@ -89,6 +99,7 @@ interface LikedDao {
         """
         SELECT t.* FROM liked_songs ls
         INNER JOIN tracks t ON ls.trackId = t.id
+        WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)
         ORDER BY ls.position ASC
     """
     )
@@ -103,14 +114,15 @@ interface LikedDao {
         LEFT JOIN track_artists ta ON ta.trackId = t.id
         LEFT JOIN artists a ON a.artistId = ta.artistId
         WHERE
-            t.name LIKE '%' || :query || '%'
-            OR a.name LIKE '%' || :query || '%'
+            (t.name LIKE '%' || :query || '%'
+            OR a.name LIKE '%' || :query || '%')
+            AND EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)
         ORDER BY ls.position ASC
     """
     )
     fun observeSearchLikedTracks(query: String): Flow<List<TrackWithArtists>>
 
-    @Query("SELECT trackId FROM liked_songs")
+    @Query("SELECT trackId FROM liked_songs WHERE EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)")
     fun observeLikedIds(): Flow<List<String>>
 
     @Query(
@@ -119,7 +131,8 @@ interface LikedDao {
         FROM liked_songs ls
         JOIN track_artists ta ON ta.trackId = ls.trackId
         JOIN tracks t ON t.id = ls.trackId
-        WHERE ta.artistId = :artistId
+         WHERE ta.artistId = :artistId
+           AND EXISTS(SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1)
         ORDER BY ls.position
     """
     )

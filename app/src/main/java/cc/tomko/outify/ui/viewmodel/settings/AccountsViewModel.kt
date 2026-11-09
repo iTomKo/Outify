@@ -14,6 +14,7 @@ import cc.tomko.outify.core.model.CurrentUserProfile
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.data.metadata.NativeErrorHandler
 import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.repository.CollectionSyncCoordinator
 import cc.tomko.outify.services.OAuthService
 import cc.tomko.outify.ui.GlobalPopupController
 import cc.tomko.outify.ui.PopupSpec
@@ -37,6 +38,7 @@ class AccountsViewModel @Inject constructor(
     private val spircController: SpircController,
     private val settingsRepository: SettingsRepository,
     private val serverManager: AuthCallbackServerManager,
+    private val collectionSync: CollectionSyncCoordinator,
 ) : ViewModel() {
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -153,6 +155,7 @@ class AccountsViewModel @Inject constructor(
     }
 
     fun logoutPlayback() {
+        collectionSync.pause()
         authManager.logout()
         _isPlaybackLoggedIn.value = false
     }

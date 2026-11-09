@@ -150,8 +150,13 @@ class Metadata @Inject constructor(
     }
 
     /** Fails rather than interpreting an interrupted collection read as an empty library. */
-    suspend fun getSavedTracks(): List<SavedTrack> = withContext(Dispatchers.IO) {
-        decodeSavedTracks(spClient.getSavedTrackCollection(), json)
+    suspend fun getSavedTracks(): CollectionSnapshot = withContext(Dispatchers.IO) {
+        decodeCollectionSnapshot(spClient.getSavedTrackCollection(), json)
+    }
+
+    suspend fun getCollectionSession(): cc.tomko.outify.data.repository.CollectionSession = withContext(Dispatchers.IO) {
+        val raw = requireNotNull(spClient.getCollectionSession()) { "Collection session is unavailable" }
+        json.decodeFromString<cc.tomko.outify.data.repository.CollectionSession>(raw).validate()
     }
 
     suspend fun getSavedEpisodeUris(): List<String> {

@@ -25,9 +25,12 @@ struct Page {
 
 pub async fn saved_tracks(session: &Session) -> Result<Vec<SavedTrack>, Error> {
     let username = session.username();
+    let expected = crate::collection_session::identity(session)?;
     collect_pages(|token| {
         let username = &username;
+        let expected = &expected;
         async move {
+            crate::collection_session::ensure_current(expected)?;
             let body = page_request(username, &token)?;
             let mut headers = HeaderMap::new();
             headers.insert(CONTENT_TYPE, HeaderValue::from_static(CONTENT));
@@ -41,6 +44,7 @@ pub async fn saved_tracks(session: &Session) -> Result<Vec<SavedTrack>, Error> {
                 )
             })
             .await?;
+            crate::collection_session::ensure_current(expected)?;
             read_page(&raw)
         }
     })

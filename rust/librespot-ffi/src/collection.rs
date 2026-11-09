@@ -33,26 +33,29 @@ pub async fn start(session: &Session) {
                 biased;
                 _ = shutdown.changed() => break,
                 update = updates.next() => {
-                    let Some(update) = update else { break };
+                    let Some(update) = update else {
+                        if !session.is_invalid() { invalidate(&session); }
+                        break;
+                    };
                     if session.is_invalid() { break; }
                     match update {
                         Ok(message) => match message.payload {
                             PayloadValue::Raw(bytes) => match track_changes(&bytes) {
-                                Ok(changes) if !changes.is_empty() => dispatch_changes(changes),
+                                Ok(changes) if !changes.is_empty() => dispatch_changes(&session, changes),
                                 Ok(_) => {},
                                 Err(error) => {
                                     warn!("invalid collection delta; requesting reconciliation: {error}");
-                                    invalidate();
+                                    invalidate(&session);
                                 }
                             },
                             // Spotify repeats the same push as JSON. Applying both
                             // copies can reorder a like against a later removal.
                             PayloadValue::Json(_) => {},
-                            _ => invalidate(),
+                            _ => invalidate(&session),
                         },
                         Err(error) => {
                             warn!("collection delta failed: {error}");
-                            invalidate();
+                            invalidate(&session);
                         }
                     }
                 }
@@ -68,19 +71,30 @@ pub fn stop() {
     }
 }
 
-fn invalidate() {
+fn invalidate(session: &Session) {
+    let Ok(identity) = crate::collection_session::identity(session) else {
+        return;
+    };
+    let Ok(json) = serde_json::to_string(&identity) else {
+        return;
+    };
     if let Some(callback) = crate::jni_impl::session::session_cb() {
         crate::jni_utils::jni_bridge::dispatch(
             callback,
             crate::jni_impl::session::METHOD_COLLECTION_CHANGED,
-            vec![],
+            vec![crate::jni_utils::jni_bridge::BridgeArg::Str(json)],
         );
     }
 }
 
-fn dispatch_changes(changes: Vec<TrackChange>) {
-    let Ok(json) = serde_json::to_string(&changes) else {
-        invalidate();
+fn dispatch_changes(session: &Session, changes: Vec<TrackChange>) {
+    let Ok(identity) = crate::collection_session::identity(session) else {
+        return;
+    };
+    let Ok(json) =
+        serde_json::to_string(&serde_json::json!({"session": identity, "changes": changes}))
+    else {
+        invalidate(session);
         return;
     };
     if let Some(callback) = crate::jni_impl::session::session_cb() {

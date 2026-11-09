@@ -27,6 +27,7 @@ import cc.tomko.outify.data.database.show.ShowEpisodeCrossRef
 import cc.tomko.outify.data.database.track.LikedEpisodeEntity
 import cc.tomko.outify.data.database.track.LikedShowEntity
 import cc.tomko.outify.data.database.track.LikedTrackEntity
+import cc.tomko.outify.data.database.track.CollectionOwnerEntity
 import cc.tomko.outify.data.database.track.PlaylistTrackEntity
 
 @Database(
@@ -43,6 +44,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         PlaylistDiffEntity::class,
         PlaylistTrackEntity::class,
         LikedTrackEntity::class,
+        CollectionOwnerEntity::class,
         LikedEpisodeEntity::class,
         LikedShowEntity::class,
         LikedItemsEntity::class,
@@ -50,7 +52,7 @@ import cc.tomko.outify.data.database.track.PlaylistTrackEntity
         EpisodeEntity::class,
         ShowEpisodeCrossRef::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -234,6 +236,27 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        internal val MIGRATION_24_25 = object : Migration(24, 25) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS collection_owner (
+                        slot INTEGER NOT NULL PRIMARY KEY,
+                        accountId TEXT NOT NULL,
+                        sessionId TEXT NOT NULL,
+                        generation INTEGER NOT NULL,
+                        active INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        internal val COLLECTION_SESSION_CALLBACK = object : Callback() {
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                // Process-local leases never survive a process restart.
+                db.execSQL("UPDATE collection_owner SET active = 0")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -249,8 +272,10 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_20_21,
                         MIGRATION_21_22,
                         MIGRATION_22_23,
-                        MIGRATION_23_24
+                        MIGRATION_23_24,
+                        MIGRATION_24_25,
                     )
+                    .addCallback(COLLECTION_SESSION_CALLBACK)
                     .build()
                 INSTANCE = instance
                 instance

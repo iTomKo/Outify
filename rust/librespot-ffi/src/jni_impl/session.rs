@@ -30,7 +30,7 @@ pub const CALLBACK_METHODS: [(&str, &str); 7] = [
     ("onRestarting", "()V"),
     ("onRestarted", "()V"),
     ("onFailed", "(Ljava/lang/String;)V"),
-    ("onCollectionChanged", "()V"),
+    ("onCollectionChanged", "(Ljava/lang/String;)V"),
     ("onCollectionDelta", "(Ljava/lang/String;)V"),
 ];
 

@@ -9,6 +9,15 @@ private val TRACK_URI = Regex("spotify:track:[a-zA-Z0-9]{22}")
 @Serializable
 data class CollectionTrackChange(val uri: String, val removed: Boolean)
 
+@Serializable
+data class CollectionDelta(val session: CollectionSession, val changes: List<CollectionTrackChange>)
+
+internal fun decodeCollectionDelta(raw: String, json: Json): CollectionDelta =
+    json.decodeFromString<CollectionDelta>(raw).also { delta ->
+        delta.session.validate()
+        require(delta.changes.all { it.uri.matches(TRACK_URI) }) { "Invalid collection delta URI" }
+    }
+
 internal fun decodeCollectionChanges(raw: String, json: Json): List<CollectionTrackChange> =
     json.decodeFromString<List<CollectionTrackChange>>(raw).also { changes ->
         require(changes.all { it.uri.matches(TRACK_URI) }) {

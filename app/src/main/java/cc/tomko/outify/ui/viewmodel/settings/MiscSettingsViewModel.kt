@@ -17,6 +17,7 @@ import cc.tomko.outify.services.SyncNotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -113,6 +114,10 @@ class MiscSettingsViewModel @Inject constructor(
                     _syncStatus.value = SyncStatus.Error("Failed to sync liked tracks")
                     syncNotificationManager.showError("Failed to sync liked tracks")
                 }
+            } catch (cancelled: CancellationException) {
+                _syncStatus.value = SyncStatus.Idle
+                syncNotificationManager.cancel()
+                throw cancelled
             } catch (e: Exception) {
                 _syncStatus.value = SyncStatus.Error(e.message ?: "Unknown error")
                 syncNotificationManager.showError(e.message ?: "Unknown error")

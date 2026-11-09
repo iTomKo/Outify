@@ -86,11 +86,11 @@ class SpircController @Inject constructor(
             }
 
             override fun onRestarted() {
-                finishRuntimeInitialization { collectionSync.requestSync() }
+                finishRuntimeInitialization()
             }
 
-            override fun onCollectionChanged() {
-                collectionSync.requestSync()
+            override fun onCollectionChanged(sessionJson: String) {
+                collectionSync.onInvalidation(sessionJson)
             }
 
             override fun onCollectionDelta(changesJson: String) {
@@ -230,6 +230,7 @@ class SpircController @Inject constructor(
                 updateState(SpircState.Failed)
                 return@launch
             }
+            collectionSync.resume()
             afterReady()
         }
     }
@@ -252,6 +253,7 @@ class SpircController @Inject constructor(
     }
 
     private fun updateState(state: SpircState) {
+        if (!state.isUsable) collectionSync.pause()
         if (_state.value == state) return
 
         Log.i(TAG, "state ${_state.value} -> $state")

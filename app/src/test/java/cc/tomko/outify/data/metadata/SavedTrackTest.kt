@@ -10,6 +10,22 @@ class SavedTrackTest {
     private val uri = "spotify:track:0000000000000000000001"
 
     @Test
+    fun `collection snapshots retain their source account and native session`() {
+        val snapshot = decodeCollectionSnapshot(
+            """{"session":{"accountId":"me","sessionId":"native"},"tracks":[{"uri":"$uri","added_at":123}]}""", json,
+        )
+        assertEquals("me", snapshot.session.accountId)
+        assertEquals("native", snapshot.session.sessionId)
+        assertEquals(listOf(SavedTrack(uri, 123)), snapshot.tracks)
+        for (raw in listOf("[]", """{"tracks":[]}""", """{"session":{"accountId":"","sessionId":"native"},"tracks":[]}""")) {
+            try {
+                decodeCollectionSnapshot(raw, json)
+                fail("Unattributed snapshots must fail")
+            } catch (_: IllegalArgumentException) { }
+        }
+    }
+
+    @Test
     fun `saved collection preserves original timestamps and accepts an authoritative empty list`() {
         assertEquals(listOf(SavedTrack(uri, 1_700_000_000)), decodeSavedTracks(
             """[{"uri":"$uri","added_at":1700000000}]""", json,
