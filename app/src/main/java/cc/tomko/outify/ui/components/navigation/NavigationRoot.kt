@@ -1,13 +1,13 @@
 package cc.tomko.outify.ui.components.navigation
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,6 +24,7 @@ import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.scene.Scene
 import androidx.navigation3.ui.NavDisplay
 import cc.tomko.outify.reccobeats.PendingRecommendation
 import cc.tomko.outify.ui.GlobalPopupController
@@ -66,6 +67,14 @@ import cc.tomko.outify.ui.viewmodel.settings.MiscSettingsViewModel
 import cc.tomko.outify.ui.viewmodel.settings.PlaybackSettingViewModel
 import cc.tomko.outify.ui.viewmodel.settings.SettingsViewModel
 
+private const val NAV_RANK_KEY = "outify.navRank"
+
+/** Position in the navbar, left to right. */
+fun navRank(rank: Int): Map<String, Any> = mapOf(NAV_RANK_KEY to rank)
+
+private fun Scene<NavKey>.navRank(): Int? =
+    entries.lastOrNull()?.metadata?.get(NAV_RANK_KEY) as? Int
+
 @Composable
 fun SharedTransitionScope.NavigationRoot(
     backStack: NavBackStack<NavKey>,
@@ -83,20 +92,14 @@ fun SharedTransitionScope.NavigationRoot(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberEntryScopedViewModelDecorator(entryViewModelStoreProvider),
         ),
-        transitionSpec = {
-            slideInHorizontally { it } + fadeIn() togetherWith
-                    slideOutHorizontally { -it } + fadeOut()
-        },
-        popTransitionSpec = {
-            slideInHorizontally { -it } + fadeIn() togetherWith
-                    slideOutHorizontally { it } + fadeOut()
-        },
+        transitionSpec = { directionalSlide(defaultForward = true) },
+        popTransitionSpec = { directionalSlide(defaultForward = false) },
         predictivePopTransitionSpec = {
             slideInHorizontally { -it } + fadeIn() togetherWith
                     slideOutHorizontally { it } + fadeOut()
         },
         entryProvider = entryProvider {
-            entry<Route.HomeScreen> {
+            entry<Route.HomeScreen>(metadata = navRank(0)) {
                 val viewModel: HomeViewModel = hiltViewModel()
 
                 HomeScreen(
@@ -108,7 +111,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.LikedScreen> {
+            entry<Route.LikedScreen>(metadata = navRank(2)) {
                 val viewModel: LikedViewModel = hiltViewModel()
                 val listState = rememberLazyListState()
 
@@ -128,13 +131,13 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.LibraryScreen> {
+            entry<Route.LibraryScreen>(metadata = navRank(3)) {
                 val viewModel: LibraryViewModel = hiltViewModel()
 
                 LibraryScreen(viewModel, backStack)
             }
 
-            entry<Route.SearchScreen> {
+            entry<Route.SearchScreen>(metadata = navRank(2)) {
                 val viewModel = hiltViewModel<SearchViewModel>()
                 SearchScreen(backStack, viewModel)
             }
@@ -154,7 +157,7 @@ fun SharedTransitionScope.NavigationRoot(
                 SearchScreen(backStack, viewModel, showSearchUi = false)
             }
 
-            entry<Route.TrackScreen>(metadata = EntryScopedViewModels) {
+            entry<Route.TrackScreen>(metadata = EntryScopedViewModels + navRank(4)) {
                 val viewModel: TrackDetailViewModel = hiltViewModel()
 
                 LaunchedEffect(it.trackUri) {
@@ -176,7 +179,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.AlbumScreen>(metadata = EntryScopedViewModels) {
+            entry<Route.AlbumScreen>(metadata = EntryScopedViewModels + navRank(4)) {
                 val viewModel: AlbumDetailViewModel = hiltViewModel()
 
                 LaunchedEffect(it.albumUri) {
@@ -197,7 +200,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.ArtistScreen>(metadata = EntryScopedViewModels) {
+            entry<Route.ArtistScreen>(metadata = EntryScopedViewModels + navRank(4)) {
                 val viewModel: ArtistDetailViewModel = hiltViewModel()
                 LaunchedEffect(viewModel) {
                     viewModel.loadArtist(it.artistUri)
@@ -223,7 +226,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.PlaylistScreen>(metadata = EntryScopedViewModels) {
+            entry<Route.PlaylistScreen>(metadata = EntryScopedViewModels + navRank(4)) {
                 val viewModel: PlaylistDetailViewModel = hiltViewModel()
                 LaunchedEffect(it.playlistUri) {
                     viewModel.loadPlaylist(it.playlistUri, false)
@@ -248,7 +251,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.ProfileScreen> {
+            entry<Route.ProfileScreen>(metadata = navRank(4)) {
                 val viewModel: ProfileDetailViewModel = hiltViewModel()
                 LaunchedEffect(it.profileUri) {
                     viewModel.loadProfile(it.profileUri)
@@ -270,7 +273,7 @@ fun SharedTransitionScope.NavigationRoot(
                 )
             }
 
-            entry<Route.ShowScreen> {
+            entry<Route.ShowScreen>(metadata = navRank(4)) {
                 val viewModel: ShowDetailViewModel = hiltViewModel()
                 LaunchedEffect(it.showUri) {
                     viewModel.loadShow(it.showUri)
@@ -391,19 +394,21 @@ fun SharedTransitionScope.NavigationRoot(
     )
 }
 
-fun verticalTransition() = NavDisplay.transitionSpec {
-    val enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight }) + fadeIn()
-    val exit = slideOutVertically(targetOffsetY = { fullHeight -> -fullHeight }) + fadeOut()
+private fun horizontalSlide(forward: Boolean): ContentTransform =
+    if (forward) {
+        slideInHorizontally { it } + fadeIn() togetherWith
+                slideOutHorizontally { -it } + fadeOut()
+    } else {
+        slideInHorizontally { -it } + fadeIn() togetherWith
+                slideOutHorizontally { it } + fadeOut()
+    }
 
-    enter togetherWith exit
-} + NavDisplay.popTransitionSpec {
-    val enter = slideInVertically(initialOffsetY = { fullHeight -> -fullHeight }) + fadeIn()
-    val exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
+private fun AnimatedContentTransitionScope<Scene<NavKey>>.directionalSlide(
+    defaultForward: Boolean
+): ContentTransform {
+    val from = initialState.navRank()
+    val to = targetState.navRank()
 
-    enter togetherWith exit
-} + NavDisplay.predictivePopTransitionSpec {
-    val enter = slideInVertically(initialOffsetY = { fullHeight -> -fullHeight }) + fadeIn()
-    val exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight }) + fadeOut()
-
-    enter togetherWith exit
+    val forward = if (from != null && to != null && from != to) to > from else defaultForward
+    return horizontalSlide(forward)
 }
