@@ -45,6 +45,7 @@ class SpClient @Inject constructor() {
     ): Array<String>
 
     external fun getUserCollection(query: String? = null): String?
+    external fun getSavedTrackCollection(): String?
 
     /**
      * Adds given uris to users library

@@ -40,6 +40,15 @@ interface LikedDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(track: LikedTrackEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(tracks: List<LikedTrackEntity>)
+
+    @Query("SELECT * FROM liked_songs ORDER BY position ASC")
+    suspend fun getSnapshot(): List<LikedTrackEntity>
+
+    @Query("DELETE FROM liked_songs WHERE trackId IN (:ids)")
+    suspend fun deleteAll(ids: List<String>)
+
     @Query("DELETE FROM liked_songs WHERE trackId = :id")
     suspend fun delete(id: String): Int
 

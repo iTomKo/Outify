@@ -3,6 +3,7 @@ package cc.tomko.outify.data.metadata
 import android.util.Log
 import kotlinx.coroutines.delay
 import org.json.JSONObject
+import org.json.JSONArray
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.random.Random
@@ -68,6 +69,25 @@ class NativeMetadata @Inject constructor() {
         )
     }
 
+    /** One native call for up to 500 tracks, not one request per URI. */
+    fun fetchTracks(uris: List<String>): String {
+        val raw = getNativeTracks(JSONArray(uris).toString())
+            ?: throw NativeOperationException("No batch metadata response", NativeError.Unknown("No batch metadata response"))
+        if (raw.trimStart().startsWith("{")) {
+            val error = JSONObject(raw).getJSONObject("error")
+            val nativeError = NativeError.fromJson(
+                error.getString("type"),
+                error.getString("message"),
+                if (error.isNull("retry_after_seconds")) null else error.getLong("retry_after_seconds"),
+            )
+            when (nativeError) {
+                is NativeError.RateLimited -> throw RateLimitException(nativeError.message, nativeError.retryAfterSeconds)
+                else -> throw NativeOperationException(nativeError.message, nativeError)
+            }
+        }
+        return raw
+    }
+
     suspend fun <T> retryOnRateLimit(
         maxAttempts: Int = 5,
         baseDelayMs: Long = 1000L,
@@ -92,6 +112,7 @@ class NativeMetadata @Inject constructor() {
     }
 
     external fun getNativeMetadata(uri: String): String
+    private external fun getNativeTracks(urisJson: String): String?
 }
 
 class NativeOperationException(

@@ -93,6 +93,10 @@ class SpircController @Inject constructor(
                 collectionSync.requestSync()
             }
 
+            override fun onCollectionDelta(changesJson: String) {
+                collectionSync.onDelta(changesJson)
+            }
+
             override fun onFailed(reason: String) {
                 Log.e(TAG, "spirc failed: $reason")
                 _lastError.value = reason

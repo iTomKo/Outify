@@ -234,3 +234,42 @@ fn convert_to_string<T: serde::Serialize>(metadata: &T) -> Option<String> {
         }
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_data_metadata_NativeMetadata_getNativeTracks(
+    mut env: jni::JNIEnv,
+    _this: JClass,
+    uris_json: JString,
+) -> jstring {
+    crate::jni_utils::guard(
+        "NativeMetadata.getNativeTracks",
+        std::ptr::null_mut(),
+        || {
+            let result = (|| -> Result<String, librespot_core::Error> {
+                let input: String = env
+                    .get_string(&uris_json)
+                    .map_err(|error| {
+                        librespot_core::Error::invalid_argument(format!(
+                            "invalid track URI list: {error}"
+                        ))
+                    })?
+                    .into();
+                let uris: Vec<String> = serde_json::from_str(&input)?;
+                let session = with_session(|session| session.clone())?;
+                let tracks = crate::network_rt()
+                    .block_on(crate::metadata::batch::tracks(&session, &uris))?;
+                Ok(serde_json::to_string(&tracks)?)
+            })();
+            let json = result.unwrap_or_else(|error| serde_json::json!({
+            "error": {
+                "type": if error.kind == librespot_core::error::ErrorKind::ResourceExhausted { "rate_limit" } else { "unknown" },
+                "message": error.to_string(),
+                "retry_after_seconds": null
+            }
+        }).to_string());
+            env.new_string(json)
+                .map(|value| value.into_raw())
+                .unwrap_or(std::ptr::null_mut())
+        },
+    )
+}

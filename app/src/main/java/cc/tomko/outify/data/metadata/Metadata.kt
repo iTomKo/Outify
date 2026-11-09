@@ -14,6 +14,8 @@ import cc.tomko.outify.data.dao.LikedItemsDao
 import cc.tomko.outify.data.database.LikedItemsEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -145,6 +147,11 @@ class Metadata @Inject constructor(
             )
             throw e
         }
+    }
+
+    /** Fails rather than interpreting an interrupted collection read as an empty library. */
+    suspend fun getSavedTracks(): List<SavedTrack> = withContext(Dispatchers.IO) {
+        decodeSavedTracks(spClient.getSavedTrackCollection(), json)
     }
 
     suspend fun getSavedEpisodeUris(): List<String> {

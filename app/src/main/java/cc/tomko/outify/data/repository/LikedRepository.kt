@@ -17,6 +17,7 @@ import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.data.metadata.ShowMetadataHelper
 import cc.tomko.outify.data.metadata.TrackMetadataHelper
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -50,124 +51,74 @@ class LikedRepository @Inject constructor(
         private const val SHOW_SUBSTRING_OFFSET = "spotify:show:".length
     }
 
+    @Suppress("UNUSED_PARAMETER") // forceSync retained for callers; only missing metadata needs fetching.
     suspend fun syncLikedTracks(
         forceSync: Boolean = false,
         onProgress: (current: Int, total: Int) -> Unit = { _, _ -> },
     ): Boolean = withContext(Dispatchers.IO) {
-        val pageSize = 20
-        val perPageDelayMs = 100L
-        val maxRetries = 3
-        val initialBackoffMs = 500L
-
         try {
-            try {
-                if (!syncLikedUris() && !forceSync) return@withContext false
-            } catch (t: Throwable) {
-                Log.w(TAG, "syncLikedUris failed (continuing): ${t.message}", t)
+            val ids = trackSyncMutex.withLock {
+                reconcileLikedTrackUris()
+                likedDao.getLikedIds()
             }
-
-            yield()
-            var offset = 0
-            var anyFetched = false
-            var batchNum = 0
-            val total = likedDao.getCount()
-
-            while (true) {
-                val ids = likedDao.getIdsWindow(limit = pageSize, offset = offset)
-                if (ids.isEmpty()) break
-
-                batchNum++
-                val uris = ids.map { "spotify:track:$it" }
-
-                var attempt = 0
-                var succeeded = false
-                var backoff = initialBackoffMs
-
-                while (attempt < maxRetries && !succeeded) {
-                    try {
-                        val fetched = trackMetadataHelper.getTrackMetadata(uris)
-
-                        if (fetched.isNotEmpty()) {
-                            anyFetched = true
-                        }
-
-                        succeeded = true
-                    } catch (e: Exception) {
-                        attempt++
-                        val isTransient = true
-                        if (attempt >= maxRetries || !isTransient) {
-                            Log.e(
-                                TAG,
-                                "Failed fetching metadata for liked tracks (offset=$offset).",
-                                e
-                            )
-                            return@withContext false
-                        } else {
-                            Log.w(
-                                TAG,
-                                "Transient failure fetching metadata (offset=$offset), retrying in $backoff ms (attempt=$attempt).",
-                                e
-                            )
-                            delay(backoff)
-                            backoff = min(backoff * 2, 10_000L)
-                        }
-                    }
-                }
-
-                val processed = min(offset + pageSize, total)
-                onProgress(processed, total)
-
+            for ((index, batch) in ids.chunked(500).withIndex()) {
+                trackMetadataHelper.cacheTracks(batch.map { "spotify:track:$it" })
+                onProgress(min((index + 1) * 500, ids.size), ids.size)
                 yield()
-
-                // polite pause between pages
-                delay(perPageDelayMs)
-                offset += pageSize
             }
-
-            Log.d(TAG, "syncLikedTracks finished; anyFetched=$anyFetched")
-            return@withContext true
-        } catch (t: Throwable) {
-            Log.e("LikedRepository", "syncLikedTracks failed unexpectedly", t)
-            return@withContext false
+            if (ids.isEmpty()) onProgress(0, 0)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Log.e(TAG, "Could not sync liked tracks; keeping cached data", error)
+            false
         }
     }
 
     /**
-     * Pulls the URI list from the API and rebuilds liked_songs if it differs.
+     * Reads collection-v2 pages and updates only changed membership rows.
      * Returns true if anything changed.
      */
     suspend fun syncLikedUris(): Boolean = trackSyncMutex.withLock {
         reconcileLikedTrackUris() != null
     }
 
-    /** Silent collection refresh: reconcile membership, then cache only new tracks. */
+    /** Recover missing metadata too, including batches interrupted on a previous run. */
     suspend fun syncLikedTracksFromCollection() = withContext(Dispatchers.IO) {
-        trackSyncMutex.withLock {
-            val added = reconcileLikedTrackUris() ?: return@withLock
-            added.chunked(20).forEach { trackMetadataHelper.getTrackMetadata(it) }
+        val ids = trackSyncMutex.withLock {
+            reconcileLikedTrackUris()
+            likedDao.getLikedIds()
+        }
+        ids.chunked(500).forEach { batch ->
+            trackMetadataHelper.cacheTracks(batch.map { "spotify:track:$it" })
         }
     }
 
-    private suspend fun reconcileLikedTrackUris(): List<String>? {
-        val remote = metadata.getLikedUris()
-        val cached = likedDao.getLikedIds()
-        val added = addedLikedTrackUris(remote, cached) ?: return null
-
-        Log.d(TAG, "Liked list changed (${cached.size} → ${remote.size}), resyncing")
-        db.withTransaction {
-            likedDao.clearAll()
-            val now = System.currentTimeMillis()
-            remote.forEachIndexed { i, uri ->
-                likedDao.insert(
-                    LikedTrackEntity(
-                        trackId = uri.substring(SUBSTRING_OFFSET),
-                        position = i.toDouble(),
-                        addedAt = now,
-                    )
-                )
-            }
+    suspend fun applyCollectionChanges(changes: List<CollectionTrackChange>) = withContext(Dispatchers.IO) {
+        val added = trackSyncMutex.withLock {
+            val change = applyTrackChanges(likedDao.getSnapshot(), changes, System.currentTimeMillis())
+            persistMembership(change)
+            change.addedUris
         }
-        return added
+        added.chunked(500).forEach { trackMetadataHelper.cacheTracks(it) }
+    }
+
+    private suspend fun reconcileLikedTrackUris(): List<String>? {
+        // Finish every remote page before opening the write transaction.
+        val remote = metadata.getSavedTracks()
+        val change = reconcileSavedTracks(remote, likedDao.getSnapshot(), System.currentTimeMillis())
+        if (!change.changed) return null
+        persistMembership(change)
+        return change.addedUris
+    }
+
+    private suspend fun persistMembership(change: SavedTrackReconciliation) {
+        if (!change.changed) return
+        db.withTransaction {
+            change.removedIds.chunked(500).forEach { likedDao.deleteAll(it) }
+            change.upserts.chunked(500).forEach { likedDao.insertAll(it) }
+        }
     }
 
     /**
@@ -221,7 +172,8 @@ class LikedRepository @Inject constructor(
     suspend fun getAlbumsForTracks(tracks: List<TrackWithArtists>): Map<String, AlbumWithArtists?> {
         val albumIds = tracks.mapNotNull { it.track.albumId }.distinct()
         if (albumIds.isEmpty()) return emptyMap()
-        return albumDao.getAlbumsWithArtists(albumIds).associateBy { it.album.albumId }
+        return albumIds.chunked(500).flatMap { albumDao.getAlbumsWithArtists(it) }
+            .associateBy { it.album.albumId }
     }
 
     /**

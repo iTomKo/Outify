@@ -11,4 +11,7 @@ import javax.inject.Singleton
 interface ArtistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(artists: List<ArtistEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMissing(artists: List<ArtistEntity>)
 }

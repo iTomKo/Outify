@@ -56,4 +56,10 @@ interface AlbumDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(albums: List<AlbumEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMissing(albums: List<AlbumEntity>)
+
+    @Query("SELECT albumId FROM albums WHERE albumId IN (:ids)")
+    suspend fun getExistingIds(ids: List<String>): List<String>
 }

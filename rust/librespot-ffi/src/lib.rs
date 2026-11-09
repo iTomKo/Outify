@@ -19,6 +19,8 @@ mod spirc;
 mod jam;
 mod jam_runtime;
 mod collection;
+mod collection_api;
+mod sync_request;
 
 use std::path::PathBuf;
 

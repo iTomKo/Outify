@@ -51,4 +51,7 @@ interface SessionCallback {
 
     /** The current user's saved tracks changed; refresh the authoritative list. */
     fun onCollectionChanged()
+
+    /** Ordered track add/remove deltas, encoded as JSON by the native dealer listener. */
+    fun onCollectionDelta(changesJson: String)
 }

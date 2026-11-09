@@ -732,6 +732,38 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_searchContext(
 }
 
 // Gets user collection
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getSavedTrackCollection(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    crate::jni_utils::guard(
+        "SpClient.getSavedTrackCollection",
+        std::ptr::null_mut(),
+        || {
+            let result = (|| -> Result<String, librespot_core::Error> {
+                let session = crate::session::with_session(|session| session.clone())?;
+                let tracks =
+                    crate::network_rt().block_on(crate::collection_api::saved_tracks(&session))?;
+                Ok(serde_json::to_string(&tracks)?)
+            })();
+            match result {
+                Ok(json) => env
+                    .new_string(json)
+                    .map(|value| value.into_raw())
+                    .unwrap_or(std::ptr::null_mut()),
+                Err(error) => {
+                    let _ = env.throw_new(
+                        "java/lang/IllegalStateException",
+                        format!("Cannot read saved tracks: {error}"),
+                    );
+                    std::ptr::null_mut()
+                }
+            }
+        },
+    )
+}
+
 // Query can be used to get liked songs from artist
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getUserCollection(
@@ -755,15 +787,13 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getUserCollection(
 
     let json_res = rt.block_on(async {
         match crate::spclient::get_collection_uris(query.as_deref()).await {
-            Ok(uris) => {
-                match serde_json::to_string(&uris) {
-                    Ok(s) => Ok(s),
-                    Err(e) => {
-                        error!("serde for collection uris failed: {e}");
-                        Err(())
-                    }
+            Ok(uris) => match serde_json::to_string(&uris) {
+                Ok(s) => Ok(s),
+                Err(e) => {
+                    error!("serde for collection uris failed: {e}");
+                    Err(())
                 }
-            }
+            },
             Err(e) => {
                 error!("get_context for collection failed: {e}");
                 Err(())

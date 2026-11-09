@@ -20,13 +20,11 @@ import cc.tomko.outify.data.database.TrackFileEntity
 import cc.tomko.outify.data.database.TrackFull
 import cc.tomko.outify.data.database.album.AlbumArtistEntity
 import cc.tomko.outify.data.database.album.AlbumTrackCrossRef
-import cc.tomko.outify.data.database.album.AlbumWithArtists
 import cc.tomko.outify.data.database.toDomain
 import cc.tomko.outify.data.repository.TrackRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -35,10 +33,11 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
-import javax.inject.Named
 import javax.inject.Singleton
 
 @Singleton
@@ -53,8 +52,9 @@ class TrackMetadataHelper @Inject constructor(
     private val trackFileDao: TrackFileDao,
     private val nativeMetadata: NativeMetadata,
     private val json: Json,
-    @Named("metadataConcurrency") private val concurrency: Int,
 ) {
+    private val fetchMutex = Mutex()
+
     suspend fun getTrackMetadata(trackUris: List<String>): List<Track> {
         if (trackUris.isEmpty()) return emptyList()
         val uris = trackUris.filter { it.startsWith("spotify:track:") }
@@ -66,6 +66,8 @@ class TrackMetadataHelper @Inject constructor(
             try {
                 fetchAndPersist(missing)
                 cached = loadCached(uris)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (e: Exception) {
                 Log.w("Metadata", "Failed to fetch missing tracks", e)
             }
@@ -94,6 +96,8 @@ class TrackMetadataHelper @Inject constructor(
         return try {
             val fetched = fetchAndPersist(listOf(trackUri))
             fetched[trackUri]?.toDomain()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             Log.w("Metadata", "Failed to fetch $trackUri", e)
             null
@@ -116,75 +120,71 @@ class TrackMetadataHelper @Inject constructor(
                     if (missing.isNotEmpty()) {
                         try {
                             fetchAndPersist(missing)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
                         } catch (e: Exception) {
                             Log.w("Metadata", "Background fetch failed", e)
                         }
                     }
                 }
-            }
+                // Observe the existing cache while missing batches arrive.
+                emitAll(
+                    trackDao.observeTracksFullFlow(uris).mapLatest { rows ->
+                        if (rows.isEmpty()) return@mapLatest emptyList()
 
-            emitAll(
-                trackDao.observeTracksFullFlow(uris).mapLatest { rows ->
-                    if (rows.isEmpty()) return@mapLatest emptyList()
-
-                    val albumIds = rows.mapNotNull { it.track.albumId }.distinct()
-                    val albumsMap = loadAlbums(albumIds)
-
-                    rows.associateBy { it.track.trackUri }
-                        .mapNotNull { (_, tf) ->
-                            try {
-                                tf.toDomain()
-                            } catch (e: Exception) {
-                                null
+                        rows.associateBy { it.track.trackUri }
+                            .mapNotNull { (_, tf) ->
+                                try {
+                                    tf.toDomain()
+                                } catch (e: Exception) {
+                                    null
+                                }
                             }
-                        }
-                }
-            )
+                    }
+                )
+            }
         }.flowOn(Dispatchers.IO)
     }
 
-    private suspend fun fetchAndPersist(uris: List<String>): Map<String, TrackFull> {
-        if (uris.isEmpty()) return emptyMap()
+    private suspend fun fetchAndPersist(uris: List<String>): Map<String, TrackFull> = withContext(Dispatchers.IO) {
+        if (uris.isEmpty()) return@withContext emptyMap()
 
-        val fetched = fetch(uris)
-        if (fetched.isNotEmpty()) {
-            persist(fetched)
+        for (batch in uris.distinct().chunked(500)) {
+            fetchMutex.withLock {
+                // A visible-window request and a sync can ask for the same batch.
+                // Recheck after acquiring the gate instead of sending duplicates.
+                val cached = loadCached(batch)
+                val missing = batch.filterNot(cached::containsKey)
+                if (missing.isNotEmpty()) {
+                    val fetched = fetch(missing)
+                    if (fetched.isNotEmpty()) persist(fetched)
+                }
+            }
         }
 
-        return loadCached(uris)
+        loadCached(uris)
     }
 
-    private suspend fun fetch(uris: List<String>): List<Pair<String, Track>> = supervisorScope {
-        if (uris.isEmpty()) return@supervisorScope emptyList()
+    /** Sync callers need failures to propagate so the coordinator can recover/retry. */
+    suspend fun cacheTracks(uris: List<String>) {
+        val cached = loadCached(uris)
+        val missing = uris.distinct().filterNot(cached::containsKey)
+        if (missing.isNotEmpty()) fetchAndPersist(missing)
+    }
 
-        uris.chunked(concurrency).flatMap { chunk ->
-            chunk.map { uri ->
-                async {
-                    try {
-                        val raw = nativeMetadata.retryOnRateLimit {
-                            nativeMetadata.fetchMetadata(uri)
-                        }
-                        uri to json.decodeFromString<Track>(raw.toString())
-                    } catch (e: RateLimitException) {
-                        Log.w("Metadata", "Rate limited: $uri", e)
-                        null
-                    } catch (e: Exception) {
-                        Log.e("Metadata", "Fetch failed: $uri", e)
-                        null
-                    }
-                }
-            }.awaitAll().filterNotNull()
-        }
+    private suspend fun fetch(uris: List<String>): List<Pair<String, Track>> = withContext(Dispatchers.IO) {
+        val raw = nativeMetadata.retryOnRateLimit { nativeMetadata.fetchTracks(uris) }
+        val requested = uris.toSet()
+        json.decodeFromString<List<Track>>(raw)
+            .filter { it.uri in requested }
+            .distinctBy { it.uri }
+            .map { it.uri to it }
     }
 
     private suspend fun loadCached(uris: List<String>): Map<String, TrackFull> {
         if (uris.isEmpty()) return emptyMap()
-        return trackDao.getTracksFull(uris).associateBy { it.track.trackUri }
-    }
-
-    private suspend fun loadAlbums(albumIds: List<String>): Map<String, AlbumWithArtists?> {
-        if (albumIds.isEmpty()) return emptyMap()
-        return albumDao.getAlbumsWithArtists(albumIds).associateBy { it.album.albumId }
+        return uris.distinct().chunked(500).flatMap { trackDao.getTracksFull(it) }
+            .associateBy { it.track.trackUri }
     }
 
     private suspend fun persist(metadata: List<Pair<String, Track>>) {
@@ -227,6 +227,14 @@ class TrackMetadataHelper @Inject constructor(
                 )
 
                 album.artists.forEachIndexed { idx, art ->
+                    artistEntities += ArtistEntity(
+                        artistId = art.id,
+                        uri = art.uri,
+                        name = art.name,
+                        imageUrl = null,
+                        popularity = art.popularity,
+                        lastUpdated = now,
+                    )
                     albumArtistJoins += AlbumArtistEntity(album.id, art.id, idx)
                 }
 
@@ -241,9 +249,19 @@ class TrackMetadataHelper @Inject constructor(
         }
 
         db.withTransaction {
-            if (artistEntities.isNotEmpty()) artistDao.insertAll(artistEntities)
-            if (albumEntities.isNotEmpty()) albumDao.insertAll(albumEntities)
-            if (albumArtistJoins.isNotEmpty()) albumArtistDao.insertAll(albumArtistJoins)
+            // Embedded TRACK_V4 artists/albums are previews. Never overwrite
+            // richer metadata fetched by the artist/album detail screens.
+            if (artistEntities.isNotEmpty()) artistDao.insertMissing(artistEntities.distinctBy { it.artistId })
+            if (albumEntities.isNotEmpty()) {
+                val albums = albumEntities.distinctBy { it.albumId }
+                val existing = albumDao.getExistingIds(albums.map { it.albumId }).toHashSet()
+                val missing = albums.filterNot { it.albumId in existing }
+                if (missing.isNotEmpty()) {
+                    albumDao.insertMissing(missing)
+                    val missingIds = missing.map { it.albumId }.toHashSet()
+                    albumArtistDao.insertAll(albumArtistJoins.filter { it.albumId in missingIds })
+                }
+            }
             if (trackEntities.isNotEmpty()) trackRepo.upsertTracks(trackEntities, isLibrary = true)
             if (trackArtistJoins.isNotEmpty()) trackArtistDao.insertAll(trackArtistJoins)
 
