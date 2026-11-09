@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.viewmodel.bottomsheet.JamInfoViewModel
 import coil3.compose.AsyncImage
 
@@ -125,8 +126,15 @@ fun JoinJamBottomSheet(
                 }
                 return@Column
             }
-            val currentUser = uiState.currentUser ?: return@Column
-            val host = uiState.host ?: return@Column
+            val screenshotMode = LocalUiSettings.current.screenshotMode
+            val developer = JamUser(stringResource(R.string.screenshot_mode_username), null)
+            val currentUser = uiState.currentUser?.let {
+                if (screenshotMode) developer else it
+            } ?: return@Column
+            val host = uiState.host?.let {
+                if (screenshotMode && uiState.jam?.members?.any { member -> member.host && member.you } == true)
+                    developer else it
+            } ?: return@Column
 
             AvatarPair(
                 currentUser = currentUser,

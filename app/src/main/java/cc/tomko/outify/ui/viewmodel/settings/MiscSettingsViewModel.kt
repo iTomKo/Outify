@@ -65,6 +65,12 @@ class MiscSettingsViewModel @Inject constructor(
     private val _backupStatus = MutableStateFlow<BackupStatus>(BackupStatus.Idle)
     val backupStatus: StateFlow<BackupStatus> = _backupStatus.asStateFlow()
 
+    fun setScreenshotMode(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setScreenshotMode(enabled)
+        }
+    }
+
     init {
         viewModelScope.launch {
             likedRepository.observeCount().collect { count ->

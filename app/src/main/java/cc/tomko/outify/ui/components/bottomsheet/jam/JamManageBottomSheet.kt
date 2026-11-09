@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 import cc.tomko.outify.core.jam.Jam
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.viewmodel.bottomsheet.JamAction
 import cc.tomko.outify.ui.viewmodel.bottomsheet.PlaybackDevicesViewModel
@@ -110,8 +111,13 @@ fun JamManageBottomSheet(
     val available by viewModel.jamAvailable.collectAsState(initial = false)
 
     val session = jam.toUi()
-    val members = remember(session?.members) {
-        session?.members.orEmpty().sortedByDescending { it.isHost }
+    val screenshotMode = LocalUiSettings.current.screenshotMode
+    val developerName = stringResource(R.string.screenshot_mode_username)
+    val members = remember(session?.members, screenshotMode, developerName) {
+        session?.members.orEmpty().map { member ->
+            if (screenshotMode && member.isYou) member.copy(name = developerName, imageUrl = "")
+            else member
+        }.sortedByDescending { it.isHost }
     }
     var inviteUrl by remember { mutableStateOf<String?>(null) }
 

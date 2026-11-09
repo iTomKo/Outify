@@ -359,6 +359,10 @@
     <string name="settings_gesture_row_desc">Right swipe to play next, left swipe to delete</string>
     <string name="settings_gesture_quick_action_desc">Quick action on track row</string>
     <string name="settings_reset_prefs_desc">Reset preferences</string>
+    <string name="settings_screenshot_mode">Screenshot mode</string>
+    <string name="settings_screenshot_mode_desc">Replace your username and profile picture with Developer and a D avatar</string>
+    <string name="screenshot_mode_username" translatable="false">Developer</string>
+    <string name="screenshot_mode_avatar" translatable="false">D</string>
     <string name="settings_show_debug_desc">Show debug information</string>
     <string name="settings_bitrate_desc">Choose your preferred streaming quality</string>
     <string name="settings_normalize_desc">Every track will be the same loudness</string>

@@ -75,6 +75,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.BuildConfig
 import cc.tomko.outify.R
+import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.ui.viewmodel.settings.DebugViewModel
 import kotlinx.coroutines.launch
@@ -125,6 +127,8 @@ fun DebugScreen(
 
     val userId by viewModel.userId.collectAsState()
     val username by viewModel.username.collectAsState()
+    val screenshotMode = LocalUiSettings.current.screenshotMode
+    val developerName = stringResource(R.string.screenshot_mode_username)
     val isPremium by viewModel.isPremium.collectAsState()
 
     val spircState by viewModel.spircState.collectAsState()
@@ -193,10 +197,13 @@ fun DebugScreen(
                     DebugRow.Flag(stringResource(R.string.debug_account_creds_exists), hasAccountFile),
                     DebugRow.Text(
                         label = stringResource(R.string.debug_user_id),
-                        value = userId?.redact(),
+                        value = if (screenshotMode) developerName else userId?.redact(),
                         sensitiveValue = userId,
                     ),
-                    DebugRow.Text(stringResource(R.string.debug_username), username),
+                    DebugRow.Text(
+                        stringResource(R.string.debug_username),
+                        if (screenshotMode) developerName else username
+                    ),
                     DebugRow.Flag(stringResource(R.string.debug_spotify_premium), isPremium),
                 )
             )
@@ -270,7 +277,14 @@ fun DebugScreen(
             )
         )
 
-        val preferenceRows = preferences.map { (key, value) -> value.toDebugRow(key) }
+        val profileKeys = setOf(
+            SettingsRepository.Keys.USER_ID.name,
+            SettingsRepository.Keys.USERNAME.name,
+            SettingsRepository.Keys.USER_IMAGE_URL.name
+        )
+        val preferenceRows = preferences
+            .filterNot { (key, _) -> screenshotMode && key in profileKeys }
+            .map { (key, value) -> value.toDebugRow(key) }
         if (preferenceRows.isNotEmpty()) {
             add(
                 DebugSectionData(

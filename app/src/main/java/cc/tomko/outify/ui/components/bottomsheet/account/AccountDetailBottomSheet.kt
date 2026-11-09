@@ -30,6 +30,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
+import cc.tomko.outify.data.setting.LocalUiSettings
+import cc.tomko.outify.ui.components.ScreenshotAvatar
 import cc.tomko.outify.ui.components.SmartImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,6 +46,7 @@ fun AccountDetailBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val screenshotMode = LocalUiSettings.current.screenshotMode
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -59,7 +62,9 @@ fun AccountDetailBottomSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                if (isLoggedIn && userImageUrl != null) {
+                if (isLoggedIn && screenshotMode) {
+                    ScreenshotAvatar(Modifier.size(56.dp))
+                } else if (isLoggedIn && userImageUrl != null) {
                     Surface(
                         modifier = Modifier
                             .size(56.dp)
@@ -81,9 +86,10 @@ fun AccountDetailBottomSheet(
                         fontWeight = FontWeight.Bold
                     )
 
-                    if (isLoggedIn && username != null) {
+                    if (isLoggedIn && (screenshotMode || username != null)) {
                         Text(
-                            text = username,
+                            text = if (screenshotMode) stringResource(R.string.screenshot_mode_username)
+                                else username.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )

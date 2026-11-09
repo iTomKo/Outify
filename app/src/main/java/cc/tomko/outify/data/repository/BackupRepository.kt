@@ -66,6 +66,7 @@ data class BackupPreferences(
     val pureBlack: Boolean? = null,
     val highContrastCompat: Boolean? = null,
     val fontScale: Float? = null,
+    val screenshotMode: Boolean? = null,
     val monochromeImages: Boolean? = null,
     val monochromeAlbums: Boolean? = null,
     val monochromeArtists: Boolean? = null,
@@ -127,6 +128,7 @@ class BackupRepository @Inject constructor(
                 pureBlack = prefs[SettingsRepository.Keys.Interface.PURE_BLACK],
                 highContrastCompat = prefs[SettingsRepository.Keys.Interface.HIGH_CONTRAST_COMPAT],
                 fontScale = prefs[SettingsRepository.Keys.Interface.FONT_SCALE],
+                screenshotMode = prefs[SettingsRepository.Keys.Interface.SCREENSHOT_MODE],
                 monochromeImages = prefs[SettingsRepository.Keys.Interface.MONOCHROME_IMAGES],
                 monochromeAlbums = prefs[SettingsRepository.Keys.Interface.MONOCHROME_ALBUMS],
                 monochromeArtists = prefs[SettingsRepository.Keys.Interface.MONOCHROME_ARTISTS],
@@ -205,6 +207,7 @@ class BackupRepository @Inject constructor(
                 data[SettingsRepository.Keys.Interface.HIGH_CONTRAST_COMPAT] = it
             }
             prefs.fontScale?.let { data[SettingsRepository.Keys.Interface.FONT_SCALE] = it }
+            prefs.screenshotMode?.let { data[SettingsRepository.Keys.Interface.SCREENSHOT_MODE] = it }
             prefs.monochromeImages?.let {
                 data[SettingsRepository.Keys.Interface.MONOCHROME_IMAGES] = it
             }

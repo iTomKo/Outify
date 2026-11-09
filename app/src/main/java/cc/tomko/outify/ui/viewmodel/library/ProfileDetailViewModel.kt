@@ -10,6 +10,7 @@ import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
+import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +46,9 @@ class ProfileDetailViewModel @Inject constructor(
     val likedDao: LikedDao,
     val userProfile: UserProfile,
     private val savedStateHandle: SavedStateHandle,
+    settingsRepository: SettingsRepository,
 ) : ViewModel() {
+    val currentUserId = settingsRepository.userId
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     val uiState: StateFlow<ProfileUiState> = _uiState
 

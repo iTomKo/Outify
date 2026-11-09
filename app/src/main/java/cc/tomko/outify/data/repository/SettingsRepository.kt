@@ -81,6 +81,7 @@ class SettingsRepository @Inject constructor(
             val PURE_BLACK = booleanPreferencesKey("pure_black")
             val HIGH_CONTRAST_COMPAT = booleanPreferencesKey("high_contrast_compat")
             val FONT_SCALE = floatPreferencesKey("font_scale")
+            val SCREENSHOT_MODE = booleanPreferencesKey("screenshot_mode")
 
             val MONOCHROME_IMAGES = booleanPreferencesKey("monochrome_images")
             val MONOCHROME_ALBUMS = booleanPreferencesKey("monochrome_albums")
@@ -156,6 +157,7 @@ class SettingsRepository @Inject constructor(
 
             // Font scaling
             fontScale = prefs[Keys.Interface.FONT_SCALE] ?: 1.0f,
+            screenshotMode = prefs[Keys.Interface.SCREENSHOT_MODE] ?: false,
 
             // Monochrome
             monochromeImages = monochrome,
@@ -400,6 +402,10 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.Interface.FONT_SCALE] = scale }
     }
 
+    suspend fun setScreenshotMode(enabled: Boolean) {
+        dataStore.edit { it[Keys.Interface.SCREENSHOT_MODE] = enabled }
+    }
+
     suspend fun setMonochromeImages(enabled: Boolean) {
         dataStore.edit { it[Keys.Interface.MONOCHROME_IMAGES] = enabled }
     }
@@ -638,6 +644,7 @@ data class InterfaceSettings(
 
     // Font scaling (1.0 = uniform/no system scaling)
     val fontScale: Float = 1.0f,
+    val screenshotMode: Boolean = false,
 
     // Monochrome
     val monochromeImages: Boolean = false,

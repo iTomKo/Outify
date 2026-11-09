@@ -50,6 +50,7 @@ import cc.tomko.outify.ui.components.ArtworkBackground
 import cc.tomko.outify.ui.components.CollapsingHeader
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.ProfileDetailSkeleton
+import cc.tomko.outify.ui.components.ScreenshotAvatar
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.components.rememberCollapsingHeaderState
 import cc.tomko.outify.ui.viewmodel.library.ProfileDetailViewModel
@@ -66,6 +67,8 @@ fun ProfileDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val currentUserId by viewModel.currentUserId.collectAsState(initial = null)
+    val screenshotMode = LocalUiSettings.current.screenshotMode
     val density = LocalDensity.current
     val collapsingState = rememberCollapsingHeaderState()
     val lazyList = rememberLazyListState()
@@ -101,7 +104,9 @@ fun ProfileDetailScreen(
 
         is ProfileUiState.Success -> {
             val profile = state.profile
-            val artworkUrl = profile?.imageUrl
+            val hideProfile = screenshotMode && currentUserId != null &&
+                profile?.uri == "spotify:user:$currentUserId"
+            val artworkUrl = if (hideProfile) null else profile?.imageUrl
             val playlists = profile?.publicPlaylists ?: emptyList()
 
             Box(
@@ -171,13 +176,18 @@ fun ProfileDetailScreen(
                     headerHeight = currentTopBarHeightDp,
                     onBackPressed = onBack,
                     backgroundContent = {
-                        ArtworkBackground(
-                            artworkUrl = artworkUrl,
-                        )
+                        if (hideProfile) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                ScreenshotAvatar(Modifier.size(96.dp))
+                            }
+                        } else {
+                            ArtworkBackground(artworkUrl = artworkUrl)
+                        }
                     },
                     titleContent = {
                         Text(
-                            text = profile?.name ?: "",
+                            text = if (hideProfile) stringResource(R.string.screenshot_mode_username)
+                                else profile?.name ?: "",
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,

@@ -65,8 +65,10 @@ import cc.tomko.outify.R
 import cc.tomko.outify.ScreenBottomPadding
 import cc.tomko.outify.core.model.SpotifyUri
 import cc.tomko.outify.core.model.toPlayableAudio
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.ErrorScreen
 import cc.tomko.outify.ui.components.HomeJamCard
+import cc.tomko.outify.ui.components.ScreenshotAvatar
 import cc.tomko.outify.ui.components.SmartImage
 import cc.tomko.outify.ui.components.navigation.Route
 import cc.tomko.outify.ui.components.rows.SwipeableTrackRowConfigured
@@ -291,6 +293,10 @@ private fun HeaderSection(
     durationExpanded: Boolean,
     onDurationExpandedChange: (Boolean) -> Unit,
 ) {
+    val screenshotMode = LocalUiSettings.current.screenshotMode
+    val displayUsername = if (screenshotMode) stringResource(R.string.screenshot_mode_username)
+        else username ?: stringResource(R.string.home_user_fallback)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -300,7 +306,7 @@ private fun HeaderSection(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = stringResource(R.string.welcome_back, username ?: stringResource(R.string.home_user_fallback)),
+                text = stringResource(R.string.welcome_back, displayUsername),
                 style = MaterialTheme.typography.headlineLargeEmphasized,
                 fontWeight = FontWeight.Bold,
             )
@@ -364,7 +370,9 @@ private fun HeaderSection(
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onAccountClick) {
-                if (userAvatarUrl != null) {
+                if (screenshotMode) {
+                    ScreenshotAvatar()
+                } else if (userAvatarUrl != null) {
                     SmartImage(
                         url = userAvatarUrl,
                         contentDescription = stringResource(R.string.common_account),

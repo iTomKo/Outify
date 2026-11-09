@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Screenshot
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
@@ -40,10 +41,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.R
 import cc.tomko.outify.data.repository.OutifyBackup
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.NavigationPreferenceEntry
 import cc.tomko.outify.ui.components.PreferenceEntry
 import cc.tomko.outify.ui.components.SettingsScaffold
 import cc.tomko.outify.ui.components.SettingsSection
+import cc.tomko.outify.ui.components.SwitchPreferenceEntry
 import cc.tomko.outify.ui.viewmodel.settings.BackupStatus
 import cc.tomko.outify.ui.viewmodel.settings.MiscSettingsViewModel
 import cc.tomko.outify.ui.viewmodel.settings.SyncStatus
@@ -59,6 +62,7 @@ fun MiscSettingsScreen(
     val likedCount by viewModel.likedCount.collectAsStateWithLifecycle()
     val isAuthenticated by viewModel.isAuthenticated.collectAsStateWithLifecycle()
     val backupStatus by viewModel.backupStatus.collectAsStateWithLifecycle()
+    val screenshotMode = LocalUiSettings.current.screenshotMode
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/x-outify-backup")
@@ -77,6 +81,20 @@ fun MiscSettingsScreen(
         onNavigateBack = onNavigateBack,
         modifier = modifier
     ) {
+        item {
+            SettingsSection {
+                entry {
+                    SwitchPreferenceEntry(
+                        title = { Text(stringResource(R.string.settings_screenshot_mode)) },
+                        description = stringResource(R.string.settings_screenshot_mode_desc),
+                        isChecked = screenshotMode,
+                        onCheckedChange = viewModel::setScreenshotMode,
+                        icon = { Icon(Icons.Default.Screenshot, contentDescription = null) }
+                    )
+                }
+            }
+        }
+
         item {
             SettingsSection(
                 title = stringResource(R.string.section_sync),

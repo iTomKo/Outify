@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.core.jam.Jam
 import cc.tomko.outify.core.jam.JamMember
 
@@ -226,9 +227,10 @@ private fun JamMemberStack(
         horizontalArrangement = Arrangement.spacedBy(-overlap),
     ) {
         visible.forEach { member ->
+            val hideProfile = LocalUiSettings.current.screenshotMode && member.you
             StackAvatar(
-                name = member.name,
-                imageUrl = member.image,
+                name = if (hideProfile) stringResource(R.string.screenshot_mode_username) else member.name,
+                imageUrl = if (hideProfile) null else member.image,
                 isHost = member.host,
                 size = avatarSize,
                 shape = if (member.host) MaterialShapes.Cookie9Sided.toShape() else CircleShape,

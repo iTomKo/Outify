@@ -45,7 +45,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.R
+import cc.tomko.outify.data.setting.LocalUiSettings
 import cc.tomko.outify.ui.components.PreferenceEntry
+import cc.tomko.outify.ui.components.ScreenshotAvatar
 import cc.tomko.outify.ui.components.SettingsScaffold
 import cc.tomko.outify.ui.components.SettingsSection
 import cc.tomko.outify.ui.components.SmartImage
@@ -338,6 +340,7 @@ private fun AccountProfileRow(
     isPremium: Boolean,
     onClick: () -> Unit,
 ) {
+    val screenshotMode = LocalUiSettings.current.screenshotMode
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -353,7 +356,9 @@ private fun AccountProfileRow(
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primaryContainer)
         ) {
-            if (userImageUrl != null) {
+            if (screenshotMode) {
+                ScreenshotAvatar(Modifier.fillMaxSize())
+            } else if (userImageUrl != null) {
                 SmartImage(
                     url = userImageUrl,
                     contentDescription = stringResource(R.string.common_profile_picture),
@@ -371,7 +376,8 @@ private fun AccountProfileRow(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = username ?: stringResource(R.string.common_account),
+                text = if (screenshotMode) stringResource(R.string.screenshot_mode_username)
+                    else username ?: stringResource(R.string.common_account),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
