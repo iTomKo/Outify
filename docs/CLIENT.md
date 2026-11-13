@@ -8,12 +8,24 @@ By using custom credentials you should no longer be easy to get flagged and limi
 
 ### Why are these credentials required?
 Outify uses Spotify Web API to interact with your profile.
-- liking/unliking tracks, playlists, artists, ..
+- playlist edits and saving/removing playlists
+- following/unfollowing users and podcast library operations
 - searching
-- viewing user profiles
+- personal top artists/tracks
 - ..
 
 Without these credentials you are unable to use these features.
+
+### Collection with playback login
+Tracks, albums, and followed artists use the authenticated **playback session**, not
+the separate Web API account. Playback login alone is sufficient to:
+- like/unlike tracks and synchronize liked songs
+- save/remove albums and read saved albums
+- follow/unfollow artists and read followed artists
+
+These operations always target the playback account, even if the Web API account
+is different. A failed playback-session request does not fall back to Web API OAuth.
+Playlist and podcast operations retain their existing authentication requirements.
 
 ### Using custom credentials
 I. Visit [Spotify Developer's Dashboard](https://developer.spotify.com/dashboard). (You have to be logged in)

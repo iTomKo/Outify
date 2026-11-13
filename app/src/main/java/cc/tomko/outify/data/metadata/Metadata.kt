@@ -227,9 +227,13 @@ class Metadata @Inject constructor(
 
     suspend fun isLikedPlaylist(uri: String): Boolean = likedItemsDao.contains(uri)
 
-    suspend fun isLikedAlbum(uri: String): Boolean = likedItemsDao.contains(uri)
+    suspend fun isLikedAlbum(uri: String): Boolean = withContext(Dispatchers.IO) {
+        spClient.getSavedItems(SpClient.ALBUMS).split(',').contains(uri)
+    }
 
-    suspend fun isLikedArtist(uri: String): Boolean = likedItemsDao.contains(uri)
+    suspend fun isLikedArtist(uri: String): Boolean = withContext(Dispatchers.IO) {
+        spClient.getSavedItems(SpClient.ARTISTS).split(',').contains(uri)
+    }
 
     fun observeLikedPlaylistUris(): Flow<List<String>> =
         likedItemsDao.observeUrisByType(TYPE_PLAYLIST)

@@ -6,42 +6,96 @@ use reqwest::{
     header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderValue},
 };
 use serde::Serialize;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 const PAGING: &str = "/collection/v2/paging";
+const WRITE: &str = "/collection/v2/write";
 const CONTENT: &str = "application/vnd.collection-v2.spotify.proto";
+const PAGE_SIZE: usize = 300;
+static UPDATE: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CollectionType {
+    Tracks,
+    Albums,
+    Artists,
+}
+
+impl CollectionType {
+    pub fn from_uri(uri: &str) -> Result<Option<Self>, Error> {
+        let kind = match uri.split(':').nth(1) {
+            Some("track") => Self::Tracks,
+            Some("album") => Self::Albums,
+            Some("artist") => Self::Artists,
+            _ => return Ok(None),
+        };
+        // Reject malformed native URIs before any part of a batch is written.
+        if !kind.matches(uri) {
+            return Err(Error::invalid_argument("invalid collection URI"));
+        }
+        Ok(Some(kind))
+    }
+
+    fn set(self) -> &'static str {
+        match self {
+            Self::Tracks | Self::Albums => "collection",
+            Self::Artists => "artist",
+        }
+    }
+
+    fn matches(self, uri: &str) -> bool {
+        if uri.split(':').count() != 3 {
+            return false;
+        }
+        matches!(
+            (self, SpotifyUri::from_uri(uri)),
+            (Self::Tracks, Ok(SpotifyUri::Track { .. }))
+                | (Self::Albums, Ok(SpotifyUri::Album { .. }))
+                | (Self::Artists, Ok(SpotifyUri::Artist { .. }))
+        )
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct SavedTrack {
+pub struct SavedItem {
     pub uri: String,
     pub added_at: Option<i64>, // Unix seconds, not the local cache time.
 }
 
 #[derive(Default)]
 struct Page {
-    items: Vec<(SavedTrack, bool)>,
+    items: Vec<(SavedItem, bool)>,
     next: String,
 }
 
-pub async fn saved_tracks(session: &Session) -> Result<Vec<SavedTrack>, Error> {
+pub async fn saved_tracks(session: &Session) -> Result<Vec<SavedItem>, Error> {
+    saved_items(session, CollectionType::Tracks).await
+}
+
+/// Complete membership snapshot for one type, authenticated by the playback session.
+pub async fn saved_items(session: &Session, kind: CollectionType) -> Result<Vec<SavedItem>, Error> {
     let username = session.username();
     let expected = crate::collection_session::identity(session)?;
-    collect_pages(|token| {
+    collect_pages(kind, |token| {
         let username = &username;
         let expected = &expected;
         async move {
             crate::collection_session::ensure_current(expected)?;
-            let body = page_request(username, &token)?;
-            let mut headers = HeaderMap::new();
-            headers.insert(CONTENT_TYPE, HeaderValue::from_static(CONTENT));
-            headers.insert(ACCEPT, HeaderValue::from_static(CONTENT));
+            let body = page_request(username, kind.set(), &token)?;
             let raw = crate::sync_request::paced(|| {
-                session.spclient().request(
-                    &Method::POST,
-                    PAGING,
-                    Some(headers.clone()),
-                    Some(&body),
-                )
+                let expected = &expected;
+                let body = &body;
+                async move {
+                    crate::collection_session::ensure_current(expected)?;
+                    session
+                        .spclient()
+                        .request(&Method::POST, PAGING, Some(headers()), Some(body))
+                        .await
+                }
             })
             .await?;
             crate::collection_session::ensure_current(expected)?;
@@ -51,7 +105,7 @@ pub async fn saved_tracks(session: &Session) -> Result<Vec<SavedTrack>, Error> {
     .await
 }
 
-async fn collect_pages<F, R>(mut fetch: F) -> Result<Vec<SavedTrack>, Error>
+async fn collect_pages<F, R>(kind: CollectionType, mut fetch: F) -> Result<Vec<SavedItem>, Error>
 where
     F: FnMut(String) -> R,
     R: Future<Output = Result<Page, Error>>,
@@ -67,14 +121,15 @@ where
         }
         let page = fetch(token).await?;
         for (track, removed) in page.items {
-            if !track.uri.starts_with("spotify:track:") {
+            if !track.uri.starts_with(match kind {
+                CollectionType::Tracks => "spotify:track:",
+                CollectionType::Albums => "spotify:album:",
+                CollectionType::Artists => "spotify:artist:",
+            }) {
                 continue;
             }
-            if !matches!(
-                SpotifyUri::from_uri(&track.uri),
-                Ok(SpotifyUri::Track { .. })
-            ) {
-                return Err(Error::data_loss("collection contains an invalid track URI"));
+            if !kind.matches(&track.uri) {
+                return Err(Error::data_loss("collection contains an invalid item URI"));
             }
             if removed {
                 tracks.remove(&track.uri);
@@ -98,23 +153,123 @@ where
     // stable sorting preserves server order when dates are equal or absent.
     result.sort_by_key(|track| std::cmp::Reverse(track.added_at.unwrap_or(0)));
     debug!(
-        "collection: read {} saved tracks across {} pages",
+        "collection: read {} saved {kind:?} across {} pages",
         result.len(),
         seen.len()
     );
     Ok(result)
 }
 
-fn page_request(username: &str, token: &str) -> Result<Vec<u8>, Error> {
+fn page_request(username: &str, set: &str, token: &str) -> Result<Vec<u8>, Error> {
     let mut bytes = Vec::new();
     {
         let mut out = CodedOutputStream::vec(&mut bytes);
         out.write_string(1, username)?;
-        out.write_string(2, "collection")?;
+        out.write_string(2, set)?;
         out.write_string(3, token)?;
-        out.write_int32(4, 300)?;
+        out.write_int32(4, PAGE_SIZE as i32)?;
         out.flush()?;
     }
+    Ok(bytes)
+}
+
+fn headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static(CONTENT));
+    headers.insert(ACCEPT, HeaderValue::from_static(CONTENT));
+    headers
+}
+
+/// Save/remove native collection items. Other URI types must use their own APIs.
+pub async fn set_saved(session: &Session, uris: &[String], saved: bool) -> Result<(), Error> {
+    let batches = write_batches(uris)?;
+    let expected = crate::collection_session::identity(session)?;
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(Error::internal)?;
+    let added_at = if saved {
+        i32::try_from(now.as_secs())?
+    } else {
+        0
+    };
+    for (set, items) in batches {
+        for items in items.chunks(PAGE_SIZE) {
+            let update_id = format!(
+                "outify-{}-{}-{}",
+                expected.session_id,
+                now.as_nanos(),
+                UPDATE.fetch_add(1, Ordering::Relaxed),
+            );
+            let body = write_request(
+                &expected.account_id,
+                set,
+                items,
+                saved,
+                added_at,
+                &update_id,
+            )?;
+            // Reuse the same update ID on retries, and never switch accounts mid-write.
+            crate::sync_request::paced(|| {
+                let expected = &expected;
+                let body = &body;
+                async move {
+                    crate::collection_session::ensure_current(expected)?;
+                    session
+                        .spclient()
+                        .request(&Method::POST, WRITE, Some(headers()), Some(body))
+                        .await
+                }
+            })
+            .await?;
+            crate::collection_session::ensure_current(&expected)?;
+        }
+    }
+    Ok(())
+}
+
+fn write_batches(uris: &[String]) -> Result<Vec<(&'static str, Vec<&str>)>, Error> {
+    let mut collection = Vec::new();
+    let mut artists = Vec::new();
+    let mut seen = HashSet::new();
+    for uri in uris {
+        let kind = CollectionType::from_uri(uri)?
+            .ok_or_else(|| Error::invalid_argument("unsupported collection URI type"))?;
+        if seen.insert(uri) {
+            match kind {
+                CollectionType::Tracks | CollectionType::Albums => collection.push(uri.as_str()),
+                CollectionType::Artists => artists.push(uri.as_str()),
+            }
+        }
+    }
+    Ok(vec![("collection", collection), ("artist", artists)])
+}
+
+fn write_request(
+    username: &str,
+    set: &str,
+    uris: &[&str],
+    saved: bool,
+    added_at: i32,
+    update_id: &str,
+) -> Result<Vec<u8>, Error> {
+    let mut bytes = Vec::new();
+    let mut out = CodedOutputStream::vec(&mut bytes);
+    out.write_string(1, username)?;
+    out.write_string(2, set)?;
+    for uri in uris {
+        let mut item = Vec::new();
+        {
+            let mut out = CodedOutputStream::vec(&mut item);
+            out.write_string(1, uri)?;
+            out.write_int32(2, added_at)?;
+            out.write_bool(3, !saved)?;
+            out.flush()?;
+        }
+        out.write_bytes(3, &item)?;
+    }
+    out.write_string(4, update_id)?;
+    out.flush()?;
+    drop(out);
     Ok(bytes)
 }
 
@@ -138,7 +293,7 @@ fn read_page(bytes: &[u8]) -> Result<Page, Error> {
     Ok(page)
 }
 
-fn read_item(bytes: &[u8]) -> Result<(SavedTrack, bool), Error> {
+fn read_item(bytes: &[u8]) -> Result<(SavedItem, bool), Error> {
     let mut input = CodedInputStream::from_bytes(bytes);
     let mut uri = None;
     let mut added_at = None;
@@ -155,7 +310,7 @@ fn read_item(bytes: &[u8]) -> Result<(SavedTrack, bool), Error> {
     let uri = uri
         .filter(|uri| !uri.is_empty())
         .ok_or_else(|| Error::data_loss("collection item has no URI"))?;
-    Ok((SavedTrack { uri, added_at }, removed))
+    Ok((SavedItem { uri, added_at }, removed))
 }
 
 #[cfg(test)]
@@ -163,8 +318,8 @@ mod tests {
     use super::*;
     use std::collections::VecDeque;
 
-    fn track(n: u8, date: i64) -> SavedTrack {
-        SavedTrack {
+    fn track(n: u8, date: i64) -> SavedItem {
+        SavedItem {
             uri: format!(
                 "spotify:track:{}",
                 librespot_core::SpotifyId::from_raw(&[n; 16])
@@ -177,7 +332,7 @@ mod tests {
 
     #[test]
     fn request_encodes_collection_set_username_token_and_page_size() {
-        let raw = page_request("listener", "next-token").unwrap();
+        let raw = page_request("listener", "collection", "next-token").unwrap();
         let mut input = CodedInputStream::from_bytes(&raw);
         assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(10));
         assert_eq!(input.read_string().unwrap(), "listener");
@@ -187,6 +342,106 @@ mod tests {
         assert_eq!(input.read_string().unwrap(), "next-token");
         assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(32));
         assert_eq!(input.read_int32().unwrap(), 300);
+    }
+
+    #[test]
+    fn writes_group_tracks_and_albums_separately_from_artist_follows() {
+        let track = track(1, 0).uri;
+        let album = track.replace(":track:", ":album:");
+        let artist = track.replace(":track:", ":artist:");
+        let uris = vec![track.clone(), artist.clone(), album.clone(), track.clone()];
+        let batches = write_batches(&uris).unwrap();
+        assert_eq!(
+            batches,
+            vec![
+                ("collection", vec![track.as_str(), album.as_str()]),
+                ("artist", vec![artist.as_str()]),
+            ]
+        );
+        assert!(write_batches(&["spotify:track:not-an-id".into()]).is_err());
+        assert!(write_batches(&[format!("{track}:extra")]).is_err());
+        assert!(write_batches(&[track.replace(":track:", ":playlist:")]).is_err());
+        assert!(
+            write_batches(&[])
+                .unwrap()
+                .iter()
+                .all(|(_, items)| items.is_empty())
+        );
+    }
+
+    #[test]
+    fn writes_encode_save_and_removal_with_a_stable_update_id() {
+        let uri = track(1, 0).uri;
+        for (saved, timestamp) in [(true, 1_700_000_000), (false, 0)] {
+            let raw = write_request(
+                "listener",
+                "collection",
+                &[&uri],
+                saved,
+                timestamp,
+                "update-1",
+            )
+            .unwrap();
+            let mut input = CodedInputStream::from_bytes(&raw);
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(10));
+            assert_eq!(input.read_string().unwrap(), "listener");
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(18));
+            assert_eq!(input.read_string().unwrap(), "collection");
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(26));
+            let (item, removed) = read_item(&input.read_bytes().unwrap()).unwrap();
+            assert_eq!(item.uri, uri);
+            assert_eq!(item.added_at, Some(timestamp.into()));
+            assert_eq!(removed, !saved);
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(34));
+            assert_eq!(input.read_string().unwrap(), "update-1");
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), None);
+            assert_eq!(
+                raw,
+                write_request(
+                    "listener",
+                    "collection",
+                    &[&uri],
+                    saved,
+                    timestamp,
+                    "update-1"
+                )
+                .unwrap()
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn album_and_artist_reads_use_their_sets_and_filter_other_item_types() {
+        let track = track(1, 10);
+        let mut album = track.clone();
+        album.uri = album.uri.replace(":track:", ":album:");
+        let mut artist = track.clone();
+        artist.uri = artist.uri.replace(":track:", ":artist:");
+        for (kind, expected) in [
+            (CollectionType::Albums, album.clone()),
+            (CollectionType::Artists, artist.clone()),
+        ] {
+            let raw = page_request("listener", kind.set(), "").unwrap();
+            let mut input = CodedInputStream::from_bytes(&raw);
+            input.read_raw_tag_or_eof().unwrap();
+            input.read_string().unwrap();
+            assert_eq!(input.read_raw_tag_or_eof().unwrap(), Some(18));
+            assert_eq!(input.read_string().unwrap(), kind.set());
+            let result = collect_pages(kind, |_| {
+                let page = Page {
+                    items: vec![
+                        (track.clone(), false),
+                        (album.clone(), false),
+                        (artist.clone(), false),
+                    ],
+                    next: String::new(),
+                };
+                async move { Ok(page) }
+            })
+            .await
+            .unwrap();
+            assert_eq!(result, vec![expected]);
+        }
     }
 
     #[test]
@@ -229,7 +484,7 @@ mod tests {
             },
         ]);
         let mut requested = Vec::new();
-        let result = collect_pages(|token| {
+        let result = collect_pages(CollectionType::Tracks, |token| {
             requested.push(token);
             let page = pages.pop_front().unwrap();
             async move { Ok(page) }
@@ -243,7 +498,7 @@ mod tests {
     #[tokio::test]
     async fn a_failed_page_never_returns_a_partial_membership_snapshot() {
         let mut calls = 0;
-        let result = collect_pages(|_| {
+        let result = collect_pages(CollectionType::Tracks, |_| {
             calls += 1;
             let result = if calls == 1 {
                 Ok(Page {
@@ -263,7 +518,7 @@ mod tests {
     #[tokio::test]
     async fn repeated_page_tokens_fail_instead_of_looping_or_returning_partial_data() {
         let mut calls = 0;
-        let result = collect_pages(|_| {
+        let result = collect_pages(CollectionType::Tracks, |_| {
             calls += 1;
             async {
                 Ok(Page {

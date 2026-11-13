@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.viewmodel.detail
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.playback.PlaybackStateHolder
 import cc.tomko.outify.ui.screens.library.album.AlbumUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +25,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -82,19 +86,23 @@ class AlbumDetailViewModel @Inject constructor(
 
     private val _isSaved = MutableStateFlow(false)
     val isSaved: StateFlow<Boolean> = _isSaved
+    private val saveMutex = Mutex()
 
     fun toggleSave() {
         viewModelScope.launch {
-            val album = _uiState.value.album ?: return@launch
-            val uri = album.uri
-            if (_isSaved.value) {
-                withContext(Dispatchers.IO) { spClient.deleteItems(arrayOf(uri)) }
-                metadata.removeLikedAlbum(uri)
-            } else {
-                withContext(Dispatchers.IO) { spClient.saveItems(arrayOf(uri)) }
-                metadata.addLikedAlbum(uri)
+            saveMutex.withLock {
+                val uri = _uiState.value.album?.uri ?: return@withLock
+                val wasSaved = _isSaved.value
+                val success = withContext(Dispatchers.IO) {
+                    if (wasSaved) spClient.deleteItems(arrayOf(uri)) else spClient.saveItems(arrayOf(uri))
+                }
+                if (!success) {
+                    Log.w("AlbumDetailViewModel", "Could not update saved album")
+                    return@withLock
+                }
+                if (wasSaved) metadata.removeLikedAlbum(uri) else metadata.addLikedAlbum(uri)
+                if (_uiState.value.album?.uri == uri) _isSaved.value = !wasSaved
             }
-            _isSaved.value = !_isSaved.value
         }
     }
 
@@ -111,7 +119,16 @@ class AlbumDetailViewModel @Inject constructor(
 
     private fun checkIsSaved(albumUri: String) {
         viewModelScope.launch {
-            _isSaved.value = metadata.isLikedAlbum(albumUri)
+            try {
+                saveMutex.withLock {
+                    val saved = metadata.isLikedAlbum(albumUri)
+                    if (_uiState.value.album?.uri == albumUri) _isSaved.value = saved
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("AlbumDetailViewModel", "Could not read saved album state", error)
+            }
         }
     }
 

@@ -172,7 +172,7 @@ class MainViewModel @Inject constructor(
             }
 
             if (wasLiked) {
-                if (isTrack) likedRepository.removeLikedEpisode(id) else likedRepository.removeLikedEpisode(
+                if (isTrack) likedRepository.removeLiked(id) else likedRepository.removeLikedEpisode(
                     id
                 )
             } else {

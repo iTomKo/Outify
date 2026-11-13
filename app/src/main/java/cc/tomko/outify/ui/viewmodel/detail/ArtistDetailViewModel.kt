@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.viewmodel.detail
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,6 +16,7 @@ import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
 import cc.tomko.outify.playback.PlaybackStateHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -34,6 +36,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -113,22 +117,25 @@ class ArtistDetailViewModel @Inject constructor(
 
     private val _isSaved = MutableStateFlow(false)
     val isSaved: StateFlow<Boolean> = _isSaved
+    private val saveMutex = Mutex()
 
     fun toggleSave() {
         viewModelScope.launch {
-            val artistUri = when (val state = _uiState.value) {
-                is ArtistUiState.Success -> state.artist.uri
-                else -> null
-            } ?: return@launch
-
-            withContext(Dispatchers.IO) {
-                if (_isSaved.value) {
-                    spClient.deleteItems(arrayOf(artistUri))
-                } else {
-                    spClient.saveItems(arrayOf(artistUri))
+            saveMutex.withLock {
+                val artistUri = (_uiState.value as? ArtistUiState.Success)?.artist?.uri
+                    ?: return@withLock
+                val wasSaved = _isSaved.value
+                val success = withContext(Dispatchers.IO) {
+                    if (wasSaved) spClient.deleteItems(arrayOf(artistUri)) else spClient.saveItems(arrayOf(artistUri))
+                }
+                if (!success) {
+                    Log.w("ArtistDetailViewModel", "Could not update followed artist")
+                    return@withLock
+                }
+                if ((_uiState.value as? ArtistUiState.Success)?.artist?.uri == artistUri) {
+                    _isSaved.value = !wasSaved
                 }
             }
-            _isSaved.value = !_isSaved.value
         }
     }
 
@@ -234,6 +241,20 @@ class ArtistDetailViewModel @Inject constructor(
             saveState()
         }
 
+        viewModelScope.launch {
+            try {
+                saveMutex.withLock {
+                    val saved = metadata.isLikedArtist(artistUri)
+                    if ((_uiState.value as? ArtistUiState.Success)?.artist?.uri == artistUri) {
+                        _isSaved.value = saved
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("ArtistDetailViewModel", "Could not read followed artist state", error)
+            }
+        }
         loadAlbums()
     }
 

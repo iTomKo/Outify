@@ -1,6 +1,5 @@
 package cc.tomko.outify.ui.viewmodel.settings
 
-import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -8,14 +7,13 @@ import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.BuildConfig
 import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.data.repository.BackupRepository
+import cc.tomko.outify.data.repository.CollectionSessionState
 import cc.tomko.outify.data.repository.LikedRepository
 import cc.tomko.outify.data.repository.PendingBackupImport
 import cc.tomko.outify.data.repository.SavedQueueRepository
 import cc.tomko.outify.data.repository.SettingsRepository
-import cc.tomko.outify.services.OAuthService
 import cc.tomko.outify.services.SyncNotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -46,11 +44,11 @@ sealed class BackupStatus {
 class MiscSettingsViewModel @Inject constructor(
     private val likedRepository: LikedRepository,
     private val spClient: SpClient,
+    private val collectionSessions: CollectionSessionState,
     private val syncNotificationManager: SyncNotificationManager,
     private val settingsRepository: SettingsRepository,
     private val backupRepository: BackupRepository,
     private val savedQueueRepository: SavedQueueRepository,
-    @ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
@@ -78,6 +76,11 @@ class MiscSettingsViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            collectionSessions.current.collect { lease ->
+                _isAuthenticated.value = lease != null
+            }
+        }
+        viewModelScope.launch {
             PendingBackupImport.uri.collect { uri: Uri ->
                 importBackup(uri)
             }
@@ -86,21 +89,18 @@ class MiscSettingsViewModel @Inject constructor(
     }
 
     fun checkAuthState() {
-        viewModelScope.launch {
-            _isAuthenticated.value = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
-        }
+        _isAuthenticated.value = collectionSessions.current.value != null
     }
 
     fun syncLikedTracks() {
         if (_syncStatus.value is SyncStatus.Syncing || _syncStatus.value is SyncStatus.Progress) return
 
         viewModelScope.launch {
-            if (!withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }) {
-                _syncStatus.value = SyncStatus.Error("Please log in to Spotify account first")
+            if (collectionSessions.current.value == null) {
+                _syncStatus.value = SyncStatus.Error("Please log in for playback first")
                 return@launch
             }
 
-            OAuthService.start(context)
             syncNotificationManager.showIndeterminate()
             _syncStatus.value = SyncStatus.Syncing
             try {
@@ -127,25 +127,26 @@ class MiscSettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _syncStatus.value = SyncStatus.Error(e.message ?: "Unknown error")
                 syncNotificationManager.showError(e.message ?: "Unknown error")
-            } finally {
-                OAuthService.stop(context)
             }
 
-            // Sync liked episodes in the background
-            launch {
-                runCatching {
-                    likedRepository.syncLikedEpisodes(forceSync = true)
-                }.onFailure {
-                    Log.w("MiscSettingsViewModel", "syncLikedEpisodes failed", it)
+            // Podcasts still use the separately authenticated Web API.
+            if (withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }) {
+                // Sync liked episodes in the background
+                launch {
+                    runCatching {
+                        likedRepository.syncLikedEpisodes(forceSync = true)
+                    }.onFailure {
+                        Log.w("MiscSettingsViewModel", "syncLikedEpisodes failed", it)
+                    }
                 }
-            }
 
-            // Sync liked shows in the background
-            launch {
-                runCatching {
-                    likedRepository.syncLikedShows(forceSync = true)
-                }.onFailure {
-                    Log.w("MiscSettingsViewModel", "syncLikedShows failed", it)
+                // Sync liked shows in the background
+                launch {
+                    runCatching {
+                        likedRepository.syncLikedShows(forceSync = true)
+                    }.onFailure {
+                        Log.w("MiscSettingsViewModel", "syncLikedShows failed", it)
+                    }
                 }
             }
 

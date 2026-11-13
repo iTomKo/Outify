@@ -206,7 +206,7 @@ pub extern "system" fn get_saved_items(
             error!("invalid SavedItemType: {e}");
             let _ = env.throw_new(
                 "java/lang/IllegalArgumentException",
-                "item_type must be 'tracks', 'albums', or 'shows'",
+                "item_type must be 'tracks', 'albums', 'artists', 'episodes', or 'shows'",
             );
             return std::ptr::null_mut();
         }
@@ -223,7 +223,7 @@ pub extern "system" fn get_saved_items(
         Err(e) => {
             error!("get_saved_uris failed: {e}");
             let _ = env.throw_new(
-                "java/io/RuntimeException",
+                "java/lang/RuntimeException",
                 format!("Spotify request failed: {e}"),
             );
             return std::ptr::null_mut();

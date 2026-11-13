@@ -5,52 +5,55 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    collection_api::{self, CollectionType},
     spotify::error::SpotifyApiError,
-    types::responses::library::{EpisodeUri, SavedItemsResponse, Uri},
+    types::responses::library::{EpisodeUri, SavedItem, SavedItemsResponse, Uri},
 };
 
 use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient};
 
 impl SpotifyClient {
     pub async fn save_items(&self, uris: Vec<String>) -> Result<StatusCode, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
-
-        let ids = uris.join(",");
-
-        let res = self
-            .client
-            .put(format!("{}/v1/me/library", SPOTIFY_API_URL))
-            .query(&[("uris", ids)])
-            .header(reqwest::header::CONTENT_LENGTH, "0")
-            .bearer_auth(token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            let status = res.status().as_str().to_string();
-            let body = res.text().await.unwrap_or_default();
-            return Err(SpotifyApiError::Generic(format!(
-                "save_items failed with status {status}: {body}"
-            )));
-        }
-
-        Ok(res.status())
+        self.update_items(uris, true).await
     }
 
     pub async fn delete_items(&self, uris: Vec<String>) -> Result<StatusCode, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
+        self.update_items(uris, false).await
+    }
 
-        let ids = uris.join(",");
+    /// Collection-v2 uses playback auth. Only other item types need Web API auth;
+    /// native failures must never fall back to a possibly different OAuth account.
+    async fn update_items(
+        &self,
+        uris: Vec<String>,
+        saved: bool,
+    ) -> Result<StatusCode, SpotifyApiError> {
+        let (native, web) = partition_items(uris)?;
+        // Check required OAuth credentials before applying a mixed batch.
+        let token = if web.is_empty() {
+            None
+        } else {
+            Some(self.load_token().await?.ok_or(SpotifyApiError::NoToken)?)
+        };
+        if !native.is_empty() {
+            let session = crate::session::with_session(Clone::clone)?;
+            collection_api::set_saved(&session, &native, saved).await?;
+        }
+        let Some(token) = token else {
+            return Ok(StatusCode::OK);
+        };
 
         let res = self
             .client
-            .delete(format!("{}/v1/me/library", SPOTIFY_API_URL))
-            .query(&[("uris", ids)])
+            .request(
+                if saved {
+                    reqwest::Method::PUT
+                } else {
+                    reqwest::Method::DELETE
+                },
+                format!("{}/v1/me/library", SPOTIFY_API_URL),
+            )
+            .query(&[("uris", web.join(","))])
             .header(reqwest::header::CONTENT_LENGTH, "0")
             .bearer_auth(token.access_token)
             .timeout(REQUEST_TIMEOUT)
@@ -61,18 +64,30 @@ impl SpotifyClient {
             let status = res.status().as_str().to_string();
             let body = res.text().await.unwrap_or_default();
             return Err(SpotifyApiError::Generic(format!(
-                "delete_items failed with status {status}: {body}"
+                "update_items failed with status {status}: {body}"
             )));
         }
 
         Ok(res.status())
     }
 
-    /// Get tracks/albums/episodes saved in library
+    /// Tracks, albums and artists are read through the playback session.
     pub async fn get_saved(
         &self,
         item: SavedItemType,
     ) -> Result<SavedItemsResponse<Uri>, SpotifyApiError> {
+        if let Some(kind) = item.collection_type() {
+            let session = crate::session::with_session(Clone::clone)?;
+            let items = collection_api::saved_items(&session, kind).await?;
+            return Ok(SavedItemsResponse {
+                items: items
+                    .into_iter()
+                    .map(|item| SavedItem {
+                        item: Uri { uri: item.uri },
+                    })
+                    .collect(),
+            });
+        }
         let token = self.load_token().await?;
         let token = token
             .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
@@ -191,6 +206,19 @@ impl SpotifyClient {
     }
 }
 
+fn partition_items(uris: Vec<String>) -> Result<(Vec<String>, Vec<String>), SpotifyApiError> {
+    let mut native = Vec::new();
+    let mut web = Vec::new();
+    for uri in uris {
+        if CollectionType::from_uri(&uri)?.is_some() {
+            native.push(uri);
+        } else {
+            web.push(uri);
+        }
+    }
+    Ok((native, web))
+}
+
 #[derive(Serialize)]
 pub struct EpisodeDetails {
     pub show_uri: String,
@@ -201,15 +229,26 @@ pub struct EpisodeDetails {
 pub enum SavedItemType {
     Tracks,
     Albums,
+    Artists,
     Episodes,
     Shows,
 }
 
 impl SavedItemType {
+    fn collection_type(&self) -> Option<CollectionType> {
+        match self {
+            Self::Tracks => Some(CollectionType::Tracks),
+            Self::Albums => Some(CollectionType::Albums),
+            Self::Artists => Some(CollectionType::Artists),
+            Self::Episodes | Self::Shows => None,
+        }
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             SavedItemType::Tracks => "tracks",
             SavedItemType::Albums => "albums",
+            SavedItemType::Artists => "artists",
             SavedItemType::Episodes => "episodes",
             SavedItemType::Shows => "shows",
         }
@@ -223,6 +262,7 @@ impl FromStr for SavedItemType {
         match s {
             "tracks" => Ok(Self::Tracks),
             "albums" => Ok(Self::Albums),
+            "artists" => Ok(Self::Artists),
             "episodes" => Ok(Self::Episodes),
             "shows" => Ok(Self::Shows),
             other => Err(SpotifyApiError::Generic(format!(
