@@ -92,6 +92,7 @@ class SpClient @Inject constructor() {
 
     /**
      * Gets the available devices to stream playback from.
+     * Reads the existing Spotify Connect roster.
      * In format of [cc.tomko.outify.core.model.DevicesResponse]
      */
     external fun getDevices(): String?
@@ -103,9 +104,10 @@ class SpClient @Inject constructor() {
         getDevices()?.let { Json.decodeFromString<DevicesResponse>(it).devices.size } ?: 0
 
     /**
-     * Transfers current playback device to the one with given ID
+     * Transfers playback through Connect, preserving paused state.
+     * expectedSession is the serialized playback identity displayed by the picker.
      */
-    external fun transferPlaybackDevice(deviceId: String): Boolean
+    external fun transferPlaybackDevice(deviceId: String, expectedSession: String): Boolean
 
     /**
      * Check if user has authenticated with Spotify via OAuth.

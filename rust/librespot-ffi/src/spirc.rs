@@ -568,6 +568,55 @@ fn is_current_runtime(expected: &Arc<Spirc>, generation: u64) -> bool {
         .unwrap_or(false)
 }
 
+fn device_runtime(
+    expected: Option<&crate::collection_session::CollectionSession>,
+) -> Result<(Arc<Spirc>, u64, crate::collection_session::CollectionSession), librespot_core::Error> {
+    if SpircState::from_u8(STATE.load(Ordering::Acquire)) != SpircState::Ready {
+        return Err(librespot_core::Error::unavailable("Connect runtime is not ready"));
+    }
+    let (spirc, generation) = with_spirc(|runtime| (runtime.spirc.clone(), runtime.generation))
+        .map_err(librespot_core::Error::unavailable)?;
+    let identity = crate::collection_session::identity(spirc.session())?;
+    crate::collection_session::ensure_current(&identity)?;
+    if expected.is_some_and(|expected| expected != &identity) {
+        return Err(librespot_core::Error::unavailable("Playback session was replaced before Connect request"));
+    }
+    Ok((spirc, generation, identity))
+}
+
+pub async fn devices() -> Result<crate::types::responses::DevicesResponse, librespot_core::Error> {
+    let (spirc, generation, identity) = device_runtime(None)?;
+    let roster = tokio::time::timeout(Duration::from_secs(10), spirc.connect_devices()).await
+        .map_err(|_| librespot_core::Error::deadline_exceeded("Connect devices are not ready"))??;
+    crate::collection_session::ensure_current(&identity)?;
+    if !is_current_runtime(&spirc, generation)
+        || SpircState::from_u8(STATE.load(Ordering::Acquire)) != SpircState::Ready {
+        return Err(librespot_core::Error::unavailable("Connect runtime was replaced"));
+    }
+    Ok(crate::connect_devices::response(roster, spirc.session().device_id().to_owned(), identity))
+}
+
+/// Explicit selection is bound to the playback account the device picker displayed.
+pub async fn transfer_device(
+    device_id: String,
+    expected: crate::collection_session::CollectionSession,
+) -> Result<(), librespot_core::Error> {
+    let (spirc, generation, identity) = device_runtime(Some(&expected))?;
+    let checked = spirc.clone();
+    let expected_guard = identity.clone();
+    tokio::time::timeout(Duration::from_secs(30), spirc.transfer_to(device_id, move || {
+        is_current_runtime(&checked, generation)
+            && SpircState::from_u8(STATE.load(Ordering::Acquire)) == SpircState::Ready
+            && crate::collection_session::ensure_current(&expected_guard).is_ok()
+    })).await.map_err(|_| librespot_core::Error::deadline_exceeded("Connect transfer timed out; check the current device before retrying"))??;
+    crate::collection_session::ensure_current(&identity)?;
+    if !is_current_runtime(&spirc, generation)
+        || SpircState::from_u8(STATE.load(Ordering::Acquire)) != SpircState::Ready {
+        return Err(librespot_core::Error::unavailable("Connect runtime was replaced during transfer"));
+    }
+    Ok(())
+}
+
 /// Records that a playback command was handed to the Connect task.
 fn arm_command_ack(generation: u64, label: &'static str) {
     let now = Instant::now();

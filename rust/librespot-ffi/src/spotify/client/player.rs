@@ -1,75 +1,43 @@
-use reqwest::StatusCode;
-
+use super::SpotifyClient;
 use crate::{
-    spotify::error::SpotifyApiError,
-    types::{requests::TransferPlaybackRequest, responses::DevicesResponse},
+    collection_session::CollectionSession, spotify::error::SpotifyApiError,
+    types::responses::DevicesResponse,
 };
-
-use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient, check_response_json};
+use reqwest::StatusCode;
 
 impl SpotifyClient {
     pub async fn get_devices(&self) -> Result<DevicesResponse, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
-
-        let url = format!("{}/v1/me/player/devices", SPOTIFY_API_URL);
-
-        let res = self
-            .client
-            .get(&url)
-            .bearer_auth(&token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await?;
-
-        if res.status() == StatusCode::UNAUTHORIZED {
-            let new_token = self.refresh_token(&token).await?;
-            let res = self
-                .client
-                .get(&url)
-                .bearer_auth(new_token.access_token)
-                .timeout(REQUEST_TIMEOUT)
-                .send()
-                .await?;
-            let data = check_response_json::<DevicesResponse>("get_devices", res).await?;
-            return Ok(data);
-        }
-
-        let data = check_response_json::<DevicesResponse>("get_devices", res).await?;
-
-        Ok(data)
+        Ok(crate::spirc::devices().await?)
     }
 
     pub async fn transfer_playback(
         &self,
         device_id: String,
+        expected: CollectionSession,
     ) -> Result<StatusCode, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
+        crate::spirc::transfer_device(device_id, expected).await?;
+        Ok(StatusCode::NO_CONTENT)
+    }
+}
 
-        let body = TransferPlaybackRequest {
-            device_ids: vec![device_id],
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn device_operations_require_connect_and_never_fall_back_to_oauth() {
+        let client = SpotifyClient::new(String::new(), String::new());
+        assert!(matches!(
+            client.get_devices().await,
+            Err(SpotifyApiError::Librespot(_))
+        ));
+        let expected = CollectionSession {
+            account_id: "account".into(),
+            session_id: "session".into(),
         };
-
-        let res = self
-            .client
-            .put(format!("{}/v1/me/player", SPOTIFY_API_URL))
-            .bearer_auth(token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .json(&body)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            let status = res.status().as_str().to_string();
-            let body = res.text().await.unwrap_or_default();
-            return Err(SpotifyApiError::Generic(format!(
-                "transfer_playback failed with status {status}: {body}"
-            )));
-        }
-
-        Ok(res.status())
+        assert!(matches!(
+            client.transfer_playback("target".into(), expected).await,
+            Err(SpotifyApiError::Librespot(_))
+        ));
     }
 }

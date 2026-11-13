@@ -420,6 +420,7 @@ pub extern "system" fn transfer_playback_device(
     mut env: JNIEnv,
     _class: JClass,
     device_id: JString,
+    expected_session: JString,
 ) -> jboolean {
     let client = get_client();
 
@@ -431,21 +432,36 @@ pub extern "system" fn transfer_playback_device(
         }
     };
 
+    let expected_session: String = match env.get_string(&expected_session) {
+        Ok(value) => value.into(),
+        Err(error) => {
+            let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Missing playback session identity: {error}"));
+            return 0;
+        }
+    };
+    let expected = match serde_json::from_str::<crate::collection_session::CollectionSession>(&expected_session) {
+        Ok(identity) => identity,
+        Err(error) => {
+            let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid playback session identity: {error}"));
+            return 0;
+        }
+    };
     let rt = crate::network_rt();
 
-    let result = rt.block_on(async { client.transfer_playback(device_id).await });
+    let result = rt.block_on(async { client.transfer_playback(device_id, expected).await });
 
     match result {
         Ok(result) => result.is_success() as jboolean,
         Err(e) => {
             error!("transfer_playback api call failed: {e}");
+            let _ = env.throw_new("java/lang/RuntimeException", format!("Connect transfer failed: {e}"));
             0
         }
     }
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getDevices")]
-pub extern "system" fn get_devices(env: JNIEnv, _class: JClass) -> jstring {
+pub extern "system" fn get_devices(mut env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
 
     let rt = crate::network_rt();
@@ -467,6 +483,7 @@ pub extern "system" fn get_devices(env: JNIEnv, _class: JClass) -> jstring {
         },
         Err(e) => {
             error!("get_devices api call failed: {e}");
+            let _ = env.throw_new("java/lang/RuntimeException", format!("Connect device lookup failed: {e}"));
             return std::ptr::null_mut();
         }
     }

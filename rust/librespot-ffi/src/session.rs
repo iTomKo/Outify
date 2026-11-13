@@ -132,7 +132,7 @@ fn start_shutdown_listener(session: &Session) {
         }
     };
 
-    let session_id = session.session_id();
+    let instance_id = session.instance_id().to_owned();
     let mut shutdown_rx = session.subscribe_shutdown();
 
     rt.handle().spawn(async move {
@@ -144,7 +144,7 @@ fn start_shutdown_listener(session: &Session) {
 
         // Listeners of sessions that a previous rebuild already replaced must not
         // tear down the current session.
-        if !is_current_session_id(&session_id) {
+        if !is_current_session_instance(&instance_id) {
             debug!("ignoring shutdown of a stale session");
             return;
         }
@@ -222,15 +222,15 @@ pub fn session_present() -> bool {
         .unwrap_or(false)
 }
 
-/// Whether `session_id` identifies the session currently in the container.
-fn is_current_session_id(session_id: &str) -> bool {
+/// Whether this immutable instance is still published, independent of playback/Jam IDs.
+fn is_current_session_instance(instance_id: &str) -> bool {
     SESSION
         .get()
         .and_then(|container| container.read().ok())
         .and_then(|guard| {
             guard
                 .as_ref()
-                .map(|session| session.session_id() == session_id)
+                .map(|session| session.instance_id() == instance_id)
         })
         .unwrap_or(false)
 }

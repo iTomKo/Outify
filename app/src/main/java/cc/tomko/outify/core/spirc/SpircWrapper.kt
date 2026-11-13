@@ -323,7 +323,9 @@ class SpircWrapper @Inject constructor(
             try {
                 val raw = spClient.getDevices() ?: error("Device lookup returned no response")
                 val devices = json.decodeFromString<DevicesResponse>(raw)
-                return@withContext devices.devices.any { it.isActive }
+                // A hidden/restricted device can own playback without being selectable.
+                return@withContext devices.activeDeviceId?.isNotBlank()
+                    ?: devices.devices.any { it.isActive }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {

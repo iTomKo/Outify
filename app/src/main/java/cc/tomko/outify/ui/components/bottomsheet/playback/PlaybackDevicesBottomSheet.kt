@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Speaker
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -70,13 +72,14 @@ fun PlaybackDevicesBottomSheet(
         skipPartiallyExpanded = false,
     )
 
-    LaunchedEffect(Unit) {
-        viewModel.loadDevices()
+    LaunchedEffect(viewModel) {
+        viewModel.observeDevices()
     }
 
     val scope = rememberCoroutineScope()
 
-    val devices by viewModel.devices.collectAsState()
+    val deviceState by viewModel.deviceState.collectAsState()
+    val devices = deviceState.devices
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -126,9 +129,10 @@ fun PlaybackDevicesBottomSheet(
                 IconButton(
                     onClick = {
                         scope.launch {
-                            viewModel.makeActive()
+                            viewModel.makeActive(deviceState.lease)
                         }
-                    }
+                    },
+                    enabled = deviceState.available && deviceState.localDeviceId != null && deviceState.transferringDeviceId == null,
                 ) {
                     Icon(Icons.Default.SwapHoriz, contentDescription = stringResource(R.string.cd_transfer_playback))
                 }
@@ -138,15 +142,21 @@ fun PlaybackDevicesBottomSheet(
                         scope.launch {
                             viewModel.loadDevices()
                         }
-                    }
+                    },
+                    enabled = deviceState.available && !deviceState.isRefreshing,
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh_devices))
                 }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            if (deviceState.isRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
+            deviceState.error?.let { message ->
+                Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
 
             LazyColumn(
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 if (devices.isEmpty()) {
@@ -164,7 +174,11 @@ fun PlaybackDevicesBottomSheet(
                                 Icon(Icons.Default.SearchOff, contentDescription = null)
 
                                 Text(
-                                    text = stringResource(R.string.devices_none),
+                                    text = stringResource(when {
+                                        !deviceState.available -> R.string.devices_playback_not_ready
+                                        deviceState.isRefreshing -> R.string.devices_loading
+                                        else -> R.string.devices_none
+                                    }),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -187,7 +201,9 @@ fun PlaybackDevicesBottomSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { viewModel.selectDevice(it) },
+                            .clickable(
+                                enabled = deviceState.available && deviceState.transferringDeviceId == null && !it.isRestricted && !it.isActive,
+                            ) { viewModel.selectDevice(it, deviceState.lease) },
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected)
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
@@ -263,9 +279,11 @@ fun PlaybackDevicesBottomSheet(
                                 }
                             },
                             trailingContent = {
-                                if (isSelected) {
+                                if (deviceState.transferringDeviceId == it.id) {
+                                    CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                                } else if (isSelected) {
                                     AudioBarsIndicator(
-                                        isPlaying = true,
+                                        isPlaying = deviceState.isPlaying,
                                         barCount = 4,
                                         barWidth = 3.dp,
                                         barHeight = 12.dp,

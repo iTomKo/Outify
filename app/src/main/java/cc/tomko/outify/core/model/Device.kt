@@ -2,6 +2,7 @@ package cc.tomko.outify.core.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import cc.tomko.outify.data.repository.CollectionSession
 
 @Serializable
 data class Device(
@@ -23,4 +24,8 @@ data class Device(
 @Serializable
 data class DevicesResponse(
     val devices: List<Device>,
+    @SerialName("local_device_id") val localDeviceId: String? = null,
+    @SerialName("active_device_id") val activeDeviceId: String? = null,
+    @SerialName("is_playing") val isPlaying: Boolean = false,
+    val session: CollectionSession? = null,
 )

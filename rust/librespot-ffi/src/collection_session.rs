@@ -1,8 +1,8 @@
 //! Identity attached to every collection result, including queued JNI callbacks.
 use librespot_core::{Error, Session};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectionSession {
     pub account_id: String,
@@ -18,7 +18,9 @@ pub fn identity(session: &Session) -> Result<CollectionSession, Error> {
     }
     Ok(CollectionSession {
         account_id,
-        session_id: session.session_id(),
+        // Spotify changes session_id for playback/Jam membership without replacing login.
+        // A stale-account lease must follow the immutable authenticated Session instance.
+        session_id: session.instance_id().to_owned(),
     })
 }
 
@@ -69,5 +71,30 @@ mod tests {
             identity(&session).unwrap_err().kind,
             librespot_core::error::ErrorKind::Unavailable
         );
+    }
+
+    #[tokio::test]
+    async fn connect_session_rotation_does_not_change_authenticated_identity() {
+        let session = Session::new(Default::default(), None);
+        session.set_username("listener");
+        let before = identity(&session).unwrap();
+        let clone = session.clone();
+        for playback_id in ["remote-playback", "jam-session", "local-playback"] {
+            clone.set_session_id(playback_id);
+            assert_eq!(session.session_id(), playback_id);
+            assert_eq!(identity(&session).unwrap(), before);
+            assert_eq!(identity(&clone).unwrap(), before);
+        }
+    }
+
+    #[tokio::test]
+    async fn distinct_authenticated_sessions_do_not_share_identity_even_in_the_same_playback_session() {
+        let first = Session::new(Default::default(), None);
+        let replacement = Session::with_handle(Default::default(), None, tokio::runtime::Handle::current());
+        for session in [&first, &replacement] {
+            session.set_username("listener");
+            session.set_session_id("shared-playback-session");
+        }
+        assert_ne!(identity(&first).unwrap(), identity(&replacement).unwrap());
     }
 }

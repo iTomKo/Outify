@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct DevicesResponse {
     pub devices: Vec<Device>,
+    pub local_device_id: String,
+    pub active_device_id: String,
+    pub is_playing: bool,
+    pub session: crate::collection_session::CollectionSession,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -21,6 +21,7 @@ mod jam_runtime;
 mod collection;
 mod collection_api;
 mod collection_session;
+mod connect_devices;
 mod sync_request;
 mod native_request;
 mod playlist_api;
