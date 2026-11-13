@@ -23,6 +23,8 @@ pub enum CollectionType {
     Tracks,
     Albums,
     Artists,
+    Episodes,
+    Shows,
 }
 
 impl CollectionType {
@@ -31,6 +33,8 @@ impl CollectionType {
             Some("track") => Self::Tracks,
             Some("album") => Self::Albums,
             Some("artist") => Self::Artists,
+            Some("episode") => Self::Episodes,
+            Some("show") => Self::Shows,
             _ => return Ok(None),
         };
         // Reject malformed native URIs before any part of a batch is written.
@@ -44,6 +48,8 @@ impl CollectionType {
         match self {
             Self::Tracks | Self::Albums => "collection",
             Self::Artists => "artist",
+            Self::Episodes => "listenlater",
+            Self::Shows => "show",
         }
     }
 
@@ -56,6 +62,8 @@ impl CollectionType {
             (Self::Tracks, Ok(SpotifyUri::Track { .. }))
                 | (Self::Albums, Ok(SpotifyUri::Album { .. }))
                 | (Self::Artists, Ok(SpotifyUri::Artist { .. }))
+                | (Self::Episodes, Ok(SpotifyUri::Episode { .. }))
+                | (Self::Shows, Ok(SpotifyUri::Show { .. }))
         )
     }
 }
@@ -125,6 +133,8 @@ where
                 CollectionType::Tracks => "spotify:track:",
                 CollectionType::Albums => "spotify:album:",
                 CollectionType::Artists => "spotify:artist:",
+                CollectionType::Episodes => "spotify:episode:",
+                CollectionType::Shows => "spotify:show:",
             }) {
                 continue;
             }
@@ -230,6 +240,8 @@ pub async fn set_saved(session: &Session, uris: &[String], saved: bool) -> Resul
 fn write_batches(uris: &[String]) -> Result<Vec<(&'static str, Vec<&str>)>, Error> {
     let mut collection = Vec::new();
     let mut artists = Vec::new();
+    let mut episodes = Vec::new();
+    let mut shows = Vec::new();
     let mut seen = HashSet::new();
     for uri in uris {
         let kind = CollectionType::from_uri(uri)?
@@ -238,10 +250,20 @@ fn write_batches(uris: &[String]) -> Result<Vec<(&'static str, Vec<&str>)>, Erro
             match kind {
                 CollectionType::Tracks | CollectionType::Albums => collection.push(uri.as_str()),
                 CollectionType::Artists => artists.push(uri.as_str()),
+                CollectionType::Episodes => episodes.push(uri.as_str()),
+                CollectionType::Shows => shows.push(uri.as_str()),
             }
         }
     }
-    Ok(vec![("collection", collection), ("artist", artists)])
+    Ok(vec![
+        ("collection", collection),
+        ("artist", artists),
+        ("listenlater", episodes),
+        ("show", shows),
+    ]
+    .into_iter()
+    .filter(|(_, items)| !items.is_empty())
+    .collect())
 }
 
 fn write_request(
@@ -408,6 +430,25 @@ mod tests {
                 .unwrap()
             );
         }
+    }
+
+    #[test]
+    fn podcast_membership_uses_listenlater_and_show_instead_of_the_music_set() {
+        let track = track(1, 0).uri;
+        let episode = track.replace(":track:", ":episode:");
+        let show = track.replace(":track:", ":show:");
+        let uris = [episode.clone(), show.clone()];
+        assert_eq!(
+            write_batches(&uris).unwrap(),
+            vec![
+                ("listenlater", vec![episode.as_str()]),
+                ("show", vec![show.as_str()])
+            ]
+        );
+        assert_eq!(CollectionType::Episodes.set(), "listenlater");
+        assert_eq!(CollectionType::Shows.set(), "show");
+        assert!(CollectionType::Episodes.matches(&episode));
+        assert!(CollectionType::Shows.matches(&show));
     }
 
     #[tokio::test]

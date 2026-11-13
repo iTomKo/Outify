@@ -120,16 +120,18 @@ class Metadata @Inject constructor(
         }
     }
 
-    suspend fun getPlaylistUris(): List<String> {
+    suspend fun getPlaylistUris(): List<String> = withContext(Dispatchers.IO) {
         try {
             val uris = spClient.getRootlist()
-            return uris.toList()
+            return@withContext uris.toList()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get playlist URIs"),
                 "getPlaylistUris"
             )
-            return emptyList()
+            throw e
         }
     }
 
@@ -159,53 +161,59 @@ class Metadata @Inject constructor(
         json.decodeFromString<cc.tomko.outify.data.repository.CollectionSession>(raw).validate()
     }
 
-    suspend fun getSavedEpisodeUris(): List<String> {
+    suspend fun getSavedEpisodeUris(): List<String> = withContext(Dispatchers.IO) {
         try {
             val raw = spClient.getSavedEpisodeItems()
             val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeUris")
-            return checked.split(";")
+            return@withContext checked.split(";")
                 .map { it.substringBefore(",") }
                 .filter { it.isNotBlank() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode URIs"),
                 "getSavedEpisodeUris"
             )
-            return emptyList()
+            throw e
         }
     }
 
-    suspend fun getSavedEpisodeInfo(): List<Pair<String, String>> {
+    suspend fun getSavedEpisodeInfo(): List<Pair<String, String>> = withContext(Dispatchers.IO) {
         try {
             val raw = spClient.getSavedEpisodeItems()
             val checked = spClient.checkAndHandleError(raw, "getSavedEpisodeInfo")
-            return checked.split(";")
+            return@withContext checked.split(";")
                 .filter { it.isNotBlank() }
                 .map { pair ->
                     val parts = pair.split(",", limit = 2)
                     parts[0] to (parts.getOrElse(1) { "" })
                 }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get saved episode info"),
                 "getSavedEpisodeInfo"
             )
-            return emptyList()
+            throw e
         }
     }
 
-    suspend fun getSavedShowUris(): List<String> {
+    suspend fun getSavedShowUris(): List<String> = withContext(Dispatchers.IO) {
         try {
             val raw = spClient.getSavedItems(SpClient.SHOWS)
             val checked = spClient.checkAndHandleError(raw, "getSavedShowUris")
-            return checked.split(",")
+            return@withContext checked.split(",")
                 .filter { it.isNotBlank() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             NativeErrorHandler.handleError(
                 NativeError.fromJson("unknown", e.message ?: "Failed to get saved show URIs"),
                 "getSavedShowUris"
             )
-            return emptyList()
+            throw e
         }
     }
 
@@ -249,7 +257,7 @@ class Metadata @Inject constructor(
 
     suspend fun syncLikedPlaylists(): List<String> {
         return try {
-            val uris = spClient.getRootlist().toList()
+            val uris = getPlaylistUris()
 
             likedItemsDao.clearAll()
             uris.forEach { uri ->

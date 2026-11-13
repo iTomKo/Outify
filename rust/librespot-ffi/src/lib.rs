@@ -22,6 +22,10 @@ mod collection;
 mod collection_api;
 mod collection_session;
 mod sync_request;
+mod native_request;
+mod playlist_api;
+mod pathfinder;
+mod podcast_api;
 
 use std::path::PathBuf;
 

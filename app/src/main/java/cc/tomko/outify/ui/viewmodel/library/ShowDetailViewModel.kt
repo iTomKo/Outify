@@ -107,14 +107,17 @@ class ShowDetailViewModel @Inject constructor(
             val show = _uiState.value.show ?: return@launch
             val showId = show.id
             val uri = show.uri
-            if (_isSaved.value) {
-                withContext(Dispatchers.IO) { spClient.deleteItems(arrayOf(uri)) }
+            val wasSaved = _isSaved.value
+            val success = withContext(Dispatchers.IO) {
+                if (wasSaved) spClient.deleteItems(arrayOf(uri)) else spClient.saveItems(arrayOf(uri))
+            }
+            if (!success) return@launch
+            if (wasSaved) {
                 likedRepository.removeLikedShow(showId)
             } else {
-                withContext(Dispatchers.IO) { spClient.saveItems(arrayOf(uri)) }
                 likedRepository.addLikedShow(showId)
             }
-            _isSaved.value = !_isSaved.value
+            _isSaved.value = !wasSaved
         }
     }
 

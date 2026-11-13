@@ -20,11 +20,12 @@ pub async fn get_user_profile(username: Option<String>) -> Option<UserJson> {
         Some(u) => u,
         None => session.username(),
     };
+    let expected = crate::collection_session::identity(&session).ok()?;
     let limit: u32 = 5000;
 
     let result = match session
         .spclient()
-        .get_user_profile(&username, Some(limit), Some(limit))
+        .get_user_profile(&crate::native_request::component(&username), Some(limit), Some(limit))
         .await
     {
         Ok(r) => r,
@@ -49,6 +50,8 @@ pub async fn get_user_profile(username: Option<String>) -> Option<UserJson> {
             return None;
         }
     };
+
+    crate::collection_session::ensure_current(&expected).ok()?;
 
     Some(profile)
 }

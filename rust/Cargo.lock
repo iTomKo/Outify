@@ -1714,6 +1714,7 @@ dependencies = [
  "base64",
  "bytes",
  "futures-util",
+ "http",
  "jni",
  "librespot-connect",
  "librespot-core",

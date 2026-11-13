@@ -17,10 +17,11 @@ class SpClient @Inject constructor() {
 
         const val TRACKS = "tracks"
         const val ALBUMS = "albums"
+        const val ARTISTS = "artists"
         const val EPISODES = "episodes"
         const val SHOWS = "shows"
 
-        @StringDef(TRACKS, ALBUMS, EPISODES, SHOWS)
+        @StringDef(TRACKS, ALBUMS, ARTISTS, EPISODES, SHOWS)
         @Retention(AnnotationRetention.SOURCE)
         annotation class SavedItemType
     }
@@ -55,11 +56,16 @@ class SpClient @Inject constructor() {
 
     /**
      * Removes given uris from users library
+     * Uses playback login; never falls back to the separate OAuth account.
      */
     external fun deleteItems(uris: Array<String>): Boolean
 
+    /** Reads user-follow state using playback authentication. Throws on failed reads. */
+    external fun isFollowingUser(userUri: String): Boolean
+
     /**
      * Get uris of items saved in users library
+     * Fetches every page using playback authentication.
      */
     external fun getSavedItems(@SavedItemType itemType: String = TRACKS): String
 
@@ -70,7 +76,7 @@ class SpClient @Inject constructor() {
     external fun getSavedEpisodeItems(): String
 
     /**
-     * Get episode details (show URI, resume point, etc.) via the Spotify Web API.
+     * Get episode details (show URI, resume point, etc.) via playback-authenticated Pathfinder.
      * Returns JSON with showUri, fullyPlayed, resumePositionMs.
      */
     external fun getEpisodeDetails(episodeId: String): String
@@ -114,16 +120,19 @@ class SpClient @Inject constructor() {
 
     /**
      * Adds tracks in array into the playlist by given id
+     * Uses playback login and appends tracks/episodes in caller order.
      */
     external fun addToPlaylist(playlist_id: String, track_uris: Array<String>): Boolean
 
     /**
      * Removes tracks in array from the playlist by given id
+     * Uses playback login and removes all matching occurrences.
      */
     external fun deleteFromPlaylist(playlist_id: String, track_uris: Array<String>): Boolean
 
     /**
      * Creates new playlist.
+     * Uses playback login.
      * For it to be collaborative, public has to be false
      *
      * Returns ID of the new playlist
@@ -137,6 +146,7 @@ class SpClient @Inject constructor() {
 
     /**
      * Modifies playlist
+     * Uses playback login.
      * For it to be collaborative, public has to be false
      *
      * Returns status code

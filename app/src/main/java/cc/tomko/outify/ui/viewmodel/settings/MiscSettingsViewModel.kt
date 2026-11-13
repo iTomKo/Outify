@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.BuildConfig
-import cc.tomko.outify.core.SpClient
 import cc.tomko.outify.data.repository.BackupRepository
 import cc.tomko.outify.data.repository.CollectionSessionState
 import cc.tomko.outify.data.repository.LikedRepository
@@ -14,14 +13,12 @@ import cc.tomko.outify.data.repository.SavedQueueRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.services.SyncNotificationManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed class SyncStatus {
@@ -43,7 +40,6 @@ sealed class BackupStatus {
 @HiltViewModel
 class MiscSettingsViewModel @Inject constructor(
     private val likedRepository: LikedRepository,
-    private val spClient: SpClient,
     private val collectionSessions: CollectionSessionState,
     private val syncNotificationManager: SyncNotificationManager,
     private val settingsRepository: SettingsRepository,
@@ -129,24 +125,23 @@ class MiscSettingsViewModel @Inject constructor(
                 syncNotificationManager.showError(e.message ?: "Unknown error")
             }
 
-            // Podcasts still use the separately authenticated Web API.
-            if (withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }) {
-                // Sync liked episodes in the background
-                launch {
-                    runCatching {
-                        likedRepository.syncLikedEpisodes(forceSync = true)
-                    }.onFailure {
-                        Log.w("MiscSettingsViewModel", "syncLikedEpisodes failed", it)
-                    }
+            launch {
+                try {
+                    likedRepository.syncLikedEpisodes(forceSync = true)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w("MiscSettingsViewModel", "syncLikedEpisodes failed", error)
                 }
+            }
 
-                // Sync liked shows in the background
-                launch {
-                    runCatching {
-                        likedRepository.syncLikedShows(forceSync = true)
-                    }.onFailure {
-                        Log.w("MiscSettingsViewModel", "syncLikedShows failed", it)
-                    }
+            launch {
+                try {
+                    likedRepository.syncLikedShows(forceSync = true)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w("MiscSettingsViewModel", "syncLikedShows failed", error)
                 }
             }
 

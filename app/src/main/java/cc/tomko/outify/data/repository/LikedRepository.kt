@@ -90,7 +90,11 @@ class LikedRepository @Inject constructor(
     suspend fun activateCollectionSession(lease: CollectionLease) = trackSyncMutex.withLock {
         db.withTransaction {
             collectionSessions.ensureCurrent(lease)
-            if (likedDao.getCollectionOwner()?.accountId != lease.session.accountId) likedDao.clearAll()
+            if (likedDao.getCollectionOwner()?.accountId != lease.session.accountId) {
+                likedDao.clearAll()
+                likedDao.clearAllEpisodes()
+                likedDao.clearAllShows()
+            }
             likedDao.setCollectionOwner(CollectionOwnerEntity(
                 accountId = lease.session.accountId,
                 sessionId = lease.session.sessionId,
@@ -251,11 +255,7 @@ class LikedRepository @Inject constructor(
         val initialBackoffMs = 500L
 
         try {
-            try {
-                if (!syncLikedEpisodeUris() && !forceSync) return@withContext false
-            } catch (t: Throwable) {
-                Log.w(TAG, "syncLikedEpisodeUris failed (continuing): ${t.message}", t)
-            }
+            if (!syncLikedEpisodeUris() && !forceSync) return@withContext false
 
             yield()
             var offset = 0
@@ -312,6 +312,8 @@ class LikedRepository @Inject constructor(
 
             Log.d(TAG, "syncLikedEpisodes finished; anyFetched=$anyFetched")
             return@withContext true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (t: Throwable) {
             Log.e(TAG, "syncLikedEpisodes failed unexpectedly", t)
             return@withContext false
@@ -319,7 +321,10 @@ class LikedRepository @Inject constructor(
     }
 
     suspend fun syncLikedEpisodeUris(): Boolean {
+        val lease = collectionSessions.requireCurrent()
+        collectionSessions.ensureSource(lease, metadata.getCollectionSession())
         val remote = metadata.getSavedEpisodeInfo()
+        collectionSessions.ensureSource(lease, metadata.getCollectionSession())
         val cached = likedDao.getLikedEpisodeIds()
 
         if (remote.size == cached.size) {
@@ -337,18 +342,22 @@ class LikedRepository @Inject constructor(
         }
 
         Log.d(TAG, "Liked episodes changed (${cached.size} → ${remote.size}), resyncing")
-        db.withTransaction {
-            likedDao.clearAllEpisodes()
-            val now = System.currentTimeMillis()
-            remote.forEachIndexed { i, (episodeUri, showUri) ->
-                likedDao.insertEpisode(
-                    LikedEpisodeEntity(
-                        episodeId = episodeUri.substring(EPISODE_SUBSTRING_OFFSET),
-                        position = i.toDouble(),
-                        addedAt = now,
-                        showUri = showUri,
+        trackSyncMutex.withLock {
+            db.withTransaction {
+                ensureOwner(lease)
+                likedDao.clearAllEpisodes()
+                val now = System.currentTimeMillis()
+                remote.forEachIndexed { i, (episodeUri, showUri) ->
+                    likedDao.insertEpisode(
+                        LikedEpisodeEntity(
+                            episodeId = episodeUri.substring(EPISODE_SUBSTRING_OFFSET),
+                            position = i.toDouble(),
+                            addedAt = now,
+                            showUri = showUri,
+                        )
                     )
-                )
+                }
+                collectionSessions.ensureCurrent(lease)
             }
         }
         return true
@@ -407,11 +416,7 @@ class LikedRepository @Inject constructor(
         val initialBackoffMs = 500L
 
         try {
-            try {
-                if (!syncLikedShowUris() && !forceSync) return@withContext false
-            } catch (t: Throwable) {
-                Log.w(TAG, "syncLikedShowUris failed (continuing): ${t.message}", t)
-            }
+            if (!syncLikedShowUris() && !forceSync) return@withContext false
 
             yield()
             var offset = 0
@@ -468,6 +473,8 @@ class LikedRepository @Inject constructor(
 
             Log.d(TAG, "syncLikedShows finished; anyFetched=$anyFetched")
             return@withContext true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (t: Throwable) {
             Log.e(TAG, "syncLikedShows failed unexpectedly", t)
             return@withContext false
@@ -475,7 +482,10 @@ class LikedRepository @Inject constructor(
     }
 
     suspend fun syncLikedShowUris(): Boolean {
+        val lease = collectionSessions.requireCurrent()
+        collectionSessions.ensureSource(lease, metadata.getCollectionSession())
         val remote = metadata.getSavedShowUris()
+        collectionSessions.ensureSource(lease, metadata.getCollectionSession())
         val cached = likedDao.getLikedShowIds()
 
         if (remote.size == cached.size) {
@@ -490,17 +500,21 @@ class LikedRepository @Inject constructor(
         }
 
         Log.d(TAG, "Liked shows changed (${cached.size} → ${remote.size}), resyncing")
-        db.withTransaction {
-            likedDao.clearAllShows()
-            val now = System.currentTimeMillis()
-            remote.forEachIndexed { i, uri ->
-                likedDao.insertShow(
-                    LikedShowEntity(
-                        showId = uri.substring(SHOW_SUBSTRING_OFFSET),
-                        position = i.toDouble(),
-                        addedAt = now,
+        trackSyncMutex.withLock {
+            db.withTransaction {
+                ensureOwner(lease)
+                likedDao.clearAllShows()
+                val now = System.currentTimeMillis()
+                remote.forEachIndexed { i, uri ->
+                    likedDao.insertShow(
+                        LikedShowEntity(
+                            showId = uri.substring(SHOW_SUBSTRING_OFFSET),
+                            position = i.toDouble(),
+                            addedAt = now,
+                        )
                     )
-                )
+                }
+                collectionSessions.ensureCurrent(lease)
             }
         }
         return true

@@ -1,10 +1,10 @@
 use jni::{
     JNIEnv,
-    objects::{JClass, JObject, JObjectArray, JString},
+    objects::{JClass, JObjectArray, JString},
     sys::{jboolean, jint, jobjectArray, jstring},
 };
 use librespot_core::{SpotifyId, SpotifyUri};
-use regex::Regex;
+use protobuf::Message;
 
 use crate::{
     jni_utils::{optionable_string, throw_exception, vec_to_jstring_array},
@@ -239,6 +239,28 @@ pub extern "system" fn get_saved_items(
     }
 }
 
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_isFollowingUser")]
+pub extern "system" fn is_following_user(mut env: JNIEnv, _class: JClass, uri: JString) -> jboolean {
+    let uri: String = match env.get_string(&uri) {
+        Ok(value) => value.into(),
+        Err(error) => {
+            let _ = env.throw_new("java/lang/IllegalArgumentException", format!("Invalid user URI: {error}"));
+            return 0;
+        }
+    };
+    let result = crate::network_rt().block_on(async {
+        let session = crate::session::with_session(Clone::clone)?;
+        crate::pathfinder::is_following(&session, &uri).await
+    });
+    match result {
+        Ok(following) => following as jboolean,
+        Err(error) => {
+            let _ = env.throw_new("java/lang/RuntimeException", format!("Failed to read user follow state: {error}"));
+            0
+        }
+    }
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getSavedEpisodeItems")]
 pub extern "system" fn get_saved_episode_items(mut env: JNIEnv, _class: JClass) -> jstring {
     let client = get_client();
@@ -261,7 +283,7 @@ pub extern "system" fn get_saved_episode_items(mut env: JNIEnv, _class: JClass) 
         Err(e) => {
             error!("get_saved_episode_items failed: {e}");
             let _ = env.throw_new(
-                "java/io/RuntimeException",
+                "java/lang/RuntimeException",
                 format!("Spotify request failed: {e}"),
             );
             return std::ptr::null_mut();
@@ -305,7 +327,7 @@ pub extern "system" fn get_episode_details(
             Err(e) => {
                 error!("failed to serialize episode details: {e}");
                 let _ = env.throw_new(
-                    "java/io/RuntimeException",
+                    "java/lang/RuntimeException",
                     format!("Serialization failed: {e}"),
                 );
                 return std::ptr::null_mut();
@@ -315,7 +337,7 @@ pub extern "system" fn get_episode_details(
         Err(e) => {
             error!("get_episode_details failed: {e}");
             let _ = env.throw_new(
-                "java/io/RuntimeException",
+                "java/lang/RuntimeException",
                 format!("Spotify request failed: {e}"),
             );
             return std::ptr::null_mut();
@@ -850,35 +872,19 @@ pub extern "system" fn Java_cc_tomko_outify_core_SpClient_getRootlist(
 ) -> jobjectArray {
     let rt = crate::network_rt();
 
-    let uris: Vec<String> = rt.block_on(async {
-        match crate::spclient::get_rootlist().await {
-            Ok(bytes) => {
-                let mut uris = Vec::new();
-                let data = String::from_utf8_lossy(&bytes);
-                let pattern = Regex::new(r"spotify:playlist:[A-Za-z0-9]+").unwrap();
-
-                for mat in pattern.find_iter(&data) {
-                    uris.push(mat.as_str().to_string());
-                }
-
-                uris
-            }
-            Err(_) => Vec::new(),
-        }
+    let result = rt.block_on(async {
+        let bytes = crate::spclient::get_rootlist().await?;
+        let content = librespot_protocol::playlist4_external::SelectedListContent::parse_from_bytes(&bytes)?;
+        Ok::<_, librespot_core::Error>(content.contents.items.iter()
+            .filter_map(|item| crate::playlist_api::playlist_uri(item.uri()).ok()).collect::<Vec<_>>())
     });
-
-    let string_class = env.find_class("java/lang/String").unwrap();
-    let array = env
-        .new_object_array(uris.len() as i32, string_class, JObject::null())
-        .unwrap();
-
-    for (i, uri) in uris.iter().enumerate() {
-        let jstr = env.new_string(uri).unwrap();
-        env.set_object_array_element(&array, i as i32, jstr)
-            .unwrap();
+    match result {
+        Ok(uris) => vec_to_jstring_array(&mut env, uris),
+        Err(error) => {
+            let _ = env.throw_new("java/lang/RuntimeException", format!("Failed to read playlist library: {error}"));
+            std::ptr::null_mut()
+        }
     }
-
-    array.into_raw()
 }
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getRadioForTrack")]

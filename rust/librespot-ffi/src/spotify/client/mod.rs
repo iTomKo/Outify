@@ -14,7 +14,7 @@ mod player;
 mod playlist;
 mod user;
 
-pub use library::SavedItemType;
+pub use library::{SavedItemType, EpisodeDetails};
 
 const SPOTIFY_API_URL: &str = "https://api.spotify.com";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);

@@ -102,8 +102,8 @@ pub async fn get_rootlist() -> SpClientResult {
             ));
         }
     };
-    let spclient = session.spclient();
-    spclient.get_rootlist(0, None).await
+    use protobuf::Message;
+    Ok(crate::playlist_api::rootlist(&session).await?.write_to_bytes()?.into())
 }
 
 pub async fn get_radio_for_track(track_uri: &SpotifyUri) -> SpClientResult {

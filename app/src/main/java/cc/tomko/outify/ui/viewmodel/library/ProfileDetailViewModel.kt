@@ -1,5 +1,6 @@
 package cc.tomko.outify.ui.viewmodel.library
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,13 +11,17 @@ import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
-import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.repository.CollectionSessionState
 import cc.tomko.outify.playback.PlaybackStateHolder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -46,9 +51,10 @@ class ProfileDetailViewModel @Inject constructor(
     val likedDao: LikedDao,
     val userProfile: UserProfile,
     private val savedStateHandle: SavedStateHandle,
-    settingsRepository: SettingsRepository,
+    private val collectionSessions: CollectionSessionState,
 ) : ViewModel() {
-    val currentUserId = settingsRepository.userId
+    val currentUserId = collectionSessions.current.map { it?.session?.accountId }
+    private val followMutex = Mutex()
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     val uiState: StateFlow<ProfileUiState> = _uiState
 
@@ -68,44 +74,67 @@ class ProfileDetailViewModel @Inject constructor(
     }
 
     fun toggleFollow() {
-        val currentState = _uiState.value
-        if (currentState is ProfileUiState.Success) {
-            val uri = currentState.profile?.uri ?: return
-            _uiState.value = currentState.copy(isFollowing = !currentState.isFollowing)
-
-            viewModelScope.launch {
+        viewModelScope.launch {
+            followMutex.withLock {
+                val currentState = _uiState.value as? ProfileUiState.Success ?: return@withLock
+                val uri = currentState.profile?.uri ?: return@withLock
+                val lease = collectionSessions.requireCurrent()
                 val success = withContext(Dispatchers.IO) {
                     if (currentState.isFollowing) {
-                        spClient.saveItems(arrayOf(uri))
-                    } else {
                         spClient.deleteItems(arrayOf(uri))
+                    } else {
+                        spClient.saveItems(arrayOf(uri))
                     }
                 }
-                if (!success) {
-                    _uiState.value = currentState.copy(isFollowing = currentState.isFollowing)
+                collectionSessions.ensureCurrent(lease)
+                if (success && (_uiState.value as? ProfileUiState.Success)?.profile?.uri == uri) {
+                    _uiState.value = currentState.copy(isFollowing = !currentState.isFollowing)
+                } else if (!success) {
+                    Log.w("ProfileDetailViewModel", "Could not update user follow state")
                 }
             }
         }
     }
 
     suspend fun loadProfile(profileUri: String) {
+        _lastProfileUri = profileUri
         try {
             val username = profileUri.removePrefix("spotify:user:")
+            val lease = collectionSessions.requireCurrent()
 
-            val raw = userProfile.getUserProfile(username)
+            val raw = withContext(Dispatchers.IO) { userProfile.getUserProfile(username) }
+            collectionSessions.ensureCurrent(lease)
             if (raw == null) {
                 _uiState.value = ProfileUiState.Error("Profile not found")
                 return
             }
 
             val profile = json.decodeFromString<Profile>(raw)
-
             _uiState.value = ProfileUiState.Success(
                 profile = profile,
                 isFollowing = profile.isFollowing,
                 followersCount = profile.followersCount ?: 0,
                 followingCount = profile.followingCount ?: 0
             )
+            viewModelScope.launch {
+                try {
+                    followMutex.withLock {
+                        collectionSessions.ensureCurrent(lease)
+                        val following = withContext(Dispatchers.IO) { spClient.isFollowingUser(profile.uri) }
+                        collectionSessions.ensureCurrent(lease)
+                        val current = _uiState.value as? ProfileUiState.Success
+                        if (current?.profile?.uri == profile.uri) {
+                            _uiState.value = current.copy(isFollowing = following)
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w("ProfileDetailViewModel", "Could not refresh user follow state", error)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             e.printStackTrace()
             _uiState.value = ProfileUiState.Error("Profile not found")

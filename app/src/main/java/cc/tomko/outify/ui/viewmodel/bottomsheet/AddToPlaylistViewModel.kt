@@ -12,6 +12,7 @@ import cc.tomko.outify.data.database.playlist.PlaylistItemEntity
 import cc.tomko.outify.data.database.playlist.canModify
 import cc.tomko.outify.data.database.playlist.toDomain
 import cc.tomko.outify.data.metadata.Metadata
+import cc.tomko.outify.data.repository.CollectionSessionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -28,7 +31,9 @@ class AddToPlaylistViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val spClient: SpClient,
     private val metadata: Metadata,
+    private val collectionSessions: CollectionSessionState,
 ) : ViewModel() {
+    private val mutationMutex = Mutex()
     private val usernameFlow = flow {
         emit(spClient.username() ?: "no-username")
     }.stateIn(
@@ -58,94 +63,52 @@ class AddToPlaylistViewModel @Inject constructor(
 
     fun addToPlaylist(tracks: List<Track>, playlist: Playlist) {
         viewModelScope.launch {
-            val trackUris = tracks.map { it.uri }
-            val maxPosition = playlistDao.getMaxPosition(playlist.id)
+            mutationMutex.withLock {
+                val lease = collectionSessions.requireCurrent()
+                val trackUris = tracks.map { it.uri }
+                val success = withContext(Dispatchers.IO) {
+                    spClient.addToPlaylist(playlist.id, trackUris.toTypedArray())
+                }
+                collectionSessions.ensureCurrent(lease)
+                if (!success) return@withLock
+                val maxPosition = playlistDao.getMaxPosition(playlist.id)
 
-            val newItems = tracks.mapIndexed { index, track ->
-                PlaylistItemEntity(
-                    playlistId = playlist.id,
-                    position = maxPosition + 1 + index,
-                    trackUri = track.uri,
-                    addedBy = withContext(Dispatchers.IO) { spClient.username() } ?: "no-username",
-                    timestamp = System.currentTimeMillis(),
-                    seenAt = 0L,
-                    isPublic = false,
-                )
-            }
-
-            playlistDao.insertItems(newItems)
-
-            val success = withContext(Dispatchers.IO) {
-                spClient.addToPlaylist(playlist.id, trackUris.toTypedArray())
-            }
-
-            if (!success) {
-                playlistDao.deleteItemsByUris(playlist.id, trackUris)
+                val newItems = tracks.mapIndexed { index, track ->
+                    PlaylistItemEntity(
+                        playlistId = playlist.id,
+                        position = maxPosition + 1 + index,
+                        trackUri = track.uri,
+                        addedBy = lease.session.accountId,
+                        timestamp = System.currentTimeMillis(),
+                        seenAt = 0L,
+                        isPublic = false,
+                    )
+                }
+                playlistDao.insertItems(newItems)
             }
         }
     }
 
     fun addTrackToPlaylist(track: Track, playlist: Playlist) {
-        viewModelScope.launch {
-            val maxPosition = playlistDao.getMaxPosition(playlist.id)
-
-            val newItem = PlaylistItemEntity(
-                playlistId = playlist.id,
-                position = maxPosition + 1,
-                trackUri = track.uri,
-                addedBy = withContext(Dispatchers.IO) { spClient.username() } ?: "no-username",
-                timestamp = System.currentTimeMillis(),
-                seenAt = 0L,
-                isPublic = false,
-            )
-
-            playlistDao.insertItems(listOf(newItem))
-
-            val success = withContext(Dispatchers.IO) {
-                spClient.addToPlaylist(playlist.id, arrayOf(track.uri))
-            }
-
-            if (!success) {
-                playlistDao.deleteItemsByUris(playlist.id, listOf(track.uri))
-            }
-        }
+        addToPlaylist(listOf(track), playlist)
     }
 
     fun removeFromPlaylist(tracks: List<Track>, playlist: Playlist) {
         viewModelScope.launch {
-            val trackUris = tracks.map { it.uri }
-            val playlistWithItems = playlistDao.getPlaylistWithItems(playlist.id)
-            val removedItems =
-                playlistWithItems?.items?.filter { it.trackUri in trackUris } ?: emptyList()
-
-            playlistDao.deleteItemsByUris(playlist.id, trackUris)
-
-            val success = withContext(Dispatchers.IO) {
-                spClient.deleteFromPlaylist(playlist.id, trackUris.toTypedArray())
-            }
-
-            if (!success) {
-                playlistDao.insertItems(removedItems)
+            mutationMutex.withLock {
+                val lease = collectionSessions.requireCurrent()
+                val trackUris = tracks.map { it.uri }
+                val success = withContext(Dispatchers.IO) {
+                    spClient.deleteFromPlaylist(playlist.id, trackUris.toTypedArray())
+                }
+                collectionSessions.ensureCurrent(lease)
+                if (success) playlistDao.deleteItemsByUris(playlist.id, trackUris)
             }
         }
     }
 
     fun removeTrackFromPlaylist(track: Track, playlist: Playlist) {
-        viewModelScope.launch {
-            val trackUris = listOf(track.uri)
-            val playlistWithItems = playlistDao.getPlaylistWithItems(playlist.id)
-            val removedItem = playlistWithItems?.items?.find { it.trackUri == track.uri }
-
-            playlistDao.deleteItemsByUris(playlist.id, trackUris)
-
-            val success = withContext(Dispatchers.IO) {
-                spClient.deleteFromPlaylist(playlist.id, arrayOf(track.uri))
-            }
-
-            if (!success && removedItem != null) {
-                playlistDao.insertItems(listOf(removedItem))
-            }
-        }
+        removeFromPlaylist(listOf(track), playlist)
     }
 
     data class PlaylistUi(
