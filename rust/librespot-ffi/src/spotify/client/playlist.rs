@@ -65,7 +65,3 @@ impl SpotifyClient {
         Ok(StatusCode::OK)
     }
 }
-
-        Ok(res.status())
-    }
-}

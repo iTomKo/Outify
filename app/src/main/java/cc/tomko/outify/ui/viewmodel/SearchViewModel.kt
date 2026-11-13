@@ -20,6 +20,8 @@ import cc.tomko.outify.core.model.getCover
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.dao.LikedDao
 import cc.tomko.outify.data.metadata.Metadata
+import cc.tomko.outify.data.repository.CollectionLease
+import cc.tomko.outify.data.repository.CollectionSessionState
 import cc.tomko.outify.data.repository.SearchRepository
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.PlaybackStateHolder
@@ -28,17 +30,21 @@ import cc.tomko.outify.reccobeats.Recommendations
 import cc.tomko.outify.ui.model.search.SearchHistoryItem
 import cc.tomko.outify.ui.model.search.SearchResultType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -63,6 +69,7 @@ class SearchViewModel @Inject constructor(
     private val likedDao: LikedDao,
     private val json: Json,
     private val userProfile: UserProfile,
+    private val collectionSessions: CollectionSessionState,
 ) : ViewModel() {
     private val queryFlow = MutableStateFlow("")
 
@@ -72,8 +79,9 @@ class SearchViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
-    private val _isLoggedIn = MutableStateFlow(false)
-    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
+    val isLoggedIn: StateFlow<Boolean> = collectionSessions.current
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, collectionSessions.current.value != null)
 
     private val _isRecommendationMode = MutableStateFlow(false)
     val isRecommendationMode: StateFlow<Boolean> = _isRecommendationMode
@@ -116,15 +124,14 @@ class SearchViewModel @Inject constructor(
     val authors: StateFlow<Map<String, Profile>> = _authors
 
     init {
-        _isLoggedIn.value = spClient.isOAuthAuthenticated()
-
         viewModelScope.launch {
             queryFlow
                 .debounce(500)
                 .distinctUntilChanged()
-                .collectLatest { query ->
+                .combine(collectionSessions.current) { query, lease -> query to lease }
+                .collectLatest { (query, lease) ->
 
-                    if (query.isBlank()) {
+                    if (query.isBlank() || lease == null) {
                         _results.value = emptyList()
                         return@collectLatest
                     }
@@ -144,82 +151,84 @@ class SearchViewModel @Inject constructor(
                         SearchUiModel.SkeletonItem(5),
                     )
 
-                    launch {
-                        searchSection("track", R.string.search_section_tracks) { uris ->
-                            withContext(Dispatchers.IO) {
-                                metadata.getTrackMetadata(uris).map { track ->
-                                    SearchUiModel.TrackItem(track.uri, track)
+                    coroutineScope {
+                        launch {
+                            searchSection(query, lease, "track", R.string.search_section_tracks) { uris ->
+                                withContext(Dispatchers.IO) {
+                                    metadata.getTrackMetadata(uris).map { track ->
+                                        SearchUiModel.TrackItem(track.uri, track)
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    launch {
-                        searchSection("artist", R.string.search_section_artists) { uris ->
-                            withContext(Dispatchers.IO) {
-                                uris.mapNotNull { uri ->
+                        launch {
+                            searchSection(query, lease, "artist", R.string.search_section_artists) { uris ->
+                                withContext(Dispatchers.IO) {
+                                    uris.mapNotNull { uri ->
+                                        runCatching {
+                                            metadata.getArtistMetadata(uri)
+                                        }.getOrNull()?.let { artist ->
+                                            SearchUiModel.ArtistItem(uri, artist)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        launch {
+                            searchSection(query, lease, "album", R.string.search_section_albums) { uris ->
+                                withContext(Dispatchers.IO) {
+                                    uris.mapNotNull { uri ->
+                                        runCatching {
+                                            metadata.getAlbumMetadata(uri)
+                                        }.getOrNull()?.let { album ->
+                                            SearchUiModel.AlbumItem(uri, album)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        launch {
+                            searchSection(query, lease, "playlist", R.string.search_section_playlists) { uris ->
+                                withContext(Dispatchers.IO) {
+                                    uris.mapNotNull { uri ->
+                                        runCatching {
+                                            metadata.getPlaylistMetadata(uri, true)
+                                        }.getOrNull()?.let { playlist ->
+                                            SearchUiModel.PlaylistItem(uri, playlist)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        launch {
+                            searchSection(query, lease, "show", R.string.search_section_shows) { uris ->
+                                withContext(Dispatchers.IO) {
+                                    uris.mapNotNull { uri ->
+                                        runCatching {
+                                            metadata.getShowMetadata(uri)
+                                        }.getOrNull()?.let { show ->
+                                            SearchUiModel.ShowItem(uri, show)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        launch {
+                            searchSection(query, lease, "episode", R.string.search_section_episodes) { uris ->
+                                withContext(Dispatchers.IO) {
                                     runCatching {
-                                        metadata.getArtistMetadata(uri)
-                                    }.getOrNull()?.let { artist ->
-                                        SearchUiModel.ArtistItem(uri, artist)
-                                    }
+                                        metadata.getEpisodeMetadata(uris)
+                                    }.getOrNull()
+                                        ?.map { episode ->
+                                            SearchUiModel.EpisodeItem(episode.uri, episode)
+                                        }
+                                        ?: emptyList()
                                 }
-                            }
-                        }
-                    }
-
-                    launch {
-                        searchSection("album", R.string.search_section_albums) { uris ->
-                            withContext(Dispatchers.IO) {
-                                uris.mapNotNull { uri ->
-                                    runCatching {
-                                        metadata.getAlbumMetadata(uri)
-                                    }.getOrNull()?.let { album ->
-                                        SearchUiModel.AlbumItem(uri, album)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    launch {
-                        searchSection("playlist", R.string.search_section_playlists) { uris ->
-                            withContext(Dispatchers.IO) {
-                                uris.mapNotNull { uri ->
-                                    runCatching {
-                                        metadata.getPlaylistMetadata(uri, true)
-                                    }.getOrNull()?.let { playlist ->
-                                        SearchUiModel.PlaylistItem(uri, playlist)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    launch {
-                        searchSection("show", R.string.search_section_shows) { uris ->
-                            withContext(Dispatchers.IO) {
-                                uris.mapNotNull { uri ->
-                                    runCatching {
-                                        metadata.getShowMetadata(uri)
-                                    }.getOrNull()?.let { show ->
-                                        SearchUiModel.ShowItem(uri, show)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    launch {
-                        searchSection("episode", R.string.search_section_episodes) { uris ->
-                            withContext(Dispatchers.IO) {
-                                runCatching {
-                                    metadata.getEpisodeMetadata(uris)
-                                }.getOrNull()
-                                    ?.mapIndexed { index, episode ->
-                                        SearchUiModel.EpisodeItem(uris[index], episode)
-                                    }
-                                    ?: emptyList()
                             }
                         }
                     }
@@ -326,19 +335,31 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun searchSection(
+        query: String,
+        lease: CollectionLease,
         type: String,
         headerRes: Int,
         fetch: suspend (List<String>) -> List<SearchUiModel>,
     ) {
         try {
-            val results = repository.searchByType(queryFlow.value, type)
+            val results = repository.searchByType(query, type)
+            currentCoroutineContext().ensureActive()
+            collectionSessions.ensureCurrent(lease)
+            if (queryFlow.value != query) return
             val items = if (results.isNotEmpty()) {
                 fetch(results.map { it.uri })
             } else emptyList()
-            replaceSkeleton(headerRes, items)
+            currentCoroutineContext().ensureActive()
+            collectionSessions.ensureCurrent(lease)
+            if (queryFlow.value == query) replaceSkeleton(headerRes, items)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
+            currentCoroutineContext().ensureActive()
             Log.w("SearchViewModel", "$type search failed", e)
-            replaceSkeleton(headerRes, emptyList())
+            if (queryFlow.value == query && collectionSessions.current.value == lease) {
+                replaceSkeleton(headerRes, emptyList())
+            }
         }
     }
 

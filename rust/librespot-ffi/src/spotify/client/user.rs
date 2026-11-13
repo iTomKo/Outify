@@ -1,7 +1,7 @@
 use reqwest::StatusCode;
 
 use crate::{
-    spotify::{error::SpotifyApiError, search::extract_all_uris},
+    spotify::error::SpotifyApiError,
     types::responses::{ArtistsOrTracksPage, CurrentUserResponse},
 };
 
@@ -15,44 +15,8 @@ impl SpotifyClient {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<String>, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
-
-        let mut params = vec![("q", query.to_string()), ("type", types.to_string())];
-
-        if let Some(l) = limit {
-            params.push(("limit", l.to_string()));
-        }
-
-        if let Some(o) = offset {
-            params.push(("offset", o.to_string()));
-        }
-
-        let res = self
-            .client
-            .get(format!("{}/v1/search", SPOTIFY_API_URL))
-            .query(&params)
-            .bearer_auth(token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            let status = res.status().as_str().to_string();
-            let body = res.text().await.unwrap_or_default();
-            return Err(SpotifyApiError::Generic(format!(
-                "search failed with status {status}, query '{query}': {body}"
-            )));
-        }
-
-        let text = res.text().await?;
-
-        let parsed: crate::spotify::search::SearchResponse = serde_json::from_str(&text)?;
-
-        let uris = extract_all_uris(parsed);
-
-        Ok(uris)
+        let session = crate::session::with_session(Clone::clone)?;
+        Ok(crate::spotify::search::search(&session, query, types, limit, offset).await?)
     }
 
     pub async fn get_current_user(&self) -> Result<CurrentUserResponse, SpotifyApiError> {

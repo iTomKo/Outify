@@ -8,24 +8,34 @@ By using custom credentials you should no longer be easy to get flagged and limi
 
 ### Why are these credentials required?
 Outify uses Spotify Web API to interact with your profile.
-- playlist edits and saving/removing playlists
-- following/unfollowing users and podcast library operations
-- searching
 - personal top artists/tracks
 - ..
 
 Without these credentials you are unable to use these features.
 
 ### Collection with playback login
-Tracks, albums, and followed artists use the authenticated **playback session**, not
+Library and playlist operations use the authenticated **playback session**, not
 the separate Web API account. Playback login alone is sufficient to:
+- search Spotify's catalog (tracks, artists, albums, playlists, shows, and episodes)
 - like/unlike tracks and synchronize liked songs
 - save/remove albums and read saved albums
 - follow/unfollow artists and read followed artists
+- create and edit playlists, add/remove tracks or episodes, and save/remove playlists
+- save/remove podcast episodes, follow/unfollow shows, and read both collections
+- read episode parent-show and resume information
+- follow/unfollow Spotify users and read their follow state
 
 These operations always target the playback account, even if the Web API account
 is different. A failed playback-session request does not fall back to Web API OAuth.
-Playlist and podcast operations retain their existing authentication requirements.
+
+Playlist mutations use revisioned playlist-v2 protobuf requests. Podcast collections
+use collection-v2 (`listenlater` for saved episodes, `show` for followed shows).
+Catalog search, user follows, and episode resume information use Pathfinder. Its persisted-query
+hashes are discovered from Spotify's public web-player JavaScript and cached in
+memory; credentials are sent only to authenticated Spotify API requests.
+Search uses the per-category queries from the web player's lazy-loaded search bundle,
+with the same playback session and no Web API fallback. OAuth is still used for
+personal top artists/tracks.
 
 ### Using custom credentials
 I. Visit [Spotify Developer's Dashboard](https://developer.spotify.com/dashboard). (You have to be logged in)

@@ -99,6 +99,10 @@ pub extern "system" fn spotify_search(
         Ok(u) => u,
         Err(e) => {
             error!("spotify search api failed: {e}");
+            let _ = env.throw_new(
+                "java/lang/RuntimeException",
+                format!("Spotify search failed: {e}"),
+            );
             return std::ptr::null_mut();
         }
     };

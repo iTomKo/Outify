@@ -33,11 +33,12 @@ class SpClient @Inject constructor() {
     external fun username(): String?
 
     external fun getCurrentUserProfile(): String?
+    /** Pathfinder catalog search using playback login; offset and limit apply to each requested type. */
     external fun search(
         query: String,
         type: String,
         offset: Int = -1,
-        pages: Int = -1
+        limit: Int = -1
     ): Array<String>
 
     external fun searchContext(

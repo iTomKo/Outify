@@ -29,6 +29,8 @@ static SCRIPTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"https://open\.spotifycdn\.com/cdn/build/web-player/web-player\.[a-zA-Z0-9]+\.js"#)
         .unwrap()
 });
+static CHUNK_ENTRIES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?:^|[,{])\s*([0-9]+)\s*:\s*"([A-Za-z0-9_~.-]+)""#).unwrap());
 
 async fn hash(operation: &str, rejected: Option<&str>) -> Result<String, Error> {
     let mut registry = HASHES.lock().await;
@@ -49,7 +51,12 @@ async fn hash(operation: &str, rejected: Option<&str>) -> Result<String, Error> 
         .ok_or_else(|| Error::unavailable("Spotify web player script was not found"))?
         .as_str();
     let script = public_text(&public, url).await?;
-    let hashes = parse_hashes(&script);
+    let mut hashes = parse_hashes(&script);
+    if !hashes.contains_key(operation) && operation.starts_with("search") {
+        if let Some(url) = search_script(&script) {
+            hashes.extend(parse_hashes(&public_text(&public, &url).await?));
+        }
+    }
     let value = hashes.get(operation).cloned().ok_or_else(|| {
         Error::unavailable(format!("Spotify web player has no {operation} operation"))
     })?;
@@ -89,6 +96,33 @@ fn parse_hashes(script: &str) -> HashMap<String, String> {
         .captures_iter(script)
         .map(|capture| (capture[1].to_owned(), capture[2].to_owned()))
         .collect()
+}
+
+/// Resolve the search route from the JS chunk maps, not the later CSS hash map.
+/// Only a fixed Spotify CDN host is used; no JavaScript is executed.
+fn search_script(script: &str) -> Option<String> {
+    // Other modules also assign `.u` (for example `.u=[]`) before the chunk loader.
+    script.split(".u=").skip(1).find_map(|runtime| {
+        let (runtime, _) = runtime.split_once(".js\"")?;
+        let entries: Vec<_> = CHUNK_ENTRIES.captures_iter(runtime).collect();
+        let id = entries
+            .iter()
+            .find(|entry| &entry[2] == "xpui-routes-search")?
+            .get(1)?
+            .as_str();
+        let hash = entries
+            .iter()
+            .find(|entry| {
+                &entry[1] == id
+                    && (8..=64).contains(&entry[2].len())
+                    && entry[2].bytes().all(|byte| byte.is_ascii_hexdigit())
+            })?
+            .get(2)?
+            .as_str();
+        Some(format!(
+            "https://open.spotifycdn.com/cdn/build/web-player/xpui-routes-search.{hash}.js"
+        ))
+    })
 }
 
 pub async fn query(
@@ -260,6 +294,38 @@ mod tests {
             let hash = hash(operation, None).await.unwrap();
             assert_eq!(hash.len(), 64);
         }
+    }
+
+    #[tokio::test]
+    #[ignore = "downloads public Spotify search assets; no authentication is used"]
+    async fn public_search_bundle_exposes_all_search_operations() {
+        for operation in [
+            "searchTracks",
+            "searchArtists",
+            "searchAlbums",
+            "searchPlaylists",
+            "searchPodcasts",
+            "searchEpisodes",
+            "searchAudiobooks",
+        ] {
+            assert_eq!(hash(operation, None).await.unwrap().len(), 64);
+        }
+    }
+
+    #[test]
+    fn discovers_the_search_chunk_without_confusing_its_css_hash_or_running_js() {
+        let runtime = r#"e.u=[],e.s=[];r.u=e=>({44:"xpui-routes-search",55:"other"}[e]||e)+"."+{44:"bdb477e8",55:"11223344"}[e]+".js",r.css=e=>({44:"bad0cafe"}[e])+".css";t.u=[]"#;
+        assert_eq!(
+            search_script(runtime).as_deref(),
+            Some("https://open.spotifycdn.com/cdn/build/web-player/xpui-routes-search.bdb477e8.js")
+        );
+        assert!(search_script(r#"r.u=e=>({44:"xpui-routes-search"}[e])+".js""#).is_none());
+        assert!(
+            search_script(
+                r#"r.u=e=>({44:"xpui-routes-search"}[e])+"."+{44:"../../other"}[e]+".js""#
+            )
+            .is_none()
+        );
     }
 
     #[test]

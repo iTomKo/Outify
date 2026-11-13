@@ -281,13 +281,13 @@
     <string name="onb_view_content">View artists, albums and playlists</string>
     <string name="onb_keep_synced">Keep your listening synced</string>
     <string name="onb_playback_connected">Playback login connected</string>
-    <string name="onb_account_login_desc">A Spotify Premium subscription is required for playback. Optional account login enables Spotify search and personal top artists and tracks. Library, playlist and social actions use your playback login.</string>
+    <string name="onb_account_login_desc">A Spotify Premium subscription is required for playback. Optional account login enables personal top artists and tracks. Search, library, playlist and social actions use your playback login.</string>
     <string name="onb_like_tracks">Like and unlike tracks, albums and artists</string>
     <string name="onb_manage_playlists">Create and manage your playlists</string>
     <string name="onb_account_connected">Account connected</string>
     <string name="onb_why_two">Why two logins?</string>
     <string name="onb_librespot_desc">Outify uses librespot to stream audio. librespot authenticates with Spotify\'s streaming protocol using anonymous credentials — it operates independently of your Spotify account and cannot access your personal data.</string>
-    <string name="onb_oauth_desc">This optional OAuth login enables Spotify search and personal top artists and tracks. Streaming, library, playlist and social features use your playback login instead.</string>
+    <string name="onb_oauth_desc">This optional OAuth login enables personal top artists and tracks. Search, streaming, library, playlist and social features use your playback login instead.</string>
     <string name="onb_premium_required">Spotify Premium required</string>
     <string name="onb_premium_learn">Outify only works with a Spotify Premium account. Tap to learn why.</string>
     <string name="onb_required_streaming">Required for audio streaming.</string>
@@ -374,7 +374,7 @@
     <string name="settings_lyrics_fallback_desc">When Spotify has no lyrics, look for synced lyrics on lrclib.net. Sends the track title, artist, album and duration to LRCLIB.</string>
     <string name="settings_connect_desc">Make Outify the active device to stream from</string>
     <string name="settings_playback_login_desc">This login is mandatory to allow for playback. It uses fake Spotify credentials to stream audio.</string>
-    <string name="settings_account_login_desc">This optional login enables Spotify search and personal top artists and tracks. Library, playlist, podcast and user-follow operations use your playback login.</string>
+    <string name="settings_account_login_desc">This optional login enables personal top artists and tracks. Search, library, playlist, podcast and user-follow operations use your playback login.</string>
     <string name="settings_librespot_creds">librespot · anonymous streaming credentials</string>
     <string name="settings_oauth_creds">Your Spotify account · OAuth</string>
     <string name="settings_connect_name">Spotify Connect name</string>
