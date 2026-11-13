@@ -151,7 +151,7 @@ class PlaybackService : MediaLibraryService(),
     private val becomingNoisyListener = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != AudioManager.ACTION_AUDIO_BECOMING_NOISY) return
-            if (player.playWhenReady) player.pause()
+            if (playbackStateHolder.localPlaybackAllowed && player.playWhenReady) player.pause()
         }
     }
 
@@ -244,19 +244,15 @@ class PlaybackService : MediaLibraryService(),
         selfBrowserFuture = browserFuture
         browserFuture.addListener({ browserFuture.get() }, MoreExecutors.directExecutor())
 
-        if (requestAudioFocus()) {
-            Log.i(TAG, "Focus requested :)")
-        } else {
-            Log.i(TAG, "Focus failed to request :(")
-        }
+        // Player acquires focus only for local output, never for a remote media session.
 
         scope.launch {
             combine(
-                playbackStateHolder.state.map { it.currentAudio to it.repeatMode }.distinctUntilChanged(),
+                playbackStateHolder.state.map { Triple(it.currentAudio, it.repeatMode, it.shuffleEnabled) }.distinctUntilChanged(),
                 settings.shuffleEnabled.distinctUntilChanged(),
             ) { playback, shuffle -> playback to shuffle }
-                .collect { (_, shuffle) ->
-                    shuffleEnabled = shuffle
+                .collect { (playback, shuffle) ->
+                    shuffleEnabled = if (playbackStateHolder.localPlaybackAllowed) shuffle else playback.third
                     updateNotification()
                 }
         }
@@ -326,6 +322,7 @@ class PlaybackService : MediaLibraryService(),
     }
 
     private fun toggleRepeatMode() {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         val state = playbackStateHolder.state.value
         val repeatMode = state.repeatMode.next()
 
@@ -339,6 +336,7 @@ class PlaybackService : MediaLibraryService(),
     }
 
     private fun toggleShuffle() {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         scope.launch {
             // Read after the preceding toggle was saved, so rapid taps alternate
             // instead of both applying the same stale notification snapshot.
@@ -369,7 +367,7 @@ class PlaybackService : MediaLibraryService(),
             val buttons = listOf(
                 shuffleNotificationButton(
                     enabled = shuffle,
-                    hasAudio = hasAudio,
+                    hasAudio = hasAudio && playbackStateHolder.localPlaybackAllowed,
                     displayName = getString(if (shuffle) R.string.shuffle_turn_off else R.string.shuffle_turn_on),
                 ),
                 CommandButton.Builder(
@@ -411,6 +409,7 @@ class PlaybackService : MediaLibraryService(),
                         )
                     )
                     .setSessionCommand(MediaSessionConstants.CommandToggleRepeatMode)
+                    .setEnabled(hasAudio && playbackStateHolder.localPlaybackAllowed)
                     .build(),
             )
             session.setMediaButtonPreferences(buttons)
@@ -436,12 +435,14 @@ class PlaybackService : MediaLibraryService(),
 
     override fun onRepeatModeChanged(repeatMode: Int) {
         updateNotification()
+        if (!playbackStateHolder.localPlaybackAllowed) return
         offloadScope.launch {
             settings.setRepeat(repeatMode != REPEAT_MODE_OFF)
         }
     }
 
     override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         player.shuffleModeEnabled = shuffleModeEnabled
     }
 
@@ -453,7 +454,7 @@ class PlaybackService : MediaLibraryService(),
         selfBrowserFuture = null
 
         mediaLibrarySession?.run {
-            player.stop()
+            if (playbackStateHolder.localPlaybackAllowed) player.stop()
             player.release()
             release()
             mediaLibrarySession = null

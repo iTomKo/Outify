@@ -3,6 +3,8 @@ package cc.tomko.outify.ui.viewmodel.bottomsheet
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cc.tomko.outify.core.connect.NativeConnectDevicesClient
+import cc.tomko.outify.core.connect.ConnectTarget
+import cc.tomko.outify.core.connect.ConnectCommand
 import cc.tomko.outify.core.jam.JamClient
 import cc.tomko.outify.core.model.Device
 import cc.tomko.outify.core.spirc.SpircWrapper
@@ -29,6 +31,12 @@ class PlaybackDevicesViewModel @Inject constructor(
 ) : ViewModel() {
     private val deviceControls = PlaybackDeviceControls(deviceClient, sessions, spircWrapper.isUsableFlow, viewModelScope)
     val deviceState = deviceControls.state
+    val playback = spircWrapper.connectPlayback.snapshot
+    val controlError = spircWrapper.connectPlayback.error
+
+    fun setRemoteVolume(target: ConnectTarget, volume: Int) {
+        spircWrapper.submitRemote(ConnectCommand(target, "volume", volume.toLong()))
+    }
 
     private val jamControls = PlaybackJamControls(jamClient, viewModelScope)
     val jam = jamControls.jam

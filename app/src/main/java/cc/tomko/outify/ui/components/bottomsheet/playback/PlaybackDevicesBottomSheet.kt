@@ -44,12 +44,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.Slider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -80,6 +85,8 @@ fun PlaybackDevicesBottomSheet(
 
     val deviceState by viewModel.deviceState.collectAsState()
     val devices = deviceState.devices
+    val playback by viewModel.playback.collectAsState()
+    val controlError by viewModel.controlError.collectAsState()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -153,6 +160,23 @@ fun PlaybackDevicesBottomSheet(
             if (deviceState.isRefreshing) LinearProgressIndicator(Modifier.fillMaxWidth())
             deviceState.error?.let { message ->
                 Text(message, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            controlError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            playback?.takeIf { it.isRemote && it.volume != null && "volume" in it.allowed }?.let { remote ->
+                key(remote.target) {
+                    var volume by remember { mutableFloatStateOf(remote.volume!!.toFloat()) }
+                    var dragging by remember { androidx.compose.runtime.mutableStateOf(false) }
+                    LaunchedEffect(remote.volume, dragging) { if (!dragging) volume = remote.volume!!.toFloat() }
+                    Text(stringResource(R.string.devices_remote_volume, remote.deviceName), style = MaterialTheme.typography.labelLarge)
+                    Slider(
+                        value = volume, valueRange = 0f..65535f,
+                        onValueChange = { dragging = true; volume = it },
+                        onValueChangeFinished = {
+                            dragging = false
+                            viewModel.setRemoteVolume(remote.target, volume.toInt())
+                        },
+                    )
+                }
             }
 
             LazyColumn(

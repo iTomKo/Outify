@@ -22,6 +22,7 @@ mod collection;
 mod collection_api;
 mod collection_session;
 mod connect_devices;
+mod remote_playback;
 mod sync_request;
 mod native_request;
 mod playlist_api;

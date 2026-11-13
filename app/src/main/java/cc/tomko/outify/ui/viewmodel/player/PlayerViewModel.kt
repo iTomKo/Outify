@@ -63,13 +63,13 @@ class PlayerViewModel @Inject constructor(
             playbackStateHolder.estimatePosition().inWholeMilliseconds
         )
 
-    val isShuffling = settingsRepository.shuffleEnabled
+    val isShuffling = playbackStateHolder.state.map { it.shuffleEnabled }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val romanizeLyrics: StateFlow<Boolean> = settingsRepository.romanizeLyrics
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val repeatMode: Flow<RepeatMode> = settingsRepository.repeatMode
+    val repeatMode: Flow<RepeatMode> = playbackStateHolder.state.map { it.repeatMode }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val isLiked: StateFlow<Boolean> =
@@ -132,19 +132,16 @@ class PlayerViewModel @Inject constructor(
                 PlayerAction.Next -> spirc.playerNext()
                 PlayerAction.Previous -> {
                     spirc.playerPrevious()
-                    viewModelScope.launch {
-                        playbackStateHolder.seekTo(Duration.ZERO)
-                    }
                 }
 
                 is PlayerAction.SeekTo -> {
                     viewModelScope.launch {
-                        playbackStateHolder.seekTo(action.position.toDuration(DurationUnit.MILLISECONDS))
                         spirc.seekTo(action.position)
                     }
                 }
 
                 PlayerAction.RepeatToggle -> {
+                    if (!playbackStateHolder.localPlaybackAllowed) return@launch
                     val current = settingsRepository.repeatMode.first()
                     val next = current.next()
                     viewModelScope.launch {
@@ -155,6 +152,7 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 PlayerAction.ShuffleToggle -> {
+                    if (!playbackStateHolder.localPlaybackAllowed) return@launch
                     val newValue = !isShuffling.value
                     viewModelScope.launch {
                         settingsRepository.setShuffle(newValue)

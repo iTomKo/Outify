@@ -111,6 +111,7 @@ mod tests {
                 ("remote".into(), private),
             ]
             .into(),
+            ..Default::default()
         };
         let result = response(roster, "local".into(), session());
         assert_eq!(result.devices[0].id.as_deref(), Some("remote"));

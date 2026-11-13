@@ -596,6 +596,36 @@ pub async fn devices() -> Result<crate::types::responses::DevicesResponse, libre
     Ok(crate::connect_devices::response(roster, spirc.session().device_id().to_owned(), identity))
 }
 
+/// A read of the existing cache, never a second registration or HTTP request.
+pub fn playback_snapshot() -> Result<crate::remote_playback::Snapshot, librespot_core::Error> {
+    let (spirc, generation, identity) = device_runtime(None)?;
+    let roster = spirc.current_connect_devices()?;
+    crate::collection_session::ensure_current(&identity)?;
+    if !is_current_runtime(&spirc, generation) {
+        return Err(librespot_core::Error::unavailable("Connect runtime was replaced"));
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)
+        .map_err(librespot_core::Error::internal)?.as_millis() as i64;
+    Ok(crate::remote_playback::snapshot(&roster, spirc.session().device_id().to_owned(),
+        identity, generation, now, spirc.session().time_delta().saturating_mul(1000)))
+}
+
+pub async fn remote_command(command: crate::remote_playback::Command) -> Result<(), librespot_core::Error> {
+    let (spirc, generation, identity) = device_runtime(Some(&command.target.session))?;
+    let guard = || {
+        if generation != command.target.runtime || !is_current_runtime(&spirc, generation)
+            || SpircState::from_u8(STATE.load(Ordering::Acquire)) != SpircState::Ready {
+            return Err(librespot_core::Error::unavailable("Connect runtime was replaced"));
+        }
+        crate::remote_playback::validate(&spirc.current_connect_devices()?, &command, spirc.session().device_id())
+    };
+    guard()?;
+    let (method, endpoint, body) = crate::remote_playback::wire(&command, spirc.session().device_id())?;
+    crate::native_request::request_guarded(spirc.session(), &identity, method, &endpoint,
+        "application/json", &body, true, guard).await?;
+    Ok(())
+}
+
 /// Explicit selection is bound to the playback account the device picker displayed.
 pub async fn transfer_device(
     device_id: String,

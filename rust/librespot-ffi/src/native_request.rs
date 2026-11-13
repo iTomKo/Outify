@@ -12,6 +12,30 @@ pub async fn request(
     content_type: &str,
     body: &[u8],
 ) -> Result<Vec<u8>, Error> {
+    request_guarded(
+        session,
+        expected,
+        method,
+        endpoint,
+        content_type,
+        body,
+        false,
+        || Ok(()),
+    )
+    .await
+}
+
+/// The guard runs after pacing/authentication, immediately before the HTTP attempt.
+pub async fn request_guarded(
+    session: &Session,
+    expected: &CollectionSession,
+    method: Method,
+    endpoint: &str,
+    content_type: &str,
+    body: &[u8],
+    single_attempt: bool,
+    guard: impl Fn() -> Result<(), Error>,
+) -> Result<Vec<u8>, Error> {
     crate::sync_request::paced(|| async {
         ensure_current(expected)?;
         let url = if endpoint.starts_with('/') {
@@ -37,10 +61,14 @@ pub async fn request(
             .body(Bytes::copy_from_slice(body))?;
         ensure_current(expected)?;
         // HttpClient retries explicit 429s, but not transport failures after a mutation.
-        let response = tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            session.http_client().request_body(request),
-        )
+        guard()?;
+        let response = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            if single_attempt {
+                session.http_client().request_body_once(request).await
+            } else {
+                session.http_client().request_body(request).await
+            }
+        })
         .await
         .map_err(|_| Error::deadline_exceeded("native API request timed out"))??;
         ensure_current(expected)?;

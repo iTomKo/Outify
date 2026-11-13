@@ -35,6 +35,7 @@ class VolumeController @Inject constructor(
     }
 
     fun onRemoteVolumeChanged(spotifyVolume: Int) {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         playbackStateHolder.setVolume(spotifyVolume)
 
         if (!playbackStateHolder.state.value.isPlaying) return
@@ -55,6 +56,17 @@ class VolumeController @Inject constructor(
         val spotifyVolume =
             (current.toDouble() / max * SPOTIFY_MAX_VOLUME).toInt().coerceIn(0, SPOTIFY_MAX_VOLUME)
 
+        // Remote volume remains adjustable while paused, without mirroring it to Android.
+        // Capture before debounce so an old gesture can never affect a new target.
+        val remote = spirc.captureRemoteVolume(spotifyVolume)
+        if (!playbackStateHolder.localPlaybackAllowed) {
+            syncJob?.cancel()
+            if (remote != null) syncJob = scope.launch {
+                delay(50)
+                spirc.submitRemote(remote)
+            }
+            return
+        }
         playbackStateHolder.setVolume(spotifyVolume)
 
         if (!playbackStateHolder.state.value.isPlaying) return
@@ -62,7 +74,7 @@ class VolumeController @Inject constructor(
         syncJob?.cancel()
         syncJob = scope.launch {
             delay(50)
-            spirc.setVolume(spotifyVolume)
+            if (playbackStateHolder.localPlaybackAllowed) spirc.setVolume(spotifyVolume)
         }
     }
 

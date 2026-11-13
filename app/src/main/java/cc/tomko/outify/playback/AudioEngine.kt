@@ -211,7 +211,7 @@ class AudioEngine(
 
     fun resume() {
         // Start the track on the next PCM frame, never from a stale status alone.
-        if (stateHolder.playbackIntent.canPlay) outputPaused = false
+        if (stateHolder.localPlaybackAllowed && stateHolder.playbackIntent.canPlay) outputPaused = false
     }
 
     private fun resetSonic() {
@@ -250,7 +250,7 @@ class AudioEngine(
      */
     fun onPcmReady(size: Int, sampleRate: Int, channels: Int) {
         writeLock.withLock {
-            if (outputPaused || !stateHolder.playbackIntent.canPlay) return
+            if (outputPaused || !stateHolder.localPlaybackAllowed || !stateHolder.playbackIntent.canPlay) return
             pcmBuffer.order(ByteOrder.nativeOrder())
 
             if (!ensureAudioTrack(sampleRate, channels, PcmFormat.S16)) {

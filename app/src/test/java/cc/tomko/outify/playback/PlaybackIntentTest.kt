@@ -99,6 +99,7 @@ class PlaybackIntentTest {
     @Test
     fun `paused position stays frozen until explicit play`() = runBlocking {
         val holder = PlaybackStateHolder()
+        holder.setActiveDevice(true)
         holder.seekTo(12.seconds)
         holder.playbackIntent.pauseByUser()
         holder.setPlaying(true)

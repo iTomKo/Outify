@@ -8,6 +8,12 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.RadioResult
 import cc.tomko.outify.core.SpClient
+import cc.tomko.outify.core.connect.ConnectPlaybackMonitor
+import cc.tomko.outify.core.connect.ConnectCommand
+import cc.tomko.outify.core.connect.PlaybackRoute
+import cc.tomko.outify.core.connect.playbackRoute
+import cc.tomko.outify.core.connect.ConnectPlay
+import cc.tomko.outify.core.connect.dispatchPlaybackLoad
 import cc.tomko.outify.core.model.DevicesResponse
 import cc.tomko.outify.core.model.OutifyUri
 import cc.tomko.outify.data.repository.SavedQueueRepository
@@ -23,6 +29,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -49,6 +57,7 @@ class SpircWrapper @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val savedQueueRepository: SavedQueueRepository,
     private val json: Json,
+    val connectPlayback: ConnectPlaybackMonitor,
 ) : ISpircWrapper {
     val scope = CoroutineScope(
         Dispatchers.Main.immediate + SupervisorJob()
@@ -64,9 +73,45 @@ class SpircWrapper @Inject constructor(
 
     val isUsableFlow: StateFlow<Boolean> = _isUsable.asStateFlow()
 
+    init {
+        connectPlayback.start(isUsableFlow)
+        scope.launch {
+            playbackStateHolder.state.map { it.owner to (it.currentAudio != null) }.distinctUntilChanged()
+                .collect { (_, hasAudio) ->
+                    if (hasAudio) try {
+                        startPlaybackService()
+                    } catch (error: IllegalStateException) {
+                        Log.d(TAG, "Cannot start media session from background", error)
+                    }
+                }
+        }
+        scope.launch {
+            connectPlayback.error.collect { error ->
+                if (error != null) android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    /** null selects the local branch; false rejects unknown/restricted ownership. */
+    private fun routeRemote(action: String, value: Long? = null): Boolean? {
+        return when (val route = playbackRoute(playbackStateHolder.localPlaybackAllowed,
+            connectPlayback.snapshot.value, action, value)) {
+            PlaybackRoute.Local -> null
+            PlaybackRoute.Unavailable -> false
+            is PlaybackRoute.Remote -> {
+                if (route.command.target != playbackStateHolder.state.value.remoteTarget) false
+                else connectPlayback.submit(route.command)
+            }
+        }
+    }
+
+    fun captureRemoteVolume(volume: Int): ConnectCommand? = connectPlayback.capture("volume", volume.toLong())
+    fun submitRemote(command: ConnectCommand): Boolean = connectPlayback.submit(command)
+
     /** Reflects a lifecycle state published by [SpircController]. */
     fun onStateChanged(state: SpircState) {
         _isUsable.value = state.isUsable
+        if (!state.isUsable) connectPlayback.clear()
     }
 
     @Synchronized
@@ -78,6 +123,7 @@ class SpircWrapper @Inject constructor(
     /** Focus changes must not be mistaken for an explicit Play/Pause action. */
     @Synchronized
     fun pauseForAudioFocus() {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         playbackStateHolder.playbackIntent.pauseForAudioFocus()
         Spirc.setPlaybackPaused(true)
         scope.launch { playbackStateHolder.setPlaying(false) }
@@ -86,6 +132,7 @@ class SpircWrapper @Inject constructor(
 
     @Synchronized
     fun resumeAfterAudioFocus(): Boolean {
+        if (!playbackStateHolder.localPlaybackAllowed) return false
         if (!playbackStateHolder.playbackIntent.resumeAfterAudioFocus()) return false
         Spirc.setPlaybackPaused(false)
         return isUsable && Spirc.playerPlay()
@@ -93,6 +140,7 @@ class SpircWrapper @Inject constructor(
 
     @Synchronized
     fun enforcePause() {
+        if (!playbackStateHolder.localPlaybackAllowed) return
         if (playbackStateHolder.playbackIntent.canPlay) return
         Spirc.setPlaybackPaused(true)
         if (isUsable) Spirc.playerPause()
@@ -102,11 +150,13 @@ class SpircWrapper @Inject constructor(
         // Native teardown publishes no callback, so drop the gate here or the
         // wrapper would keep reporting itself as usable.
         _isUsable.value = false
+        connectPlayback.clear()
         Spirc.shutdown()
     }
 
     override suspend fun startRadio(trackUri: OutifyUri, shuffle: Boolean): Boolean {
         val generation = playbackStateHolder.playbackIntent.state.value.generation
+        val target = connectPlayback.snapshot.value?.target ?: return false
         return withContext(Dispatchers.IO) {
             val jsonResult = spClient.getRadioForTrack(trackUri.toUriString()) ?: return@withContext false
             val result: RadioResult = json.decodeFromString(jsonResult)
@@ -120,7 +170,8 @@ class SpircWrapper @Inject constructor(
 
             synchronized(this@SpircWrapper) {
                 // Fetching a radio can outlive a subsequent user pause or selection.
-                if (playbackStateHolder.playbackIntent.state.value.generation != generation) {
+                if (playbackStateHolder.playbackIntent.state.value.generation != generation
+                    || connectPlayback.snapshot.value?.target != target) {
                     return@synchronized false
                 }
                 if (shuffle) shuffleLoad(playlistUri) else load(uri, trackUri)
@@ -173,26 +224,32 @@ class SpircWrapper @Inject constructor(
     @Synchronized
     override fun load(context: OutifyUri?, playingTrackUri: OutifyUri?): Boolean {
         if (!requireReady("load")) return false
-        playByUser()
+        return dispatchPlaybackLoad(connectPlayback.snapshot.value,
+            ConnectPlay(context?.toUriString() ?: OutifyUri.Liked.toUriString(), playingTrackUri?.toUriString()),
+            connectPlayback::submit) {
+            playByUser()
 
-        scope.launch {
-            savedQueueRepository.setActiveQueueId(null)
+            scope.launch {
+                savedQueueRepository.setActiveQueueId(null)
 
-            val currentPosition = playbackStateHolder.estimatePosition().inWholeMilliseconds
-            settingsRepository.saveLastPlayback(
-                trackUri = playingTrackUri?.toUriString(),
-                contextUri = context?.toUriString(),
-                positionMs = if (currentPosition > 0) currentPosition else null
-            )
+                val currentPosition = playbackStateHolder.estimatePosition().inWholeMilliseconds
+                settingsRepository.saveLastPlayback(
+                    trackUri = playingTrackUri?.toUriString(),
+                    contextUri = context?.toUriString(),
+                    positionMs = if (currentPosition > 0) currentPosition else null
+                )
+            }
+
+            makeThisDeviceActive()
+            startForegroundPlaybackService()
+            Spirc.load(context?.toUriString(), playingTrackUri?.toUriString())
         }
-
-        makeThisDeviceActive()
-        startForegroundPlaybackService()
-        return Spirc.load(context?.toUriString(), playingTrackUri?.toUriString())
     }
 
     override fun setQueue(uris: Array<String>, playingTrackUri: String?): Boolean {
         if (!requireReady("setQueue")) return false
+        // Remote queue editing is not implemented; it must not steal playback.
+        if (connectPlayback.snapshot.value?.let { it.isLocal || it.target.deviceId.isBlank() } != true) return false
 
         makeThisDeviceActive()
         startForegroundPlaybackService()
@@ -202,6 +259,7 @@ class SpircWrapper @Inject constructor(
     @Synchronized
     override fun localLoad(uri: String): Boolean {
         if (!requireReady("localLoad")) return false
+        if (connectPlayback.snapshot.value?.let { it.isLocal || it.target.deviceId.isBlank() } != true) return false
         playByUser()
 
         scope.launch {
@@ -218,6 +276,7 @@ class SpircWrapper @Inject constructor(
      * @return <code>true</code> if success
      */
     override fun shuffle(enabled: Boolean): Boolean {
+        if (!playbackStateHolder.localPlaybackAllowed) return false
         scope.launch {
             savedQueueRepository.setActiveQueueId(null)
             settingsRepository.setShuffle(enabled)
@@ -234,6 +293,7 @@ class SpircWrapper @Inject constructor(
      * @return <code>true</code> if success
      */
     override fun repeat(repeat: Boolean, repeatTrack: Boolean): Boolean {
+        if (!playbackStateHolder.localPlaybackAllowed) return false
         scope.launch {
             settingsRepository.setRepeatMode(repeat, repeatTrack)
         }
@@ -248,20 +308,23 @@ class SpircWrapper @Inject constructor(
     @Synchronized
     override fun shuffleLoad(uri: String?): Boolean {
         if (!requireReady("shuffleLoad")) return false
-        playByUser()
+        return dispatchPlaybackLoad(connectPlayback.snapshot.value,
+            ConnectPlay(uri ?: OutifyUri.Liked.toUriString(), shuffle = true), connectPlayback::submit) {
+            playByUser()
 
-        scope.launch {
-            savedQueueRepository.setActiveQueueId(null)
-            settingsRepository.saveLastPlayback(
-                trackUri = null,
-                contextUri = uri,
-                positionMs = null
-            )
+            scope.launch {
+                savedQueueRepository.setActiveQueueId(null)
+                settingsRepository.saveLastPlayback(
+                    trackUri = null,
+                    contextUri = uri,
+                    positionMs = null
+                )
+            }
+
+            makeThisDeviceActive()
+            startForegroundPlaybackService()
+            Spirc.shuffleLoad(uri)
         }
-
-        makeThisDeviceActive()
-        startForegroundPlaybackService()
-        return Spirc.shuffleLoad(uri)
     }
 
     /**
@@ -270,6 +333,7 @@ class SpircWrapper @Inject constructor(
      * @return `true` if loaded successfully
      */
     override fun addToQueue(spotifyUri: String?): Boolean {
+        if (!playbackStateHolder.localPlaybackAllowed) return false
         if (!requireReady("addToQueue")) return false
 
         // TODO: cache in kotlin, so we can have faster UX
@@ -309,6 +373,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun setVolume(volume: Int): Boolean {
         if (!requireReady("setVolume")) return false
+        routeRemote("volume", volume.toLong())?.let { return it }
         return Spirc.setVolume(volume)
     }
 
@@ -348,6 +413,7 @@ class SpircWrapper @Inject constructor(
         // Checked before the optimistic UI update below, so a seek that cannot be
         // delivered does not leave the progress bar lying about the position.
         if (!requireReady("seekTo")) return false
+        routeRemote("seek_to", positionMs)?.let { return it }
 
         // Assuming it went successfully - pre-updating the position
         playbackStateHolder.seekTo(positionMs.toDuration(DurationUnit.MILLISECONDS))
@@ -368,6 +434,7 @@ class SpircWrapper @Inject constructor(
     @Synchronized
     override fun playerPlay(): Boolean {
         if (!requireReady("playerPlay")) return false
+        routeRemote("resume")?.let { return it }
 
         playByUser()
         startForegroundPlaybackService()
@@ -381,6 +448,7 @@ class SpircWrapper @Inject constructor(
      */
     @Synchronized
     override fun playerPause(): Boolean {
+        routeRemote("pause")?.let { return it }
         // Record intent even during a rebuild, before a delayed Playing event can arrive.
         playbackStateHolder.playbackIntent.pauseByUser()
         Spirc.setPlaybackPaused(true)
@@ -401,6 +469,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun playerNext(): Boolean {
         if (!requireReady("playerNext")) return false
+        routeRemote("skip_next")?.let { return it }
         return Spirc.playerNext()
     }
 
@@ -409,6 +478,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun playerPrevious(): Boolean {
         if (!requireReady("playerPrevious")) return false
+        routeRemote("skip_prev")?.let { return it }
         return Spirc.playerPrevious()
     }
 

@@ -1,11 +1,18 @@
 package cc.tomko.outify.playback.model
 
 import cc.tomko.outify.core.model.PlayableAudio
+import cc.tomko.outify.core.connect.ConnectTarget
+
+enum class PlaybackOwner { UNKNOWN, LOCAL, REMOTE }
 
 /**
  * Holds current playback state
  */
 data class PlaybackState(
+    val owner: PlaybackOwner = PlaybackOwner.UNKNOWN,
+    val localGeneration: Long = 0,
+    val remoteTarget: ConnectTarget? = null,
+    val deviceName: String? = null,
     val state: PlayState = PlayState.IDLE,
     val currentAudio: PlayableAudio? = null,
     val queue: List<PlayableAudio> = emptyList(),

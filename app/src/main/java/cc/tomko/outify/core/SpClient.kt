@@ -97,6 +97,9 @@ class SpClient @Inject constructor() {
      */
     external fun getDevices(): String?
 
+    external fun getConnectPlayback(): String?
+    external fun sendConnectCommand(commandJson: String): Boolean
+
     /**
      * Gets the count of available devices to stream playback from.
      */

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="devices_remote_volume">Volume on %1$s</string>
     <string name="devices_playback_not_ready">Device discovery needs a ready playback login. Sign in for playback or wait for reconnection.</string>
     <string name="devices_loading">Waiting for Spotify Connect devices…</string>
     <string name="app_name" translatable="false">Outify</string>

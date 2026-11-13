@@ -191,8 +191,13 @@ class SpircController @Inject constructor(
 
         Spirc.deviceCallback(object : SpircDeviceCallback {
             override fun becameActive() {
-                spirc.startPlaybackService()
-                playbackStateHolder.setActiveDevice(true)
+                // Reconcile through the generation-checked snapshot, not a delayed JNI event.
+                spirc.scope.launch {
+                    if (spirc.isUsable && spirc.connectPlayback.snapshot.value?.isLocal == true) {
+                        playbackStateHolder.setActiveDevice(true)
+                        spirc.startPlaybackService()
+                    }
+                }
             }
 
             override fun becameInactive() {

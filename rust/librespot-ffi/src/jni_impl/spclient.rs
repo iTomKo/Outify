@@ -489,6 +489,34 @@ pub extern "system" fn get_devices(mut env: JNIEnv, _class: JClass) -> jstring {
     }
 }
 
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getConnectPlayback")]
+pub extern "system" fn get_connect_playback(mut env: JNIEnv, _class: JClass) -> jstring {
+    let result = crate::spirc::playback_snapshot().and_then(|s| serde_json::to_string(&s).map_err(librespot_core::Error::internal));
+    match result {
+        Ok(json) => env.new_string(json).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut()),
+        Err(error) => {
+            let _ = env.throw_new("java/lang/IllegalStateException", error.to_string());
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_sendConnectCommand")]
+pub extern "system" fn send_connect_command(mut env: JNIEnv, _class: JClass, raw: JString) -> jboolean {
+    let result = (|| {
+        let raw: String = env.get_string(&raw).map_err(librespot_core::Error::internal)?.into();
+        let command = serde_json::from_str(&raw).map_err(librespot_core::Error::invalid_argument)?;
+        crate::network_rt().block_on(crate::spirc::remote_command(command))
+    })();
+    match result {
+        Ok(()) => 1,
+        Err(error) => {
+            let _ = env.throw_new("java/lang/IllegalStateException", format!("Remote control failed: {error}. Check playback before retrying."));
+            0
+        }
+    }
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_isOAuthAuthenticated")]
 pub extern "system" fn is_oauth_authenticated(_env: JNIEnv, _class: JClass) -> jboolean {
     let client = get_client();
