@@ -44,4 +44,15 @@
     <string name="common_add_to_queue">Добавить в очередь</string>
     <string name="common_end_of_queue">Конец очереди</string>
     <string name="common_play_next">Воспроизвести далее</string>
+    <string name="common_liked_songs">Любимые песни</string>
+    <string name="common_error">Ошибка</string>
+    <string name="common_retry">Повторить</string>
+    <string name="common_popular_tracks">Популярные треки</string>
+    <string name="common_profile_picture">Фото профиля</string>
+    <string name="common_logged_in">Вход выполнен</string>
+    <string name="common_add">Добавить</string>
+    <string name="common_remove">Удалить</string>
+    <string name="common_not_now">Не сейчас</string>
+    <string name="common_filter_and_sort">Фильтр и сортировка</string>
+    <string name="common_restricted">Ограниченно</string>
 </resources>
