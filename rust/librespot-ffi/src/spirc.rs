@@ -693,6 +693,7 @@ fn handle_event(event: PlayerEvent) {
             position_ms,
         } => {
             clear_command_ack();
+            notify_buffer_state("stopped");
             if !PLAYBACK_INTENT.can_play() {
                 // Commands queued before a pause (or a transfer during rebuild) can
                 // still emit Playing. Stop the decoder as well as Android output.
@@ -723,6 +724,7 @@ fn handle_event(event: PlayerEvent) {
             clear_command_ack();
             IS_PLAYING.store(false, std::sync::atomic::Ordering::Relaxed);
             LAST_POSITION.store(position_ms, std::sync::atomic::Ordering::Relaxed);
+            notify_buffer_state("stopped");
 
             update_current_track(track_id.clone());
 
@@ -756,6 +758,7 @@ fn handle_event(event: PlayerEvent) {
         PlayerEvent::Stopped { .. } => {
             clear_command_ack();
             IS_PLAYING.store(false, Ordering::Relaxed);
+            notify_buffer_state("stopped");
             crate::jni_utils::playback::on_player_status(false);
         }
         PlayerEvent::TimeToPreloadNextTrack {

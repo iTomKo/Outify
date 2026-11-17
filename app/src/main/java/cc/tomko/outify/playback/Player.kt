@@ -24,7 +24,6 @@ import cc.tomko.outify.core.model.toPlayableAudio
 import cc.tomko.outify.core.spirc.SpircWrapper
 import cc.tomko.outify.data.repository.SettingsRepository
 import cc.tomko.outify.playback.callbacks.PlayerEventCallback
-import cc.tomko.outify.playback.model.PlayState
 import cc.tomko.outify.playback.model.RepeatMode
 import cc.tomko.outify.services.PlaybackService
 import coil3.Bitmap
@@ -337,12 +336,7 @@ class Player @Inject constructor(
                 .build()
         )
 
-        val playbackState = when {
-            ps.state == PlayState.BUFFERING -> STATE_BUFFERING
-            playlist.isEmpty() -> STATE_IDLE
-            ps.isPlaying -> STATE_READY
-            else -> STATE_READY
-        }
+        val playbackState = if (ps.isBuffering) STATE_BUFFERING else STATE_READY
 
         return State.Builder()
             .setAudioAttributes(PlaybackService.AUDIO_ATTRIBUTES)
@@ -354,7 +348,7 @@ class Player @Inject constructor(
             .setPlaybackParameters(PlaybackParameters(ps.playbackSpeed))
             .setCurrentMediaItemIndex(if (playlist.isNotEmpty()) 0 else C.INDEX_UNSET)
             .setContentPositionMs(ps.position.active.inWholeMilliseconds)
-            .setIsLoading(ps.state == PlayState.BUFFERING)
+            .setIsLoading(ps.isBuffering)
             .setPlaylist(playlist)
             .build()
     }

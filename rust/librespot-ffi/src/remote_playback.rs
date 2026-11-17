@@ -161,7 +161,7 @@ pub fn snapshot(
         sampled_at_ms: now,
         speed,
         playing,
-        buffering: p.is_buffering,
+        buffering: p.is_buffering && !p.is_paused,
         shuffle: p.options.shuffling_context,
         repeat_context: p.options.repeating_context,
         repeat_track: p.options.repeating_track,
@@ -518,10 +518,12 @@ mod tests {
         assert_eq!(read(&roster).position_ms, 15000);
         roster.player_state.as_mut().unwrap().is_paused = true;
         assert_eq!(read(&roster).position_ms, 12000);
+        assert!(!read(&roster).buffering, "a paused player is not buffering");
         roster.player_state.as_mut().unwrap().is_paused = false;
         roster.player_state.as_mut().unwrap().is_buffering = true;
         assert_eq!(read(&roster).position_ms, 12000);
         assert!(!read(&roster).playing);
+        assert!(read(&roster).buffering);
     }
 
     #[test]

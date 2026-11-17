@@ -34,6 +34,10 @@ class PlaybackStateHolder @Inject constructor() {
     private val mutex = Mutex()
     private val localGeneration = java.util.concurrent.atomic.AtomicLong()
 
+    /** Wall-clock time of the latest native buffer transition, for snapshot freshness. */
+    @Volatile
+    private var lastBufferEventAtMs = 0L
+
     val localPlaybackAllowed: Boolean get() = state.value.owner == PlaybackOwner.LOCAL
     fun captureLocalEvent(): Long? = state.value.takeIf { it.owner == PlaybackOwner.LOCAL }?.localGeneration
     fun acceptsLocalEvent(generation: Long?): Boolean = generation != null && captureLocalEvent() == generation
@@ -53,8 +57,14 @@ class PlaybackStateHolder @Inject constructor() {
             _state.update { old ->
                 // Decoder metadata wins; an unresolved snapshot placeholder must still advance
                 // when a track selected during a handoff reaches the local player.
-                if (old.owner == PlaybackOwner.LOCAL && old.currentAudio?.let {
-                    it.uri == snapshot.uri || !it.isMetadataPlaceholder()
+                val sameTrack = old.owner == PlaybackOwner.LOCAL &&
+                    old.currentAudio?.uri == snapshot.uri
+                if (sameTrack) {
+                    if (!snapshot.buffering && snapshot.sampledAtMs >= lastBufferEventAtMs) {
+                        old.copy(isBuffering = false, state = PlayState.READY)
+                    } else old
+                } else if (old.owner == PlaybackOwner.LOCAL && old.currentAudio?.let {
+                    !it.isMetadataPlaceholder()
                 } == true) old else PlaybackState(
                     owner = PlaybackOwner.LOCAL, isActiveDevice = true,
                     localGeneration = if (old.owner == PlaybackOwner.LOCAL) old.localGeneration else localGeneration.incrementAndGet(),
@@ -207,7 +217,17 @@ class PlaybackStateHolder @Inject constructor() {
     }
 
     fun setBuffering(buffering: Boolean) {
-        updateLocal { it.copy(isBuffering = buffering) }
+        lastBufferEventAtMs = System.currentTimeMillis()
+        updateLocal { current ->
+            current.copy(
+                isBuffering = buffering,
+                state = when {
+                    buffering -> PlayState.BUFFERING
+                    current.state == PlayState.BUFFERING -> PlayState.READY
+                    else -> current.state
+                },
+            )
+        }
     }
 
 
