@@ -19,6 +19,12 @@ import javax.inject.Singleton
 @Dao
 @Singleton
 interface LikedDao {
+    @Query("""SELECT trackId FROM liked_songs WHERE EXISTS(
+        SELECT 1 FROM collection_owner WHERE slot = 1 AND active = 1
+        AND accountId = :accountId AND sessionId = :sessionId AND generation = :generation
+    ) ORDER BY position ASC""")
+    fun observeHomeLikedIds(accountId: String, sessionId: String, generation: Long): Flow<List<String>>
+
     @Query("SELECT * FROM collection_owner WHERE slot = 1")
     suspend fun getCollectionOwner(): CollectionOwnerEntity?
 

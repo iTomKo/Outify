@@ -52,14 +52,33 @@ async fn hash(operation: &str, rejected: Option<&str>) -> Result<String, Error> 
         .as_str();
     let script = public_text(&public, url).await?;
     let mut hashes = parse_hashes(&script);
-    if !hashes.contains_key(operation) && operation.starts_with("search") {
-        if let Some(url) = search_script(&script) {
+    let route = if operation.starts_with("search") {
+        Some("xpui-routes-search")
+    } else if operation == "home" {
+        Some("xpui-routes-home")
+    } else if operation == "browsePage" {
+        Some("browse-v2")
+    } else {
+        None
+    };
+    if !hashes.contains_key(operation) {
+        if let Some(url) = route.and_then(|route| route_script(&script, route)) {
             hashes.extend(parse_hashes(&public_text(&public, &url).await?));
         }
     }
     let value = hashes.get(operation).cloned().ok_or_else(|| {
         Error::unavailable(format!("Spotify web player has no {operation} operation"))
     })?;
+    if let Some(cached) = registry
+        .as_ref()
+        .filter(|cached| cached.fetched.elapsed() < TTL)
+    {
+        for (name, value) in &cached.hashes {
+            if name != operation {
+                hashes.entry(name.clone()).or_insert_with(|| value.clone());
+            }
+        }
+    }
     *registry = Some(Registry {
         fetched: Instant::now(),
         hashes,
@@ -100,14 +119,19 @@ fn parse_hashes(script: &str) -> HashMap<String, String> {
 
 /// Resolve the search route from the JS chunk maps, not the later CSS hash map.
 /// Only a fixed Spotify CDN host is used; no JavaScript is executed.
+#[cfg(test)]
 fn search_script(script: &str) -> Option<String> {
+    route_script(script, "xpui-routes-search")
+}
+
+fn route_script(script: &str, route: &str) -> Option<String> {
     // Other modules also assign `.u` (for example `.u=[]`) before the chunk loader.
     script.split(".u=").skip(1).find_map(|runtime| {
         let (runtime, _) = runtime.split_once(".js\"")?;
         let entries: Vec<_> = CHUNK_ENTRIES.captures_iter(runtime).collect();
         let id = entries
             .iter()
-            .find(|entry| &entry[2] == "xpui-routes-search")?
+            .find(|entry| &entry[2] == route)?
             .get(1)?
             .as_str();
         let hash = entries
@@ -120,7 +144,7 @@ fn search_script(script: &str) -> Option<String> {
             .get(2)?
             .as_str();
         Some(format!(
-            "https://open.spotifycdn.com/cdn/build/web-player/xpui-routes-search.{hash}.js"
+            "https://open.spotifycdn.com/cdn/build/web-player/{route}.{hash}.js"
         ))
     })
 }
@@ -290,6 +314,8 @@ mod tests {
             "unfollowUsers",
             "isFollowingUsers",
             "getEpisodeOrChapter",
+            "home",
+            "browsePage",
         ] {
             let hash = hash(operation, None).await.unwrap();
             assert_eq!(hash.len(), 64);
@@ -325,6 +351,15 @@ mod tests {
                 r#"r.u=e=>({44:"xpui-routes-search"}[e])+"."+{44:"../../other"}[e]+".js""#
             )
             .is_none()
+        );
+    }
+
+    #[test]
+    fn discovers_browse_from_its_named_chunk_not_the_obsolete_browse_route() {
+        let runtime = r#"r.u=e=>({3719:"browse-v2"}[e]||e)+"."+{3719:"e67c81d6"}[e]+".js",r.css=e=>({3719:"2578e80e"}[e])+".css""#;
+        assert_eq!(
+            route_script(runtime, "browse-v2").as_deref(),
+            Some("https://open.spotifycdn.com/cdn/build/web-player/browse-v2.e67c81d6.js")
         );
     }
 

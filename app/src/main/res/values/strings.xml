@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="home_quick_picks">Quick picks</string>
+    <string name="home_picked_albums">Albums picked for you</string>
+    <string name="home_discovery_subtitle">Your music, a little discovery.</string>
+    <string name="home_connecting">Connecting to your music</string>
+    <string name="home_connecting_description">Waiting for your playback session. Recommendations do not need a separate Web API login.</string>
+    <string name="home_playback_login_description">Sign in for playback to see personalized albums, mixes, and quick picks.</string>
+    <string name="home_partial_feed">Some recommendations could not be loaded. Your available music is still here.</string>
+    <string name="home_feed_error">Recommendations could not be loaded. Try again in a moment.</string>
+    <string name="home_quick_picks_empty">Your recent music and a mix of saved tracks will appear here.</string>
+    <string name="home_feed_empty">Nothing here yet</string>
+    <string name="home_feed_empty_description">Listen to some music or save a few tracks, then refresh your home.</string>
+    <string name="home_source_description">Album recommendations and shelves come from Spotify. Quick picks combine recent items with a varied mix of your saved tracks.</string>
+    <string name="home_open_item">Open %1$s</string>
+    <string name="home_play_item">Play %1$s</string>
+    <string name="home_kind_album">Album</string>
+    <string name="home_kind_playlist">Playlist</string>
+    <string name="home_kind_artist">Artist</string>
+    <string name="home_kind_track">Track</string>
     <string name="devices_remote_volume">Volume on %1$s</string>
     <string name="devices_playback_not_ready">Device discovery needs a ready playback login. Sign in for playback or wait for reconnection.</string>
     <string name="devices_loading">Waiting for Spotify Connect devices…</string>

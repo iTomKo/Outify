@@ -27,6 +27,7 @@ mod sync_request;
 mod native_request;
 mod playlist_api;
 mod pathfinder;
+mod home;
 mod podcast_api;
 
 use std::path::PathBuf;

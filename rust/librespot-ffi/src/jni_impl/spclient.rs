@@ -110,6 +110,27 @@ pub extern "system" fn spotify_search(
     vec_to_jstring_array(&mut env, uris)
 }
 
+#[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getHomeFeed")]
+pub extern "system" fn get_home_feed(mut env: JNIEnv, _class: JClass, expected: JString, zone: JString) -> jstring {
+    crate::jni_utils::guard("SpClient.getHomeFeed", std::ptr::null_mut(), || {
+        let result = (|| -> Result<String, librespot_core::Error> {
+            let expected: String = env.get_string(&expected).map_err(librespot_core::Error::invalid_argument)?.into();
+            let expected = serde_json::from_str(&expected).map_err(librespot_core::Error::invalid_argument)?;
+            let zone: String = env.get_string(&zone).map_err(librespot_core::Error::invalid_argument)?.into();
+            let session = crate::session::with_session(Clone::clone)?;
+            let feed = crate::network_rt().block_on(crate::home::fetch(&session, &expected, &zone))?;
+            serde_json::to_string(&feed).map_err(librespot_core::Error::internal)
+        })();
+        match result {
+            Ok(json) => env.new_string(json).map(|s| s.into_raw()).unwrap_or(std::ptr::null_mut()),
+            Err(error) => {
+                let _ = env.throw_new("java/lang/IllegalStateException", format!("Cannot load home: {error}"));
+                std::ptr::null_mut()
+            }
+        }
+    })
+}
+
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_saveItems")]
 pub extern "system" fn save_item(mut env: JNIEnv, _class: JClass, uris: JObjectArray) -> jboolean {
     let client = get_client();

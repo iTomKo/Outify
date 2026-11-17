@@ -49,6 +49,8 @@ class SpClient @Inject constructor() {
     external fun getUserCollection(query: String? = null): String?
     external fun getSavedTrackCollection(): String?
     external fun getCollectionSession(): String?
+    /** Personalized music home using playback login, bound to the displayed session. */
+    external fun getHomeFeed(expectedSession: String, timeZone: String): String?
 
     /**
      * Adds given uris to users library
