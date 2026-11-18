@@ -2,5 +2,6 @@
 
 pub mod client;
 pub mod error;
+pub mod link;
 
 mod search;

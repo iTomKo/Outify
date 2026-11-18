@@ -34,4 +34,7 @@ internal object JamNative : JamBackend {
     external override fun kick(id: String, callback: JamRequestCallback): Boolean
     external override fun info(token: String, callback: JamRequestCallback): Boolean
     external override fun join(token: String, joinModeRust: String, callback: JamRequestCallback): Boolean
+
+    /** Extracts the Jam session token from a Spotify social-session invite link. */
+    external fun extractToken(link: String): String?
 }

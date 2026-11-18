@@ -3,7 +3,7 @@ use std::str::FromStr;
 use jni::{
     JNIEnv,
     objects::{JClass, JObject, JString},
-    sys::{JNI_FALSE, jboolean},
+    sys::{JNI_FALSE, jboolean, jstring},
 };
 
 use crate::{
@@ -184,5 +184,40 @@ pub extern "system" fn Java_cc_tomko_outify_core_jam_JamNative_join(
         };
 
         request(env, callback, Operation::Join(token, join_mode))
+    })
+}
+
+#[unsafe(export_name = "Java_cc_tomko_outify_core_jam_JamNative_extractToken")]
+pub extern "system" fn extract_token(
+    mut env: JNIEnv,
+    _this: JClass,
+    link: JString,
+) -> jstring {
+    guard("Jam.extractToken", std::ptr::null_mut(), || {
+        let link: String = match env.get_string(&link) {
+            Ok(value) => value.into(),
+            Err(error) => {
+                error!("cannot read Jam link URL: {error}");
+                return std::ptr::null_mut();
+            }
+        };
+
+        let token = crate::network_rt().block_on(async {
+            crate::spotify::client::SpotifyClient::get()
+                .extract_socialsession_token(link)
+                .await
+        });
+
+        let Some(token) = token else {
+            return std::ptr::null_mut();
+        };
+
+        match env.new_string(token) {
+            Ok(value) => value.into_raw(),
+            Err(error) => {
+                error!("cannot create Jam token string: {error}");
+                std::ptr::null_mut()
+            }
+        }
     })
 }

@@ -75,6 +75,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import cc.tomko.outify.MainActivity.MainActivity.LocalSharedTransitionScope
 import cc.tomko.outify.core.AuthManager
+import cc.tomko.outify.core.jam.JamNative
 import cc.tomko.outify.core.model.Episode
 import cc.tomko.outify.core.spirc.VolumeController
 import cc.tomko.outify.data.repository.InterfaceSettings
@@ -681,7 +682,16 @@ class MainActivity : ComponentActivity() {
         return "https://open.spotify.com/$type/$id"
     }
 
-    fun parseDeepLinkUriToNavKey(uri: Uri): NavKey? {
+    suspend fun parseDeepLinkUriToNavKey(uri: Uri): NavKey? {
+        // https://spotify.link/{shortcode} - resolve the invite to a Jam token.
+        if (uri.host == "spotify.link" && (uri.scheme == "https" || uri.scheme == "http")) {
+            val token = withContext(Dispatchers.IO) { JamNative.extractToken(uri.toString()) }
+            if (!token.isNullOrBlank()) {
+                GlobalPopupController.show(PopupSpec.JamJoin(token))
+            }
+            return null
+        }
+
         // spotify:x:y (opaque)
         if (uri.scheme == "spotify" && uri.host == null) {
             val ssp = uri.schemeSpecificPart ?: return null

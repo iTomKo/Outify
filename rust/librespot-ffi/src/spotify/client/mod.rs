@@ -9,11 +9,15 @@ pub use library::{EpisodeDetails, SavedItemType};
 
 static SPOTIFY_CLIENT: OnceCell<SpotifyClient> = OnceCell::new();
 
-pub struct SpotifyClient {}
+pub struct SpotifyClient {
+    pub(crate) client: reqwest::Client,
+}
 
 impl SpotifyClient {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            client: reqwest::Client::new(),
+        }
     }
 
     pub fn get() -> &'static Self {
