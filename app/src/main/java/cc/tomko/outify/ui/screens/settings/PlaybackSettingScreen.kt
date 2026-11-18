@@ -74,8 +74,6 @@ fun PlaybackSettingScreen(
     val restartNeeded by viewModel.needsRestart.collectAsState()
     val romanizeLyrics by viewModel.romanizeLyrics.collectAsState(initial = false)
     val lyricsFallbackEnabled by viewModel.lyricsFallbackEnabled.collectAsState(initial = false)
-    val savedClientId by viewModel.clientId.collectAsState(initial = null)
-    val savedClientSecret by viewModel.clientSecret.collectAsState(initial = null)
 
     var crossfadeSecs by remember(settings.crossfadeMillis / 1_000) {
         mutableFloatStateOf(settings.crossfadeMillis.toFloat() / 1000f)
@@ -306,47 +304,6 @@ fun PlaybackSettingScreen(
                             icon = { Icon(Icons.Default.Group, contentDescription = null) },
                             onCheckedChange = { viewModel.setSmartTransfer(it) },
                             isChecked = settings.smartTransfer,
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            SettingsSection {
-                entry {
-                    PreferenceEntry(
-                        title = { Text(stringResource(R.string.settings_advanced)) },
-                        icon = { Icon(Icons.Default.Build, contentDescription = null) },
-                        onClick = { advancedExpanded = !advancedExpanded },
-                        trailingContent = {
-                            Icon(
-                                imageVector = Icons.Default.ExpandMore,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.rotate(arrowRotation)
-                            )
-                        }
-                    )
-                }
-
-                if (advancedExpanded) {
-                    entry {
-                        DebouncedTextEntry(
-                            title = stringResource(R.string.settings_client_id),
-                            placeholder = stringResource(R.string.placeholder_leave_empty),
-                            icon = Icons.Default.Key,
-                            saved = savedClientId ?: "",
-                            onCommit = { viewModel.setClientId(it) }
-                        )
-                    }
-                    entry {
-                        DebouncedTextEntry(
-                            title = stringResource(R.string.settings_client_secret),
-                            placeholder = stringResource(R.string.placeholder_leave_empty),
-                            icon = Icons.Default.Lock,
-                            saved = savedClientSecret ?: "",
-                            onCommit = { viewModel.setClientSecret(it) }
                         )
                     }
                 }

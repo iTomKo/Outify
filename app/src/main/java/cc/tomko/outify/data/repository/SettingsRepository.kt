@@ -122,13 +122,6 @@ class SettingsRepository @Inject constructor(
         object Search {
             val SEARCH_HISTORY = stringPreferencesKey("search_history_v2")
         }
-
-        object Cached {
-            val CACHED_TOPS = stringPreferencesKey("cached_tops_v1")
-        }
-
-        val CLIENT_ID = stringPreferencesKey("client_id")
-        val CLIENT_SECRET = stringPreferencesKey("client_secret")
     }
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
@@ -559,45 +552,6 @@ class SettingsRepository @Inject constructor(
             json.decodeFromString(serialized)
         } catch (e: Exception) {
             emptyList()
-        }
-    }
-
-    val cachedTops: Flow<String?> = dataStore.data.map { prefs ->
-        prefs[Keys.Cached.CACHED_TOPS]
-    }
-
-    suspend fun saveCachedTops(json: String) {
-        dataStore.edit { it[Keys.Cached.CACHED_TOPS] = json }
-    }
-
-    val clientId: Flow<String?> = dataStore.data.map { it[Keys.CLIENT_ID] }
-    val clientSecret: Flow<String?> = dataStore.data.map { it[Keys.CLIENT_SECRET] }
-
-    /**
-     * Custom client credentials when both id and secret are set, otherwise the
-     * built-in ones. Never mixes a custom id with the built-in secret.
-     */
-    suspend fun resolveClientCredentials(): Pair<String, String> {
-        val id = clientId.first()
-        val secret = clientSecret.first()
-        return if (!id.isNullOrBlank() && !secret.isNullOrBlank()) {
-            id to secret
-        } else {
-            BuildConfig.SPOTIFY_CLIENT_ID to BuildConfig.SPOTIFY_CLIENT_SECRET
-        }
-    }
-
-    suspend fun setClientId(id: String?) {
-        dataStore.edit { prefs ->
-            if (id.isNullOrBlank()) prefs.remove(Keys.CLIENT_ID)
-            else prefs[Keys.CLIENT_ID] = id
-        }
-    }
-
-    suspend fun setClientSecret(secret: String?) {
-        dataStore.edit { prefs ->
-            if (secret.isNullOrBlank()) prefs.remove(Keys.CLIENT_SECRET)
-            else prefs[Keys.CLIENT_SECRET] = secret
         }
     }
 

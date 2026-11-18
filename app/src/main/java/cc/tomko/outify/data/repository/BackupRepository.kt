@@ -86,8 +86,6 @@ data class BackupPreferences(
     val lastTrackUri: String? = null,
     val lastContextUri: String? = null,
     val lastPositionMs: String? = null,
-    val clientId: String? = null,
-    val clientSecret: String? = null,
 )
 
 @Singleton
@@ -148,8 +146,6 @@ class BackupRepository @Inject constructor(
                 lastTrackUri = prefs[SettingsRepository.Keys.Playback.LAST_TRACK_URI],
                 lastContextUri = prefs[SettingsRepository.Keys.Playback.LAST_CONTEXT_URI],
                 lastPositionMs = prefs[SettingsRepository.Keys.Playback.LAST_POSITION_MS],
-                clientId = prefs[SettingsRepository.Keys.CLIENT_ID],
-                clientSecret = prefs[SettingsRepository.Keys.CLIENT_SECRET],
             )
         )
 
@@ -262,8 +258,6 @@ class BackupRepository @Inject constructor(
             prefs.lastPositionMs?.let {
                 data[SettingsRepository.Keys.Playback.LAST_POSITION_MS] = it
             }
-            prefs.clientId?.let { data[SettingsRepository.Keys.CLIENT_ID] = it }
-            prefs.clientSecret?.let { data[SettingsRepository.Keys.CLIENT_SECRET] = it }
         }
     }
 }

@@ -68,8 +68,6 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
     mut env: JNIEnv,
     _class: JClass,
     context: JObject,
-    client_id: JString,
-    client_secret: JString,
 ) {
     let jvm = env.get_java_vm().unwrap();
 
@@ -118,49 +116,4 @@ pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_libInit(
 
     session::init_session_container();
     spirc::init_spirc_container();
-
-    // Getting Spotify credentials
-    let client_id: String = match env.get_string(&client_id) {
-        Ok(i) => i.into(),
-        Err(e) => {
-            error!("failed to read client_id from jni: {e}");
-            return;
-        }
-    };
-
-    let client_secret: String = match env.get_string(&client_secret) {
-        Ok(i) => i.into(),
-        Err(e) => {
-            error!("failed to read client_secret from jni: {e}");
-            return;
-        }
-    };
-
-    spotify::client::init_client(client_id, client_secret);
-}
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_cc_tomko_outify_LibrespotFfi_updateClientCredentials(
-    mut env: JNIEnv,
-    _class: JClass,
-    client_id: JString,
-    client_secret: JString,
-) {
-    let client_id: String = match env.get_string(&client_id) {
-        Ok(i) => i.into(),
-        Err(e) => {
-            error!("failed to read client_id from jni: {e}");
-            return;
-        }
-    };
-
-    let client_secret: String = match env.get_string(&client_secret) {
-        Ok(i) => i.into(),
-        Err(e) => {
-            error!("failed to read client_secret from jni: {e}");
-            return;
-        }
-    };
-
-    spotify::client::update_client(client_id, client_secret);
 }

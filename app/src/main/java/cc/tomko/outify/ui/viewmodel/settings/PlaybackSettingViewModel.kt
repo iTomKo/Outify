@@ -36,12 +36,6 @@ class PlaybackSettingViewModel @Inject constructor(
     val lyricsFallbackEnabled: Flow<Boolean> =
         settingsRepository.lyricsFallbackEnabled
 
-    val clientId: Flow<String?> =
-        settingsRepository.clientId
-
-    val clientSecret: Flow<String?> =
-        settingsRepository.clientSecret
-
     fun setGaplessPlayback(enabled: Boolean) {
         viewModelScope.launch {
             _needsRestart.value = true
@@ -114,20 +108,6 @@ class PlaybackSettingViewModel @Inject constructor(
         }
     }
 
-    fun setClientId(id: String) {
-        viewModelScope.launch {
-            settingsRepository.setClientId(id.ifBlank { null })
-            _needsRestart.value = true
-        }
-    }
-
-    fun setClientSecret(secret: String) {
-        viewModelScope.launch {
-            settingsRepository.setClientSecret(secret.ifBlank { null })
-            _needsRestart.value = true
-        }
-    }
-
     /**
      * Rebuilds the spirc runtime so changed playback settings take effect.
      *
@@ -138,12 +118,8 @@ class PlaybackSettingViewModel @Inject constructor(
         if (_isRestarting.value) return
 
         viewModelScope.launch {
-            val (id, secret) = settingsRepository.resolveClientCredentials()
-
             _isRestarting.value = true
             try {
-                LibrespotFfi.updateClientCredentials(id, secret)
-
                 if (spirc.restartAndAwaitReady("settings")) {
                     _needsRestart.value = false
                 }

@@ -7,10 +7,7 @@ use librespot_core::{SpotifyId, SpotifyUri};
 use protobuf::Message;
 
 use crate::{
-    jni_utils::{optionable_string, throw_exception, vec_to_jstring_array},
-    outifyuri::{OutifyUri, UsernameCache},
-    spotify::client::{SavedItemType, get_client},
-    spotify::error::SpotifyApiError,
+    jni_utils::{optionable_string, throw_exception, vec_to_jstring_array}, outifyuri::{OutifyUri, UsernameCache}, spotify::{client::{SavedItemType, SpotifyClient}, error::SpotifyApiError},
 };
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_username")]
@@ -34,11 +31,11 @@ pub extern "system" fn username(env: JNIEnv, _class: JClass) -> jstring {
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getCurrentUserProfile")]
 pub extern "system" fn get_current_user(env: JNIEnv, _class: JClass) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 
-    let result = match rt.block_on(async { client.get_current_user_playback().await }) {
+    let result = match rt.block_on(async { client.get_current_user().await }) {
         Ok(r) => match serde_json::to_string(&r) {
             Ok(j) => j,
             Err(e) => {
@@ -70,7 +67,7 @@ pub extern "system" fn spotify_search(
     offset: jint,
     limit: jint,
 ) -> jobjectArray {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let query: String = match env.get_string(&query) {
         Ok(q) => q.into(),
@@ -152,7 +149,7 @@ pub extern "system" fn get_home_feed(
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_saveItems")]
 pub extern "system" fn save_item(mut env: JNIEnv, _class: JClass, uris: JObjectArray) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let length = env.get_array_length(&uris).unwrap();
     let mut rust_uris = Vec::with_capacity(length as usize);
@@ -190,7 +187,7 @@ pub extern "system" fn delete_items(
     _class: JClass,
     uris: JObjectArray,
 ) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let length = env.get_array_length(&uris).unwrap();
     let mut rust_uris = Vec::with_capacity(length as usize);
@@ -228,7 +225,7 @@ pub extern "system" fn get_saved_items(
     _class: JClass,
     item_type: JString,
 ) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 
@@ -317,7 +314,7 @@ pub extern "system" fn is_following_user(
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getSavedEpisodeItems")]
 pub extern "system" fn get_saved_episode_items(mut env: JNIEnv, _class: JClass) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 
@@ -359,7 +356,7 @@ pub extern "system" fn get_episode_details(
     _class: JClass,
     episode_id: JString,
 ) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 
@@ -414,7 +411,7 @@ pub extern "system" fn transfer_playback_device(
     device_id: JString,
     expected_session: JString,
 ) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let device_id: String = match env.get_string(&device_id) {
         Ok(t) => t.into(),
@@ -465,7 +462,7 @@ pub extern "system" fn transfer_playback_device(
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_getDevices")]
 pub extern "system" fn get_devices(mut env: JNIEnv, _class: JClass) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 
@@ -545,7 +542,7 @@ pub extern "system" fn add_to_playlist(
     playlist_id: JString,
     uris: JObjectArray,
 ) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let playlist_id: String = match env.get_string(&playlist_id) {
         Ok(p) => p.into(),
@@ -592,7 +589,7 @@ pub extern "system" fn delete_from_playlist(
     playlist_id: JString,
     uris: JObjectArray,
 ) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let playlist_id: String = match env.get_string(&playlist_id) {
         Ok(p) => p.into(),
@@ -641,7 +638,7 @@ pub extern "system" fn create_playlist(
     public: jboolean,
     collaborative: jboolean,
 ) -> jstring {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let name: String = match env.get_string(&name) {
         Ok(n) => n.into(),
@@ -688,7 +685,7 @@ pub extern "system" fn modify_playlist(
     public: jboolean,
     collaborative: jboolean,
 ) -> jint {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let playlist_id: String = match env.get_string(&playlist_id) {
         Ok(n) => n.into(),
@@ -1088,7 +1085,7 @@ fn classify_spclient_error(err: &crate::spotify::error::SpotifyApiError) -> &'st
 
 #[unsafe(export_name = "Java_cc_tomko_outify_core_SpClient_isPlaybackAuthenticated")]
 pub extern "system" fn is_playback_authenticated(_env: JNIEnv, _class: JClass) -> jboolean {
-    let client = get_client();
+    let client = SpotifyClient::get();
 
     let rt = crate::network_rt();
 

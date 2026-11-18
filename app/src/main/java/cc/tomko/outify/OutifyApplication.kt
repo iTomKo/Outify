@@ -94,22 +94,7 @@ class OutifyApplication : Application(), SingletonImageLoader.Factory {
         }
 
         appScope.launch {
-            val (spotifyId, spotifySecret) = settingsRepository.resolveClientCredentials()
-
-            if (spotifySecret.isBlank() || spotifyId.isBlank()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@OutifyApplication,
-                        getString(R.string.toast_no_creds),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-
-                return@launch
-            }
-
-            LibrespotFfi.libInit(applicationContext, spotifyId, spotifySecret)
-
+            LibrespotFfi.libInit(applicationContext)
             spircController.start()
         }
     }

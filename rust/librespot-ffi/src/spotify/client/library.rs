@@ -161,7 +161,7 @@ mod tests {
     }
     #[tokio::test]
     async fn no_native_operation_falls_back_to_web_oauth_without_a_playback_session() {
-        let client = SpotifyClient::new(String::new(), String::new());
+        let client = SpotifyClient::new();
         let id = librespot_core::SpotifyId::from_raw(&[1; 16])
             .unwrap()
             .to_base62();

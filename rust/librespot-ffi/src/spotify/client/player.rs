@@ -26,7 +26,7 @@ mod tests {
 
     #[tokio::test]
     async fn device_operations_require_connect_and_never_fall_back_to_oauth() {
-        let client = SpotifyClient::new(String::new(), String::new());
+        let client = SpotifyClient::new();
         assert!(matches!(
             client.get_devices().await,
             Err(SpotifyApiError::Librespot(_))

@@ -249,7 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn searching_requires_playback_auth_even_without_oauth_credentials() {
-        let client = crate::spotify::client::SpotifyClient::new(String::new(), String::new());
+        let client = crate::spotify::client::SpotifyClient::new();
         assert!(matches!(
             client
                 .search(

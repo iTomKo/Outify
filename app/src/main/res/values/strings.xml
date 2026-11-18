@@ -448,7 +448,6 @@
     <string name="settings_premium_playback">Spotify Premium required for playback</string>
     <string name="account_login_in_progress">You should be in login process now..</string>
     <string name="toast_librespot_failed">Failed to load librespot!</string>
-    <string name="toast_no_creds">No Spotify credentials were supplied during build</string>
     <string name="toast_login_success">Login successful!</string>
     <string name="toast_login_failed">Login failed</string>
     <string name="toast_added_to_queue">Added to queue</string>
