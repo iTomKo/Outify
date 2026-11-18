@@ -75,7 +75,7 @@ class SettingsViewModel @Inject constructor(
             if (isSuccess) {
                 _isLoggedIn.value = authManager.hasCachedCredentials()
                 checkAuthState()
-                AuthStateEventBus.tryEmitPlaybackLoggedIn()
+                viewModelScope.launch { AuthStateEventBus.emitPlaybackLoggedIn() }
                 spircController.restart()
             }
         })
@@ -91,6 +91,7 @@ class SettingsViewModel @Inject constructor(
         collectionSync.pause()
         authManager.logout()
         _isLoggedIn.value = false
+        viewModelScope.launch { AuthStateEventBus.emitPlaybackLoggedOut() }
     }
 
     private fun parseErrorMessage(json: String): String? {

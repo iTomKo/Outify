@@ -75,8 +75,8 @@ class OnboardingViewModel @Inject constructor(
             val result = authManager.handleOAuthCode(code, state)
             val isSuccess = result.contains("\"success\":true")
             if (isSuccess) {
-                _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
-                AuthStateEventBus.tryEmitPlaybackLoggedIn()
+                refreshState()
+                viewModelScope.launch { AuthStateEventBus.emitPlaybackLoggedIn() }
                 spircController.restart()
                 fetchProfile()
             }
