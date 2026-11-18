@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import cc.tomko.outify.core.spirc.SpircController
 import cc.tomko.outify.data.database.AppDatabase
 import cc.tomko.outify.data.repository.SettingsRepository
+import cc.tomko.outify.data.repository.UserProfileCache
 import cc.tomko.outify.utils.ExceptionCollector
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -65,6 +66,9 @@ class OutifyApplication : Application(), SingletonImageLoader.Factory {
     lateinit var settingsRepository: SettingsRepository
 
     @Inject
+    lateinit var userProfileCache: UserProfileCache
+
+    @Inject
     lateinit var exceptionCollector: ExceptionCollector
 
     // context.imageLoader must resolve to the Hilt loader so there is one memory and disk cache.
@@ -96,6 +100,7 @@ class OutifyApplication : Application(), SingletonImageLoader.Factory {
         appScope.launch {
             LibrespotFfi.libInit(applicationContext)
             spircController.start()
+            userProfileCache.start(appScope)
         }
     }
 }

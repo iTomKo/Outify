@@ -91,7 +91,10 @@ class SettingsViewModel @Inject constructor(
         collectionSync.pause()
         authManager.logout()
         _isLoggedIn.value = false
-        viewModelScope.launch { AuthStateEventBus.emitPlaybackLoggedOut() }
+        viewModelScope.launch {
+            settingsRepository.removeUserProfile()
+            AuthStateEventBus.emitPlaybackLoggedOut()
+        }
     }
 
     private fun parseErrorMessage(json: String): String? {
