@@ -25,7 +25,7 @@ ksp {
 }
 
 val majorVersion = 2
-val minorVersion = 0
+val minorVersion = 1
 val patchVersion = 0
 
 extensions.configure<ApplicationExtension>("android") {
