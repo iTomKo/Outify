@@ -117,6 +117,7 @@ class SpircWrapper @Inject constructor(
     @Synchronized
     private fun playByUser() {
         playbackStateHolder.playbackIntent.playByUser()
+        playbackStateHolder.restorePlayer()
         Spirc.setPlaybackPaused(false)
     }
 
@@ -469,6 +470,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun playerNext(): Boolean {
         if (!requireReady("playerNext")) return false
+        playbackStateHolder.restorePlayer()
         routeRemote("skip_next")?.let { return it }
         return Spirc.playerNext()
     }
@@ -478,6 +480,7 @@ class SpircWrapper @Inject constructor(
      */
     override fun playerPrevious(): Boolean {
         if (!requireReady("playerPrevious")) return false
+        playbackStateHolder.restorePlayer()
         routeRemote("skip_prev")?.let { return it }
         return Spirc.playerPrevious()
     }

@@ -147,13 +147,13 @@ fun MiniPlayer(
                         if (totalDragY > verticalThreshold) {
                             onDismiss()
                             Haptics.confirm(context, view)
-                        }
-
-                        coroutineScope.launch {
-                            offsetY.animateTo(
-                                targetValue = 0f,
-                                animationSpec = tween(durationMillis = 300)
-                            )
+                        } else {
+                            coroutineScope.launch {
+                                offsetY.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = tween(durationMillis = 300)
+                                )
+                            }
                         }
 
                         totalDragX = 0f

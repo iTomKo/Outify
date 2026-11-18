@@ -87,6 +87,8 @@ class MiniPlayerViewModel @Inject constructor(
     fun setAudio(audio: PlayableAudio?) {
         if (audio == null) {
             spirc.playerPause()
+            playbackStateHolder.dismissPlayer()
+            return
         }
         playbackStateHolder.setAudio(audio)
     }

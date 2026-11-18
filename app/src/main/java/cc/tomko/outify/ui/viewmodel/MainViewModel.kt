@@ -32,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -96,8 +97,10 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    val currentAudio: StateFlow<PlayableAudio?> = playbackStateHolder.state
-        .map { it.currentAudio }
+    val currentAudio: StateFlow<PlayableAudio?> = combine(
+        playbackStateHolder.state.map { it.currentAudio },
+        playbackStateHolder.playerDismissed,
+    ) { audio, dismissed -> audio?.takeIf { !dismissed } }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,

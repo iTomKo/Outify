@@ -31,6 +31,22 @@ class PlaybackStateHolder @Inject constructor() {
     private val _position = MutableStateFlow(Duration.ZERO)
     val position: StateFlow<Duration> = _position.asStateFlow()
 
+    /**
+     * Mini-player visibility is a user decision, not a property of playback metadata.
+     */
+    private val _playerDismissed = MutableStateFlow(false)
+    val playerDismissed: StateFlow<Boolean> = _playerDismissed.asStateFlow()
+
+    /** Called by the swipe-down gesture. Playback state (including artwork) is left intact. */
+    fun dismissPlayer() {
+        _playerDismissed.value = true
+    }
+
+    /** Called only for explicit user playback actions or a genuinely new track. */
+    fun restorePlayer() {
+        _playerDismissed.value = false
+    }
+
     private val mutex = Mutex()
     private val localGeneration = java.util.concurrent.atomic.AtomicLong()
 
@@ -53,6 +69,9 @@ class PlaybackStateHolder @Inject constructor() {
     }
 
     fun applyConnectPlayback(snapshot: ConnectPlayback) {
+        val previousUri = _state.value.currentAudio?.uri
+        if (snapshot.uri.isNotBlank() && previousUri != snapshot.uri) restorePlayer()
+
         if (snapshot.isLocal) {
             _state.update { old ->
                 // Decoder metadata wins; an unresolved snapshot placeholder must still advance

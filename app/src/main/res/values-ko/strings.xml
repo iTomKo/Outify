@@ -398,7 +398,6 @@
     <string name="settings_premium_playback">재생하려면 Spotify Premium이 필요합니다</string>
     <string name="account_login_in_progress">지금 로그인 진행 중이어야 합니다..</string>
     <string name="toast_librespot_failed">librespot을 불러오지 못했습니다!</string>
-    <string name="toast_no_creds">빌드 중 Spotify 인증 정보가 제공되지 않았습니다</string>
     <string name="toast_login_success">로그인 완료!</string>
     <string name="toast_login_failed">로그인 실패</string>
     <string name="toast_added_to_queue">대기열에 추가됨</string>
