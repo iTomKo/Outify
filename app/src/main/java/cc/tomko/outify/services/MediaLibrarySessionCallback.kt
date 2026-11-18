@@ -128,7 +128,6 @@ class MediaLibrarySessionCallback @Inject constructor(
             PlaybackService.ROOT -> getRootChildren()
             PlaybackService.PLAYLIST -> getPlaylists()
             PlaybackService.LIKED -> getLikedTracks()
-            PlaybackService.ARTIST -> getTopArtists()
             PlaybackService.RECENT -> getRecentTracks()
             else -> emptyList()
         }
@@ -183,17 +182,6 @@ class MediaLibrarySessionCallback @Inject constructor(
                     .build()
             )
             .build(),
-        MediaItem.Builder()
-            .setMediaId(PlaybackService.ARTIST)
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setIsPlayable(false)
-                    .setIsBrowsable(true)
-                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    .setTitle(context.getString(R.string.homescreen_top_artists))
-                    .build()
-            )
-            .build(),
     )
 
     private fun getLikedTracks(): List<MediaItem> {
@@ -238,15 +226,6 @@ class MediaLibrarySessionCallback @Inject constructor(
         }
     }
 
-    private fun getTopArtists(): List<MediaItem> {
-        return try {
-            val result = spClient.getUserTop("artists") ?: return emptyList()
-            parseArtistsFromResult(result)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
     private fun parseTracksFromSearchResult(json: String): List<MediaItem> {
         return try {
             val trackIds = extractTrackIds(json)
@@ -259,28 +238,6 @@ class MediaLibrarySessionCallback @Inject constructor(
                     null
                 }
             }
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    private fun parseArtistsFromResult(json: String): List<MediaItem> {
-        return try {
-            val regex = Regex("""spotify:artist:([a-zA-Z0-9]+)""")
-            regex.findAll(json).map { match ->
-                val artistId = match.groupValues[1]
-                MediaItem.Builder()
-                    .setMediaId("artist:$artistId")
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setIsPlayable(false)
-                            .setIsBrowsable(true)
-                            .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                            .setTitle(context.getString(R.string.common_artist))
-                            .build()
-                    )
-                    .build()
-            }.toList()
         } catch (e: Exception) {
             emptyList()
         }

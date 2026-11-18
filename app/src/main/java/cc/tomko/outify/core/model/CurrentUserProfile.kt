@@ -5,30 +5,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CurrentUserProfile(
-    val country: String,
+    val username: String,
     @SerialName("display_name")
-    val displayName: String,
-    val email: String,
-    @SerialName("explicit_content")
-    val explicitContent: ExplicitContent,
-    @SerialName("external_urls")
-    val externalUrls: ExternalUrls,
-    val followers: Followers,
-    val href: String,
-    val id: String,
+    val displayName: String?,
     val images: List<Image>,
-    val product: String,
-    @SerialName("type")
-    val userType: String,
-    val uri: String
-)
-
-@Serializable
-data class ExplicitContent(
-    @SerialName("filter_enabled")
-    val filterEnabled: Boolean,
-    @SerialName("filter_locked")
-    val filterLocked: Boolean
 )
 
 @Serializable

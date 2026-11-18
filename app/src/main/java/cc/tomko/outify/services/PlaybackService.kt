@@ -75,7 +75,6 @@ class PlaybackService : MediaLibraryService(),
     companion object {
         const val ROOT = "root"
         const val TRACK = "track"
-        const val ARTIST = "artist"
         const val ALBUM = "album"
         const val PLAYLIST = "playlist"
         const val SEARCH = "search"

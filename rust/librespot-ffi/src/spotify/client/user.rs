@@ -1,11 +1,9 @@
-use reqwest::StatusCode;
-
-use crate::{
-    spotify::error::SpotifyApiError,
-    types::responses::{ArtistsOrTracksPage, CurrentUserResponse},
-};
-
-use super::{REQUEST_TIMEOUT, SPOTIFY_API_URL, SpotifyClient, check_response_json};
+use super::super::error::SpotifyApiError;
+use super::SpotifyClient;
+use crate::session::with_session;
+use crate::types::responses::CurrentUserResponse;
+use librespot_core::spclient::SpClientResult;
+use serde::{Deserialize, Serialize};
 
 impl SpotifyClient {
     pub async fn search(
@@ -20,73 +18,21 @@ impl SpotifyClient {
     }
 
     pub async fn get_current_user(&self) -> Result<CurrentUserResponse, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
+        let session = with_session(Clone::clone)?;
+        let username = session.username();
+        let spclient = session.spclient();
 
-        let res = self
-            .client
-            .get(format!("{}/v1/me", SPOTIFY_API_URL))
-            .bearer_auth(token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await?;
+        let response: SpClientResult = spclient.get_user_profile(&username, Some(0), Some(0)).await;
 
-        if !res.status().is_success() {
-            let status = res.status().as_str().to_string();
-            let body = res.text().await.unwrap_or_default();
-            return Err(SpotifyApiError::Generic(format!(
-                "Request failed with status code: {}. Body: {}",
-                status, body
-            )));
-        }
+        let data = response.map_err(|e| SpotifyApiError::Librespot(e))?;
 
-        let text = res.text().await?;
+        let text = std::str::from_utf8(&data).map_err(|e| {
+            SpotifyApiError::Generic(format!("Invalid UTF-8 in profile response: {e}"))
+        })?;
 
-        let data: CurrentUserResponse = serde_json::from_str(&text)?;
+        let profile: CurrentUserResponse = serde_json::from_str(text)
+            .map_err(|e| SpotifyApiError::Generic(format!("Failed to parse profile: {e}")))?;
 
-        Ok(data)
-    }
-
-    pub async fn get_top(
-        &self,
-        request_type: Option<String>,
-        time_range: String,
-    ) -> Result<ArtistsOrTracksPage, SpotifyApiError> {
-        let token = self.load_token().await?;
-        let token = token
-            .ok_or_else(|| SpotifyApiError::Generic("No account token present!".to_string()))?;
-
-        let request_type = request_type.unwrap_or_else(|| "artists".to_string());
-
-        let url = format!(
-            "{}/v1/me/top/{}?time_range={}",
-            SPOTIFY_API_URL, request_type, time_range
-        );
-
-        let res = self
-            .client
-            .get(&url)
-            .bearer_auth(&token.access_token)
-            .timeout(REQUEST_TIMEOUT)
-            .send()
-            .await?;
-
-        if res.status() == StatusCode::UNAUTHORIZED {
-            let new_token = self.refresh_token(&token).await?;
-            let res = self
-                .client
-                .get(&url)
-                .bearer_auth(new_token.access_token)
-                .timeout(REQUEST_TIMEOUT)
-                .send()
-                .await?;
-            let data = check_response_json::<ArtistsOrTracksPage>("get_top", res).await?;
-            return Ok(data);
-        }
-
-        let data = check_response_json::<ArtistsOrTracksPage>("get_top", res).await?;
-
-        Ok(data)
+        Ok(profile)
     }
 }

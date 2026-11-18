@@ -588,7 +588,7 @@ fun SharedTransitionScope.SearchScreen(
                                         contentDescription = null,
                                         modifier = Modifier
                                             .clickable {
-                                                backStack.add(Route.AccountsScreen)
+                                                backStack.add(Route.SettingsScreen)
                                             }
                                     )
                                 }

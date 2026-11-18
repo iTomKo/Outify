@@ -121,7 +121,7 @@ fun SharedTransitionScope.HomeScreen(
             LazyColumn(contentPadding = PaddingValues(bottom = ScreenBottomPadding + 24.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxSize()) {
                 item(key = "header") {
-                    HomeHeader(username, avatar, { backStack.add(Route.AccountsScreen) }, { backStack.add(Route.SettingsScreen) })
+                    HomeHeader(username, avatar, { backStack.add(Route.SettingsScreen) }, { backStack.add(Route.SettingsScreen) })
                 }
                 item(key = "jam") {
                     HomeJamCard(jam = jam, onClick = onShowJam, modifier = Modifier.padding(horizontal = 24.dp))
@@ -132,7 +132,7 @@ fun SharedTransitionScope.HomeScreen(
                             title = stringResource(if (loggedIn) R.string.home_connecting else R.string.connect_to_spotify),
                             message = stringResource(if (loggedIn) R.string.home_connecting_description else R.string.home_playback_login_description),
                             action = stringResource(if (loggedIn) R.string.common_retry else R.string.connect_to_spotify),
-                            onClick = { if (loggedIn) viewModel.retry() else backStack.add(Route.AccountsScreen) },
+                            onClick = { if (loggedIn) viewModel.retry() else backStack.add(Route.SettingsScreen) },
                         )
                     }
                     else -> {

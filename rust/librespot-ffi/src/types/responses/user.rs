@@ -2,19 +2,9 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CurrentUserResponse {
-    pub country: Option<String>,
+    pub username: String,
     pub display_name: Option<String>,
-    pub email: Option<String>,
-    pub explicit_content: ExplicitContent,
-    pub external_urls: ExternalUrls,
-    pub followers: Followers,
-    pub href: Option<String>,
-    pub id: Option<String>,
     pub images: Vec<Image>,
-    pub product: Option<String>,
-    #[serde(rename = "type")]
-    pub user_type: String,
-    pub uri: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

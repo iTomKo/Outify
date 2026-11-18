@@ -99,10 +99,6 @@
                 <data android:host="auth_complete" />
                 <data android:host="auth_failed" />
 
-                <!-- Account OAuth callback -->
-                <data android:host="account_auth_complete" />
-                <data android:host="account_auth_failed" />
-
                 <!-- Opening spotify URLs -->
                 <data android:scheme="spotify" />
 

@@ -121,15 +121,12 @@ fun DebugScreen(
     }
 
     val playbackLoggedIn by viewModel.isPlaybackLoggedIn.collectAsState()
-    val accountsLoggedIn by viewModel.isAccountLoggedIn.collectAsState()
     val hasCredentials by viewModel.hasPlaybackFile.collectAsState()
-    val hasAccountFile by viewModel.hasAccountsFile.collectAsState()
 
     val userId by viewModel.userId.collectAsState()
     val username by viewModel.username.collectAsState()
     val screenshotMode = LocalUiSettings.current.screenshotMode
     val developerName = stringResource(R.string.screenshot_mode_username)
-    val isPremium by viewModel.isPremium.collectAsState()
 
     val spircState by viewModel.spircState.collectAsState()
     val isSpircUsable by viewModel.isSpircUsable.collectAsState()
@@ -192,9 +189,7 @@ fun DebugScreen(
                 icon = Icons.Rounded.AccountCircle,
                 rows = listOf(
                     DebugRow.Flag(stringResource(R.string.debug_playback_logged_in), playbackLoggedIn),
-                    DebugRow.Flag(stringResource(R.string.debug_accounts_logged_in), accountsLoggedIn),
                     DebugRow.Flag(stringResource(R.string.debug_playback_creds_exists), hasCredentials),
-                    DebugRow.Flag(stringResource(R.string.debug_account_creds_exists), hasAccountFile),
                     DebugRow.Text(
                         label = stringResource(R.string.debug_user_id),
                         value = if (screenshotMode) developerName else userId?.redact(),
@@ -204,7 +199,6 @@ fun DebugScreen(
                         stringResource(R.string.debug_username),
                         if (screenshotMode) developerName else username
                     ),
-                    DebugRow.Flag(stringResource(R.string.debug_spotify_premium), isPremium),
                 )
             )
         )

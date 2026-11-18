@@ -32,7 +32,6 @@ class SpClient @Inject constructor() {
      */
     external fun username(): String?
 
-    external fun getCurrentUserProfile(): String?
     /** Pathfinder catalog search using playback login; offset and limit apply to each requested type. */
     external fun search(
         query: String,
@@ -85,14 +84,6 @@ class SpClient @Inject constructor() {
     external fun getEpisodeDetails(episodeId: String): String
 
     /**
-     * Get the current user's top artists or tracks based on calculated affinity.
-     * Default type = artists
-     * Possible types: artists, tracks
-     * https://developer.spotify.com/documentation/web-api/reference/get-users-top-artists-and-tracks
-     */
-    external fun getUserTop(type: String? = null, timeRange: String = "medium_range"): String?
-
-    /**
      * Gets the available devices to stream playback from.
      * Reads the existing Spotify Connect roster.
      * In format of [cc.tomko.outify.core.model.DevicesResponse]
@@ -115,16 +106,15 @@ class SpClient @Inject constructor() {
     external fun transferPlaybackDevice(deviceId: String, expectedSession: String): Boolean
 
     /**
-     * Check if user has authenticated with Spotify via OAuth.
+     * Check if user has authenticated via playback (librespot session).
      * Returns true if authenticated, false otherwise.
      */
-    external fun isOAuthAuthenticated(): Boolean
+    external fun isPlaybackAuthenticated(): Boolean
 
     /**
-     * Returns oauth scopes (if any) separated by space
-     * May throw exception when error occurs
+     * Gets the current user profile via playback authentication (Mercury).
      */
-    external fun getOAuthScope(): String?
+    external fun getCurrentUserProfile(): String?
 
     /**
      * Adds tracks in array into the playlist by given id
@@ -183,31 +173,6 @@ class SpClient @Inject constructor() {
      * Returns lyrics for track id
      */
     external fun getLyrics(trackId: String): String?
-
-    /**
-     * Starts the OAuth flow for SpotifyClient user authentication.
-     * Returns the authorization URL to be opened in a webview.
-     */
-    external fun startOAuthFlow(): String
-
-    /**
-     * Completes the OAuth flow by exchanging the authorization code for tokens.
-     * Call this after the user completes authorization.
-     * Returns JSON: {"success":true} on success, {"error":{"type":"...","message":"..."}} on failure.
-     */
-    external fun completeOAuthFlow(code: String): String
-
-    /**
-     * Deletes the credentials file for Spotify Client
-     */
-    external fun logout(): Boolean
-
-    /**
-     * Resets the Spotify Client's transient OAuth state.
-     * Call after logging in so the client reloads the fresh credentials on the
-     * next request.
-     */
-    external fun reset(): Boolean
 
     fun checkAndHandleError(result: String, context: String = ""): String {
         if (result.startsWith("{")) {

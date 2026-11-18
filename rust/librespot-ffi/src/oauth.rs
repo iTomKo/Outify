@@ -85,14 +85,6 @@ impl OAuthSession {
             })?;
         debug!("oauth token exchange succeeded");
 
-        // Refreshing token to provide consistent TokenResponse that contains refresh token
-        let refresh_token = token_response.refresh_token.clone();
-        let _refreshed = self
-            .client
-            .refresh_token_async(&refresh_token)
-            .await
-            .map_err(|e| Error::unknown(format!("Unable to refresh OAuth token: {e}")))?;
-
         Ok(token_response)
     }
 }

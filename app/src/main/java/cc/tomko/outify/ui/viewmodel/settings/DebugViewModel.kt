@@ -48,12 +48,6 @@ class DebugViewModel @Inject constructor(
     private val _isPlaybackLoggedIn = MutableStateFlow(false)
     val isPlaybackLoggedIn: StateFlow<Boolean> = _isPlaybackLoggedIn.asStateFlow()
 
-    private val _isAccountLoggedIn = MutableStateFlow(false)
-    val isAccountLoggedIn: StateFlow<Boolean> = _isAccountLoggedIn.asStateFlow()
-
-    private val _hasAccountsFile = MutableStateFlow(false)
-    val hasAccountsFile: StateFlow<Boolean> = _hasAccountsFile.asStateFlow()
-
     private val _hasPlaybackFile = MutableStateFlow(false)
     val hasPlaybackFile: StateFlow<Boolean> = _hasPlaybackFile.asStateFlow()
 
@@ -62,9 +56,6 @@ class DebugViewModel @Inject constructor(
 
     private val _username = MutableStateFlow<String?>(null)
     val username: StateFlow<String?> = _username.asStateFlow()
-
-    private val _isPremium = MutableStateFlow(true)
-    val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
     //endregion
 
     //region Spirc
@@ -141,14 +132,13 @@ class DebugViewModel @Inject constructor(
 
     fun loadData() {
         _isPlaybackLoggedIn.value = authManager.hasCachedCredentials()
-        _hasAccountsFile.value = File(context.filesDir, "account.json").exists()
         _hasPlaybackFile.value = File(context.filesDir, "credentials.json").exists()
 
         startDiagnosticsPolling()
 
         viewModelScope.launch {
-            val authenticated = withContext(Dispatchers.IO) { spClient.isOAuthAuthenticated() }
-            _isAccountLoggedIn.value = authenticated
+            val authenticated = withContext(Dispatchers.IO) { spClient.isPlaybackAuthenticated() }
+            _isPlaybackLoggedIn.value = authenticated
             if (authenticated) {
                 fetchProfile()
             }
@@ -211,14 +201,11 @@ class DebugViewModel @Inject constructor(
                 }
                 val jsonObject = json.decodeFromString<CurrentUserProfile>(profile)
 
-                val id = jsonObject.id
-                val username = jsonObject.displayName
-                val imageUrl = jsonObject.images.first().url
+                val username = jsonObject.username
+                val displayName = jsonObject.displayName
 
-                _isPremium.value = jsonObject.product == "premium"
-
-                _userId.value = id
-                _username.value = username
+                _userId.value = username
+                _username.value = displayName ?: username
             } catch (e: Exception) {
                 e.printStackTrace()
             }

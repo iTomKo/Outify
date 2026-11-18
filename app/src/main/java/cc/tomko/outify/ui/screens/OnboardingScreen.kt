@@ -1,12 +1,6 @@
 package cc.tomko.outify.ui.screens
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +23,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.Recommend
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -50,7 +41,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cc.tomko.outify.R
-import cc.tomko.outify.ui.viewmodel.OnboardingStep
 import cc.tomko.outify.ui.viewmodel.OnboardingViewModel
 import racra.compose.smooth_corner_rect_library.AbsoluteSmoothCornerShape
 
@@ -62,98 +52,19 @@ fun OnboardingScreen(
 ) {
     val context = LocalContext.current
 
-    val steps by viewModel.steps.collectAsStateWithLifecycle()
-    val currentIndex by viewModel.currentIndex.collectAsStateWithLifecycle()
     val isPlaybackLoggedIn by viewModel.isPlaybackLoggedIn.collectAsStateWithLifecycle()
-    val isAccountLoggedIn by viewModel.isAccountLoggedIn.collectAsStateWithLifecycle()
 
-    val currentStep = steps.getOrNull(currentIndex) ?: OnboardingStep.PLAYBACK
-
-    if (steps.isEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
-        return
-    }
-
-    AnimatedContent(
-        targetState = currentStep,
-        transitionSpec = {
-            (fadeIn(tween(320)) togetherWith fadeOut(tween(220)))
-        },
-        label = "onboardingStep",
-        modifier = modifier.fillMaxSize(),
-    ) { step ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .safeDrawingPadding()
-                .verticalScroll(rememberScrollState())
-        ) {
-            StepIndicator(
-                currentIndex = currentIndex,
-                total = steps.size
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            when (step) {
-                OnboardingStep.PLAYBACK -> PlaybackLoginContent(
-                    isLoggedIn = isPlaybackLoggedIn,
-                    onConnect = { viewModel.startPlaybackAuth(context) }
-                )
-
-                OnboardingStep.ACCOUNT -> AccountLoginContent(
-                    isLoggedIn = isAccountLoggedIn,
-                    onConnect = { viewModel.startAccountAuth(context) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun StepIndicator(
-    currentIndex: Int,
-    total: Int,
-) {
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
     ) {
-        for (i in 0 until total) {
-            val isActive = i == currentIndex
-            val isDone = i < currentIndex
-            val width by animateDpAsState(if (isActive) 28.dp else 8.dp, label = "stepWidth")
-
-            Surface(
-                modifier = Modifier
-                    .width(width)
-                    .height(8.dp),
-                shape = CircleShape,
-                color = when {
-                    isDone -> MaterialTheme.colorScheme.primary
-                    isActive -> MaterialTheme.colorScheme.primaryContainer
-                    else -> MaterialTheme.colorScheme.surfaceVariant
-                }
-            ) {}
-            if (i < total - 1) {
-                Spacer(Modifier.width(8.dp))
-            }
-        }
+        PlaybackLoginContent(
+            isLoggedIn = isPlaybackLoggedIn,
+            onConnect = { viewModel.startPlaybackAuth(context) }
+        )
     }
 }
 
@@ -293,120 +204,6 @@ private fun PlaybackLoginContent(
             Spacer(Modifier.width(12.dp))
             Text(
                 text = if (isLoggedIn) "Connected" else "Connect playback",
-                style = MaterialTheme.typography.titleMedium
-            )
-        }
-
-        Spacer(Modifier.height(48.dp))
-    }
-}
-
-@Composable
-private fun AccountLoginContent(
-    isLoggedIn: Boolean,
-    onConnect: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        HeroArtwork(
-            icon = Icons.Default.AccountCircle,
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        )
-
-        Spacer(Modifier.height(40.dp))
-
-        Text(
-            text = stringResource(R.string.common_account_login),
-            style = MaterialTheme.typography.headlineLargeEmphasized,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        Text(
-            text = stringResource(R.string.onb_account_login_desc),
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(32.dp))
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = AbsoluteSmoothCornerShape(
-                cornerRadiusBL = 24.dp,
-                cornerRadiusBR = 24.dp,
-                cornerRadiusTL = 24.dp,
-                cornerRadiusTR = 24.dp,
-            ),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                LoginFeature(
-                    icon = Icons.Default.ThumbUp,
-                    text = stringResource(R.string.onb_like_tracks)
-                )
-                LoginFeature(
-                    icon = Icons.Default.Recommend,
-                    text = stringResource(R.string.search_spotify)
-                )
-                LoginFeature(
-                    icon = Icons.Default.LibraryMusic,
-                    text = stringResource(R.string.onb_manage_playlists)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(40.dp))
-
-        AnimatedVisibility(visible = isLoggedIn) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = stringResource(R.string.onb_account_connected),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        Button(
-            onClick = onConnect,
-            enabled = !isLoggedIn,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp),
-            shape = AbsoluteSmoothCornerShape(
-                cornerRadiusBL = 20.dp,
-                cornerRadiusBR = 20.dp,
-                cornerRadiusTL = 20.dp,
-                cornerRadiusTR = 20.dp,
-            ),
-        ) {
-            Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
-            Spacer(Modifier.width(12.dp))
-            Text(
-                text = if (isLoggedIn) "Connected" else "Connect account",
                 style = MaterialTheme.typography.titleMedium
             )
         }

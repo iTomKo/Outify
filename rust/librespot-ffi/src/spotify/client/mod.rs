@@ -1,54 +1,25 @@
 use once_cell::sync::OnceCell;
 use reqwest::Client;
 use std::{
-    sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    sync::Mutex,
+    time::Duration,
 };
-use tokio::sync::RwLock;
 
-use crate::spotify::{error::SpotifyApiError, token::WebApiToken};
-
-mod auth;
 mod library;
 mod player;
 mod playlist;
 mod user;
 
 pub use library::{SavedItemType, EpisodeDetails};
-
-const SPOTIFY_API_URL: &str = "https://api.spotify.com";
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
-const SPOTIFY_OAUTH_CALLBACK_URI: &str = "http://127.0.0.1:5588/account/login";
-const SPOTIFY_OAUTH_SCOPES: &[&str] = &[
-    "streaming",
-    "user-read-private",
-    "user-read-email",
-    "user-top-read",
-    "user-library-modify",
-    "user-library-read",
-    "user-follow-modify",
-    "user-read-playback-state",
-    "playlist-modify-private",
-    "playlist-modify-public",
-];
+use super::error::SpotifyApiError;
 
 static SPOTIFY_CLIENT: OnceCell<SpotifyClient> = OnceCell::new();
-
-/// OAuth state for SpotifyClient's user authentication flow
-pub struct OAuthState {
-    pub oauth_client: librespot_oauth::OAuthClient,
-    pub pkce_verifier: Option<oauth2::PkceCodeVerifier>,
-    pub created_at: Instant,
-}
 
 pub struct SpotifyClient {
     pub(crate) client_id: Mutex<String>,
     pub(crate) client_secret: Mutex<String>,
     pub(crate) client: Client,
-    pub(crate) token: Arc<RwLock<Option<WebApiToken>>>,
-    pub(crate) oauth_state: Arc<RwLock<Option<OAuthState>>>,
-    /// Serializes token refreshes. Spotify rotates refresh tokens, so
-    /// concurrent refreshes with the same refresh token would fail.
+    /// Serializes token refreshes (no longer used, kept for compatibility)
     pub(crate) refresh_lock: tokio::sync::Mutex<()>,
 }
 
@@ -61,8 +32,6 @@ impl SpotifyClient {
                 .pool_idle_timeout(Duration::from_secs(90))
                 .build()
                 .expect("failed to build client"),
-            token: Arc::new(RwLock::new(None)),
-            oauth_state: Arc::new(RwLock::new(None)),
             refresh_lock: tokio::sync::Mutex::new(()),
         }
     }
@@ -104,18 +73,5 @@ pub fn update_client(client_id: String, client_secret: String) {
     if let Some(client) = SPOTIFY_CLIENT.get() {
         client.update_credentials(client_id, client_secret);
         info!("spotify client credentials updated");
-    }
-}
-
-pub fn reset_client() {
-    if let Some(client) = SPOTIFY_CLIENT.get() {
-        let rt = crate::network_rt();
-
-        rt.block_on(async {
-            let mut oauth_state_guard = client.oauth_state.write().await;
-            *oauth_state_guard = None;
-        });
-
-        info!("spotify client oauth state reset");
     }
 }

@@ -2,37 +2,35 @@ package cc.tomko.outify.ui.components.bottomsheet.account
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cc.tomko.outify.R
 import cc.tomko.outify.data.setting.LocalUiSettings
-import cc.tomko.outify.ui.components.ScreenshotAvatar
-import cc.tomko.outify.ui.components.SmartImage
+import cc.tomko.outify.ui.components.user.AccountAvatar
+import cc.tomko.outify.ui.components.user.StatusPill
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,101 +45,87 @@ fun AccountDetailBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val screenshotMode = LocalUiSettings.current.screenshotMode
+    val displayName = when {
+        isLoggedIn && screenshotMode -> stringResource(R.string.screenshot_mode_username)
+        isLoggedIn && !username.isNullOrBlank() -> username
+        else -> null
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         modifier = modifier
     ) {
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isLoggedIn && screenshotMode) {
-                    ScreenshotAvatar(Modifier.size(56.dp))
-                } else if (isLoggedIn && userImageUrl != null) {
-                    Surface(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        SmartImage(
-                            url = userImageUrl,
-                            contentDescription = stringResource(R.string.common_profile_picture),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
+            AccountAvatar(
+                isLoggedIn = isLoggedIn,
+                name = displayName,
+                imageUrl = userImageUrl,
+                screenshotMode = screenshotMode,
+                size = 96.dp
+            )
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+            Text(
+                text = displayName ?: title,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
-                    if (isLoggedIn && (screenshotMode || username != null)) {
-                        Text(
-                            text = if (screenshotMode) stringResource(R.string.screenshot_mode_username)
-                                else username.orEmpty(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                if (isLoggedIn) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = stringResource(R.string.common_logged_in),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            if (isLoggedIn) {
+                StatusPill(text = stringResource(R.string.common_logged_in))
             }
 
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
             )
 
-            if (isLoggedIn) {
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
+            if (isLoggedIn) {
                 Button(
                     onClick = {
                         onLogout()
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Logout,
                         contentDescription = null
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.common_logout))
+                    Text(
+                        text = stringResource(R.string.common_logout),
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             } else {
                 Text(
                     text = stringResource(R.string.account_login_in_progress),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    textAlign = TextAlign.Center
                 )
             }
-
-            Spacer(modifier = Modifier.height(6.dp))
         }
     }
 }
